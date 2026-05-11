@@ -13,7 +13,7 @@
 
 **English** · [简体中文](./README_zh.md)
 
-[Features](#features) · [Quick Start](#quick-start) · [Development](#development) · [Roadmap](./FEATURES.md) · [Contributing](#contributing) · [License](#license)
+[Features](#features) · [Quick Start](#quick-start) · [Development](#development) · [Contributing](#contributing) · [License](#license)
 
 </div>
 
@@ -25,7 +25,7 @@
 
 Beyond the basics like live matching and capture-group inspection, RegexStudio offers multiple visual perspectives — **railroad diagrams**, a **node-based editor**, and **plain-language explanations** — so you can understand any regex from every angle.
 
-> 📝 The project is under active development. The full feature blueprint lives in [`FEATURES.md`](./FEATURES.md).
+> 📝 The project is under active development.
 
 ---
 
@@ -64,8 +64,6 @@ Beyond the basics like live matching and capture-group inspection, RegexStudio o
 - 🌍 **i18n** — Full English & Simplified Chinese UI powered by Paraglide; locale-aware routes
 - 🌗 **Light & dark theme** — Follow system or toggle manually
 - ⚡ **SSR-ready** — Built on TanStack Start for fast first paint, friendly to SEO and link sharing
-
-For planned features (performance analyzer, regex diff, AI assist, file processing, …) see [`FEATURES.md`](./FEATURES.md).
 
 ---
 
@@ -165,7 +163,6 @@ regex-studio/
 │   ├── ssr.tsx                # SSR entry
 │   ├── router.tsx             # Router instance
 │   └── index.css              # Global styles
-├── FEATURES.md                # Feature blueprint & roadmap
 ├── biome.json                 # Biome config
 ├── vite.config.ts
 └── package.json
@@ -181,7 +178,7 @@ Contributions of any kind are warmly welcomed — bug reports, feature suggestio
 
 1. **Open an Issue**
    - 🐛 **Bug reports**: include reproduction steps, expected vs. actual behavior, and your environment
-   - 💡 **Feature requests**: describe the use case and value; feel free to reference [`FEATURES.md`](./FEATURES.md) when discussing priority
+   - 💡 **Feature requests**: describe the use case and value
 2. **Submit a Pull Request**
    1. Fork the repo and create a feature branch off `main`
    2. Run `pnpm check` before pushing to ensure lint and type-check pass
@@ -209,7 +206,7 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 - ⚠️ If you **modify** the project and offer it as a **network service**, you **must** publish the full modified source under the same AGPL-3.0 license
 - ⚠️ Derivative works must retain the original copyright notice and license
 
-See [`LICENSE`](./LICENSE) or the [official AGPL-3.0 page](https://www.gnu.org/licenses/agpl-3.0.html) for the full text.
+See the [official AGPL-3.0 page](https://www.gnu.org/licenses/agpl-3.0.html) for the full text.
 
 > 💼 **Commercial use**: If AGPL-3.0's network-service clause does not fit your company's use case, please reach out to discuss a commercial license.
 
@@ -235,7 +232,6 @@ RegexStudio stands on the shoulders of giants. Special thanks to:
 - [CodeMirror](https://codemirror.net) — for a powerful editor core
 - [shadcn/ui](https://ui.shadcn.com) & [Radix UI](https://www.radix-ui.com) — for elegant UI primitives
 - [Tailwind CSS](https://tailwindcss.com) — for making styling enjoyable
-- And all the pioneering tools mentioned in [`FEATURES.md`](./FEATURES.md) that inspired this project
 
 ---
 

@@ -13,7 +13,7 @@
 
 [English](./README.md) · **简体中文**
 
-[功能特性](#功能特性) · [快速开始](#快速开始) · [开发](#开发) · [路线图](./FEATURES.md) · [贡献](#贡献) · [协议](#开源协议)
+[功能特性](#功能特性) · [快速开始](#快速开始) · [开发](#开发) · [贡献](#贡献) · [协议](#开源协议)
 
 </div>
 
@@ -25,7 +25,7 @@
 
 与传统的正则工具相比,RegexStudio 在保留实时匹配、捕获组检视等基础能力的同时,提供了**铁路图 (Railroad Diagram)**、**节点编辑器**、**逐段解释**等多种可视化视图,帮助使用者从不同维度理解一段正则表达式。
 
-> 📝 项目目前处于活跃开发阶段,完整功能蓝图请见 [`FEATURES.md`](./FEATURES.md)。
+> 📝 项目目前处于活跃开发阶段。
 
 ---
 
@@ -64,8 +64,6 @@
 - � **中英双语 i18n** —— 基于 Paraglide 实现，路由级别区分语言
 - � **暗色 / 亮色主题** —— 跟随系统或手动切换
 - ⚡ **SSR 友好** —— 基于 TanStack Start，首屏即可渲染，SEO & 分享更友好
-
-更多规划中的功能（性能分析、Regex Diff、AI 辅助、文件处理等）详见 [`FEATURES.md`](./FEATURES.md)。
 
 ---
 
@@ -165,7 +163,6 @@ regex-studio/
 │   ├── ssr.tsx                # SSR 入口
 │   ├── router.tsx             # Router 实例
 │   └── index.css              # 全局样式
-├── FEATURES.md                # 功能规划与路线图
 ├── biome.json                 # Biome 配置
 ├── vite.config.ts
 └── package.json
@@ -181,7 +178,7 @@ regex-studio/
 
 1. **提 Issue**
    - 🐛 报告 Bug:请提供复现步骤、期望行为、实际行为、运行环境
-   - 💡 建议功能:描述使用场景与价值,可结合 [`FEATURES.md`](./FEATURES.md) 讨论优先级
+   - 💡 建议功能:描述使用场景与价值
 2. **提 Pull Request**
    1. Fork 本仓库并基于 `main` 创建特性分支
    2. 提交前请运行 `pnpm check` 确保通过 lint 与类型检查
@@ -209,7 +206,7 @@ regex-studio/
 - ⚠️ 一旦你**修改**本项目并通过网络对外提供服务,你**必须**以相同的 AGPL-3.0 协议公开你的全部修改源代码
 - ⚠️ 衍生作品必须保留原始版权声明与协议
 
-完整协议文本见 [`LICENSE`](./LICENSE) 或 [GNU AGPL-3.0 官方页面](https://www.gnu.org/licenses/agpl-3.0.html)。
+完整协议文本见 [GNU AGPL-3.0 官方页面](https://www.gnu.org/licenses/agpl-3.0.html)。
 
 > 💼 **商业使用提示**:如果 AGPL-3.0 的网络服务条款不适合贵公司的使用场景,欢迎联系作者讨论商业授权。
 
@@ -235,7 +232,6 @@ RegexStudio 的诞生离不开开源社区的众多优秀项目,在此特别感�
 - [CodeMirror](https://codemirror.net) —— 强大的代码编辑器内核
 - [shadcn/ui](https://ui.shadcn.com) & [Radix UI](https://www.radix-ui.com) —— 优雅的 UI 原语
 - [Tailwind CSS](https://tailwindcss.com) —— 让样式开发变得愉快
-- 以及所有为 [`FEATURES.md`](./FEATURES.md) 中提到的同类工具做出贡献的先驱者们
 
 ---
 

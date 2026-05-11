@@ -11,6 +11,10 @@ dist
 dist-ssr
 *.local
 
+# Use pnpm-lock.yaml; ignore other package managers' lockfiles
+package-lock.json
+yarn.lock
+
 .vscode/*
 !.vscode/extensions.json
 .idea

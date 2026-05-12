@@ -112,7 +112,7 @@ function computeDerived(state: RegexState): RegexDerived {
     state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
 
   const replacedText =
-    state.showReplace && state.replacement && validation.valid
+    state.replacement && validation.valid
       ? replaceMatches(state.pattern, jsFlagString, state.testText, state.replacement)
       : state.testText;
 

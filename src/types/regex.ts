@@ -2,6 +2,8 @@ export interface RegexFlag {
   key: string;
   label: string;
   description: string;
+  /** i18n key for `description` (preferred when present). */
+  descKey?: string;
   enabled: boolean;
   /**
    * Character forwarded to JavaScript's RegExp when this flag is enabled.

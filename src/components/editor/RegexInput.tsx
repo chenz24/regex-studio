@@ -19,7 +19,14 @@ import type { RegexFlag, ASTNode } from '../../types/regex';
 import type { RegexEngine, CompatibilityWarning } from '../../types/engineTypes';
 import { ENGINE_FLAVORS } from '../../types/engineTypes';
 import { findNodeById, findNodeAtPosition } from '../../lib/ast';
-import { useT } from '@/lib/i18n';
+import { useT, type Messages } from '@/lib/i18n';
+
+function resolveDesc(t: Messages, key: string | undefined, fallback: string): string {
+  if (!key) return fallback;
+  const fn = (t as Record<string, unknown>)[key];
+  if (typeof fn !== 'function') return fallback;
+  return (fn as () => string)();
+}
 
 interface RegexInputProps {
   pattern: string;
@@ -377,7 +384,7 @@ export function RegexInput({
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={8}>
                   <div className="font-semibold">{flag.label}</div>
-                  <div className="opacity-80 mt-0.5">{flag.description}</div>
+                  <div className="opacity-80 mt-0.5">{resolveDesc(t, flag.descKey, flag.description)}</div>
                   {!flag.jsFlag && (
                     <div className="opacity-60 mt-1 text-[10px]">
                       {t.regex_input_display_only()}

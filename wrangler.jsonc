@@ -1,14 +1,27 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "regex-studio",
-  "main": "dist/server/server.js",
-  "compatibility_date": "2025-05-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": "./dist/client",
-    "binding": "ASSETS"
-  },
-  "observability": {
-    "enabled": true
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "regex-studio",
+	"main": "dist/server/server.js",
+	"compatibility_date": "2025-05-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS"
+	},
+	"routes": [
+		{
+			"pattern": "regexstudio.com",
+			"custom_domain": true
+		}
+	],
+	"preview_urls": false,
+	"observability": {
+		"enabled": true
+	},
+	"vars": {
+		"VITE_GA_MEASUREMENT_ID": "G-Q62XMBLRYV"
+	},
+	"workers_dev": true
 }

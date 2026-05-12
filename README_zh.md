@@ -94,7 +94,7 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/<your-org>/regex-studio.git
+git clone https://github.com/chenz24/regex-studio.git
 cd regex-studio
 
 # 2. 安装依赖

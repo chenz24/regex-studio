@@ -27,6 +27,8 @@ Beyond the basics like live matching and capture-group inspection, RegexStudio o
 
 > 📝 The project is under active development.
 
+![Screenshot](public/og.png)
+
 ---
 
 ## Features

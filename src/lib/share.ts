@@ -1,4 +1,7 @@
 import type { TestCase } from '../types/regex';
+import { ENGINE_LIST } from '../types/engineTypes';
+
+const VALID_ENGINES = new Set<string>(ENGINE_LIST);
 
 /**
  * Versioned, URL-safe payload for sharing the editor state.
@@ -57,6 +60,10 @@ export function decodeShare(s: string): SharePayload | null {
     const json = base64UrlToUtf8(s);
     const data = JSON.parse(json);
     if (!data || data.v !== 1 || typeof data.p !== 'string') return null;
+    // Engine must be a known target; otherwise downstream code (e.g.
+    // ENGINE_FLAVORS[engine].name) would crash on an unknown id.
+    if (typeof data.e !== 'string' || !VALID_ENGINES.has(data.e)) return null;
+    if (typeof data.f !== 'string') return null;
     return data as SharePayload;
   } catch {
     return null;

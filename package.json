@@ -12,7 +12,9 @@
     "check:biome": "biome check --write .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "check": "pnpm typecheck && pnpm lint"
+    "check": "pnpm typecheck && pnpm lint",
+    "cf:dev": "wrangler dev",
+    "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",
@@ -28,10 +30,10 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "codemirror": "^6.0.2",
-    "lucide-react": "^0.344.0",
+    "lucide-react": "^0.575.0",
     "radix-ui": "^1.4.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-resizable-panels": "^4.7.2",
     "shadcn": "^4.0.2",
     "tailwind-merge": "^3.5.0",
@@ -43,14 +45,15 @@
     "@inlang/paraglide-js": "^2.18.0",
     "@tanstack/router-plugin": "^1.167.35",
     "@types/node": "^25.4.0",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.18",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "wrangler": "^4.90.0"
   }
 }

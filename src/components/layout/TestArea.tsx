@@ -200,6 +200,11 @@ export function TestArea({
   const themeCompartment = useRef(new Compartment());
   const whitespaceCompartment = useRef(new Compartment());
 
+  // Capture the initial doc so the mount-only init effect can read it
+  // without taking `text` as a dependency (which would rebuild the
+  // EditorView on every keystroke — wiping cursor, history, and stealing focus).
+  const initialTextRef = useRef(text);
+
   // Hover tooltip for match details
   const matchTooltip = useMemo(
     () =>
@@ -257,14 +262,17 @@ export function TestArea({
     [],
   );
 
-  // Initialize editor
+  // Initialize editor (mount-only). `matchTooltip` is memoized with an
+  // empty dep list so its identity is stable across renders and excluding
+  // it here is safe.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only init
   useEffect(() => {
     if (!editorRef.current) return;
 
     const isDark = document.documentElement.classList.contains('dark');
 
     const state = EditorState.create({
-      doc: text,
+      doc: initialTextRef.current,
       extensions: [
         testAreaTheme,
         themeCompartment.current.of(isDark ? darkTheme : lightTheme),
@@ -293,8 +301,10 @@ export function TestArea({
       view.destroy();
       viewRef.current = null;
     };
+    // Mount-only: the EditorView is created once. External text changes
+    // are synced via the dedicated effect below using `view.dispatch`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, matchTooltip]);
+  }, []);
 
   // Sync text from outside
   useEffect(() => {

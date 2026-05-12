@@ -106,7 +106,7 @@ pnpm install
 pnpm dev
 ```
 
-开发服务器启动后,默认访问 [http://localhost:3000](http://localhost:3000)。
+开发服务器启动后,默认访问 [http://localhost:5173](http://localhost:5173)。
 
 ### 构建生产版本
 

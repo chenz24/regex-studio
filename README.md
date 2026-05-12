@@ -106,7 +106,7 @@ pnpm install
 pnpm dev
 ```
 
-The dev server starts at [http://localhost:3000](http://localhost:3000) by default.
+The dev server starts at [http://localhost:5173](http://localhost:5173) by default.
 
 ### Production Build
 

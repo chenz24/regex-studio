@@ -8,10 +8,11 @@ export function generatePhp(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'php');
   const testStr = escapeTestString(testText, 'php');
-  const replaceStr = escapeReplacement(replaceText, 'php');
+  const replaceStr = escapeReplacement(replaceText, 'php', pattern);
   const phpFlags = getPhpFlags(flags);
 
-  const patternStr = `'/${escapedPattern.replace(/\//g, '\\/')}/${phpFlags}'`;
+  // escapePattern already escaped the delimiter and the PHP string layer.
+  const patternStr = `'/${escapedPattern}/${phpFlags}'`;
 
   let code = `<?php
 

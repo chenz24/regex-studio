@@ -132,6 +132,8 @@ pnpm preview    # preview the production bundle locally
 | `pnpm check:biome` | Run Biome check + fix |
 | `pnpm typecheck` | Run TypeScript type-check |
 | `pnpm test` | Run the unit tests and component tests (Vitest) |
+| `pnpm verify:content` | Check every challenge and lesson reference solution |
+| `pnpm verify:codegen` | Compile and run the generated snippets (needs the toolchains) |
 | `pnpm test:watch` | Run the unit tests in watch mode |
 | `pnpm check` | Run typecheck + lint + tests together |
 

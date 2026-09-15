@@ -13,7 +13,7 @@ export function generateKotlin(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'kotlin');
   const testStr = escapeTestString(testText, 'kotlin');
-  const replaceStr = escapeReplacement(replaceText, 'kotlin');
+  const replaceStr = escapeReplacement(replaceText, 'kotlin', pattern);
 
   // Kotlin uses RegexOption enum
   const kotlinOptions: string[] = [];

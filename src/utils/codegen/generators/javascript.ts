@@ -7,7 +7,7 @@ export function generateJavaScript(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'javascript');
   const testStr = escapeTestString(testText, 'javascript');
-  const replaceStr = escapeReplacement(replaceText, 'javascript');
+  const replaceStr = escapeReplacement(replaceText, 'javascript', pattern);
 
   let code = '';
 

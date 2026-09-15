@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:content": "tsx scripts/verify-content.ts",
+    "verify:codegen": "tsx scripts/verify-codegen.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "cf:dev": "wrangler dev",
     "deploy": "pnpm build && wrangler deploy"
@@ -57,6 +59,7 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.23.13",
     "typescript": "^5.5.3",
     "vite": "^7.3.1",
     "vitest": "^5.0.0",

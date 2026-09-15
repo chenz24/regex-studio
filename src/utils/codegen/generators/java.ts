@@ -13,7 +13,7 @@ export function generateJava(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'java');
   const testStr = escapeTestString(testText, 'java');
-  const replaceStr = escapeReplacement(replaceText, 'java');
+  const replaceStr = escapeReplacement(replaceText, 'java', pattern);
 
   const flagsArg =
     flagMapping.compileFlags.length > 0 ? `, ${flagMapping.compileFlags.join(' | ')}` : '';

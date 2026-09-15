@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateCode } from './index';
-import { escapePattern, pythonStringLiteral } from './escaper';
+import { escapePattern, escapeReplacement, pythonStringLiteral } from './escaper';
 import type { CodeGenContext, CodeGenLanguage, CodeGenOperation } from './types';
 
 function gen(overrides: Partial<CodeGenContext> & { language: CodeGenLanguage }): string {
@@ -87,7 +87,8 @@ describe('generated Python', () => {
     // `'\1'` in a normal literal is the control character U+0001, not a
     // group reference.
     const code = gen({ language: 'python', operation: 'replace', replaceText: '$2 $1' });
-    expect(code).toContain("replacement = r'\\2 \\1'");
+    // `\g<2>` rather than `\2`, which would swallow a following digit.
+    expect(code).toContain("replacement = r'\\g<2> \\g<1>'");
   });
 
   it('translates named and whole-match references', () => {
@@ -98,5 +99,74 @@ describe('generated Python', () => {
       replaceText: '$<a>-$&',
     });
     expect(code).toContain("replacement = r'\\g<a>-\\g<0>'");
+  });
+});
+
+describe('escapeReplacement', () => {
+  const render = (repl: string, lang: CodeGenLanguage, pattern = '(\\w+)') =>
+    escapeReplacement(repl, lang, pattern);
+
+  it.each<[CodeGenLanguage, string]>([
+    ['javascript', "'$$'"],
+    ['python', "r'$'"],
+    ['ruby', '"$"'],
+    ['java', '"\\\\$"'],
+    ['kotlin', '"\\\\\\$"'],
+    ['go', '"$$"'],
+    ['rust', '"$$"'],
+    ['dotnet', '@"$$"'],
+    ['php', "'\\\\$'"],
+    ['swift', '"\\\\$"'],
+  ])('writes a literal dollar the way %s spells it', (lang, expected) => {
+    // `$$` is JavaScript's escape for one dollar. Left untranslated it either
+    // doubled in the output or, in Java, threw "Illegal group ref".
+    expect(render('$$', lang)).toBe(expected);
+  });
+
+  it.each<[CodeGenLanguage, string]>([
+    ['python', "r'\\g<0>'"],
+    ['ruby', '"\\\\0"'],
+    ['java', '"$0"'],
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: Go's reference syntax
+    ['go', '"${0}"'],
+  ])('writes the whole match the way %s spells it', (lang, expected) => {
+    expect(render('$&', lang)).toBe(expected);
+  });
+
+  it('reads the reference before the literal dollar that precedes it', () => {
+    // `$$$1` is a dollar followed by group 1 — one left-to-right pass, not
+    // two independent replaces.
+    expect(render('$$$1', 'python')).toBe("r'$\\g<1>'");
+    expect(render('$$$1', 'java')).toBe('"\\\\$$1"');
+  });
+
+  it('resolves a named reference for engines that only have numbers', () => {
+    const pattern = '(?<first>\\w+)@(?<second>\\w+)';
+    expect(render('$<second>', 'swift', pattern)).toBe('"$2"');
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: PHP's reference syntax
+    expect(render('$<second>', 'php', pattern)).toBe("'${2}'");
+    // Engines with named templates keep the name.
+    expect(render('$<second>', 'python', pattern)).toBe("r'\\g<second>'");
+  });
+
+  it('reads $10 as group 1 when the pattern has fewer than ten groups', () => {
+    expect(render('$10', 'java', '(\\d)')).toBe('"$10"');
+    expect(render('$10', 'python', '(\\d)')).toBe("r'\\g<1>0'");
+  });
+
+  it('escapes a hash in a Ruby replacement', () => {
+    // Double-quoted, so `#{...}` would interpolate.
+    expect(render('#{$1}', 'ruby')).toBe('"\\#{\\\\1}"');
+  });
+});
+
+describe('python named groups', () => {
+  it('translates the named-group syntax Python does not accept', () => {
+    const code = gen({ language: 'python', pattern: '(?<year>\\d{4})-\\k<year>' });
+    expect(code).toContain("re.compile(r'(?P<year>\\d{4})-(?P=year)'");
+  });
+
+  it('leaves lookbehind alone', () => {
+    expect(gen({ language: 'python', pattern: '(?<=a)b' })).toContain("re.compile(r'(?<=a)b'");
   });
 });

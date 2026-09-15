@@ -8,15 +8,6 @@ import type { MatchInfo, GroupInfo } from '../types/regex';
 export const MAX_MATCHES = 10_000;
 
 /**
- * Advance past the character at `index`.
- *
- * With the `u`/`v` flags the engine works in code points: bumping
- * `lastIndex` by one lands *inside* a surrogate pair, and the engine snaps
- * back to the start of that code point on the next `exec` — the same empty
- * match is then found forever. Astral characters therefore have to be
- * stepped over as a whole.
- */
-/**
  * Whether this engine accepts the `d` (hasIndices) flag — ES2022, so every
  * current browser, but compiling with an unknown flag throws and would take
  * matching down entirely on an older one.
@@ -33,6 +24,15 @@ const SUPPORTS_INDICES = (() => {
   }
 })();
 
+/**
+ * Advance past the character at `index`.
+ *
+ * With the `u`/`v` flags the engine works in code points: bumping
+ * `lastIndex` by one lands *inside* a surrogate pair, and the engine snaps
+ * back to the start of that code point on the next `exec` — the same empty
+ * match is then found forever. Astral characters therefore have to be
+ * stepped over as a whole.
+ */
 function advanceIndex(text: string, index: number, unicode: boolean): number {
   if (!unicode) return index + 1;
   const code = text.codePointAt(index);
@@ -86,7 +86,7 @@ export function findMatches(pattern: string, flags: string, text: string): Match
  * mislabels every group that captured the same text. Reading the names off
  * the pattern in source order is exact.
  */
-function collectGroupNames(pattern: string): Array<string | null> {
+export function collectGroupNames(pattern: string): Array<string | null> {
   const names: Array<string | null> = [];
   let inClass = false;
 

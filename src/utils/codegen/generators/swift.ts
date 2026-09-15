@@ -13,7 +13,7 @@ export function generateSwift(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'swift');
   const testStr = escapeTestString(testText, 'swift');
-  const replaceStr = escapeReplacement(replaceText, 'swift');
+  const replaceStr = escapeReplacement(replaceText, 'swift', pattern);
 
   const optionsArg =
     flagMapping.compileFlags.length > 0

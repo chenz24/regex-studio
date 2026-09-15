@@ -108,7 +108,9 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
 
     case 'swift':
       if (hasFlag('i')) result.compileFlags.push('.caseInsensitive');
-      if (hasFlag('m')) result.compileFlags.push('.anchorsMatchLineEndings');
+      // The option is `anchorsMatchLines`; the other spelling does not exist
+      // and the generated Swift did not compile.
+      if (hasFlag('m')) result.compileFlags.push('.anchorsMatchLines');
       if (hasFlag('s')) result.compileFlags.push('.dotMatchesLineSeparators');
       result.globalHandling = 'api';
       if (hasFlag('x')) result.unsupportedFlags.push('x');

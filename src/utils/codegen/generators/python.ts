@@ -1,5 +1,10 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapePattern, escapeTestString, escapeReplacement, pythonStringLiteral } from '../escaper';
+import {
+  escapePattern,
+  escapeTestString,
+  escapeReplacement,
+  pythonStringLiteral,
+} from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generatePython(ctx: CodeGenContext): CodeGenResult {
@@ -13,7 +18,7 @@ export function generatePython(ctx: CodeGenContext): CodeGenResult {
 
   const patternLiteral = pythonStringLiteral(escapePattern(pattern, 'python'));
   const testStr = escapeTestString(testText, 'python');
-  const replaceStr = escapeReplacement(replaceText, 'python');
+  const replaceStr = escapeReplacement(replaceText, 'python', pattern);
 
   const flagsArg =
     flagMapping.compileFlags.length > 0 ? `, ${flagMapping.compileFlags.join(' | ')}` : '';

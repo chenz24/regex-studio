@@ -1,13 +1,14 @@
+import { collectGroupNames } from '../regexMatcher';
 import type { CodeGenLanguage } from './types';
 
 /**
- * Escape the delimiters of a `/.../` regex literal.
+ * Backslash-escape every *unescaped* occurrence of `chars` in a regex.
  *
- * Only *unescaped* slashes may be touched: a blanket replace turns the
- * already-valid `https:\/\/` into `https:\\/\\/`, which ends the literal
- * early and makes the generated code a syntax error.
+ * Only unescaped ones may be touched: a blanket replace turns the already
+ * valid `https:\/\/` into `https:\\/\\/`, which ends the literal early and
+ * makes the generated code a syntax error.
  */
-function escapeLiteralSlashes(pattern: string): string {
+function escapeUnescaped(pattern: string, chars: string): string {
   let out = '';
   for (let i = 0; i < pattern.length; i++) {
     const ch = pattern[i];
@@ -17,7 +18,7 @@ function escapeLiteralSlashes(pattern: string): string {
       i++;
       continue;
     }
-    out += ch === '/' ? '\\/' : ch;
+    out += chars.includes(ch) ? `\\${ch}` : ch;
   }
   return out;
 }
@@ -53,16 +54,23 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
     case 'javascript':
     case 'typescript':
       // For regex literal /.../, escape forward slashes
-      return escapeLiteralSlashes(pattern);
+      return escapeUnescaped(pattern, '/');
 
     case 'python':
-      // Callers wrap the result with pythonStringLiteral().
-      return pattern;
+      // Python's `re` only knows Python's spelling of named groups, so
+      // `(?<year>…)` and `\k<year>` have to be translated or the generated
+      // code raises at compile time. Callers wrap the result with
+      // pythonStringLiteral().
+      return pattern.replace(/\(\?<(?![=!])(\w+)>/g, '(?P<$1>').replace(/\\k<(\w+)>/g, '(?P=$1)');
 
     case 'java':
-    case 'kotlin':
       // For string "...", double backslashes and escape quotes
       return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+    case 'kotlin':
+      // Same, plus `$`: Kotlin reads `$name` in a string as a template, so an
+      // unescaped dollar either changes the pattern or fails to compile.
+      return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$');
 
     case 'go':
       // For raw string `...`, backticks cannot be escaped, fall back to regular string
@@ -84,12 +92,17 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
 
     case 'pcre2':
     case 'php':
-      // For string '...', escape single quotes and backslashes
-      return pattern.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      // Two layers, and the order matters: escape the `/` delimiter first,
+      // then the PHP single-quoted string. Escaping the delimiter afterwards
+      // (as the generator used to) produced `\\\\\\/`, which PHP reads as an
+      // escaped backslash followed by the delimiter — ending the pattern
+      // early and making PCRE reject the rest as modifiers.
+      return escapeUnescaped(pattern, '/').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     case 'ruby':
-      // For regex literal /.../, escape forward slashes
-      return escapeLiteralSlashes(pattern);
+      // For regex literal /.../, escape the delimiter — and `#`, which would
+      // otherwise start an interpolation: `/#{2}/` is the pattern `2`.
+      return escapeUnescaped(pattern, '/#');
 
     case 'swift':
       // For string "...", escape backslashes and quotes
@@ -125,13 +138,23 @@ export function escapeTestString(text: string, lang: CodeGenLanguage): string {
       return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
     case 'java':
-    case 'kotlin':
-      // Use text blocks for multiline (Java 15+, Kotlin)
+      // Use text blocks for multiline (Java 15+)
       if (truncated.includes('\n')) {
         const escaped = truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         return `"""\n${escaped}"""`;
       }
       return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
+
+    case 'kotlin':
+      // Always a regular string: Kotlin's `"""` blocks are raw, so they
+      // neither process the escapes above nor allow a literal `$` to be
+      // escaped at all.
+      return `"${truncated
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\$/g, '\\$')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')}"`;
 
     case 'go':
       // Use raw string for multiline
@@ -163,9 +186,10 @@ export function escapeTestString(text: string, lang: CodeGenLanguage): string {
       return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
     case 'ruby':
-      // Use heredoc for multiline
+      // Quoted terminator: an unquoted heredoc interpolates `#{...}` out of
+      // the test text.
       if (truncated.includes('\n')) {
-        return `<<~TEXT\n${truncated}\nTEXT`;
+        return `<<~'TEXT'\n${truncated}\nTEXT`;
       }
       return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
@@ -182,58 +206,182 @@ export function escapeTestString(text: string, lang: CodeGenLanguage): string {
 }
 
 /**
- * Escape replacement string for different languages
+ * One piece of a replacement string, in JavaScript's syntax.
  */
-export function escapeReplacement(replacement: string, lang: CodeGenLanguage): string {
+type ReplacementToken =
+  | { kind: 'text'; value: string }
+  | { kind: 'dollar' }
+  | { kind: 'match' }
+  | { kind: 'group'; index: string }
+  | { kind: 'named'; name: string };
+
+/**
+ * Split a replacement on JavaScript's `$` forms, left to right.
+ *
+ * Order matters and sequential `String.replace` calls get it wrong: in
+ * `$$$1` the leading `$$` is a literal dollar and only the tail is a group
+ * reference, but a pass that rewrites `$1` first leaves the `$$` behind for
+ * the next pass to mangle.
+ */
+function tokenizeReplacement(replacement: string, groupCount: number): ReplacementToken[] {
+  const tokens: ReplacementToken[] = [];
+  let text = '';
+  const flush = () => {
+    if (text) tokens.push({ kind: 'text', value: text });
+    text = '';
+  };
+
+  for (let i = 0; i < replacement.length; i++) {
+    if (replacement[i] !== '$') {
+      text += replacement[i];
+      continue;
+    }
+    const rest = replacement.slice(i + 1);
+
+    if (rest.startsWith('$')) {
+      flush();
+      tokens.push({ kind: 'dollar' });
+      i++;
+    } else if (rest.startsWith('&')) {
+      flush();
+      tokens.push({ kind: 'match' });
+      i++;
+    } else if (/^<\w+>/.test(rest)) {
+      const name = /^<(\w+)>/.exec(rest)?.[1] ?? '';
+      flush();
+      tokens.push({ kind: 'named', name });
+      i += name.length + 2;
+    } else if (/^\d/.test(rest)) {
+      // `$10` is group 10 only if the pattern has one; with fewer groups
+      // JavaScript reads it as group 1 followed by a literal `0`.
+      const digits = /^\d{1,2}/.exec(rest)?.[0] ?? '';
+      const index =
+        digits.length === 2 && Number(digits) > groupCount ? digits.slice(0, 1) : digits;
+      flush();
+      tokens.push({ kind: 'group', index });
+      i += index.length;
+    } else {
+      // `$\`` and `$'` have no equivalent anywhere else; leave them alone.
+      text += '$';
+    }
+  }
+
+  flush();
+  return tokens;
+}
+
+/** How a target language spells the same references. */
+interface ReplacementDialect {
+  dollar: string;
+  match: string;
+  group: (index: string) => string;
+  /** `names` is the pattern's capture groups, for engines without named templates. */
+  named: (name: string, names: Array<string | null>) => string;
+}
+
+/** `$<name>` as a numbered reference, for engines that only have those. */
+function numberedRef(name: string, names: Array<string | null>, wrap: (n: string) => string) {
+  const index = names.indexOf(name);
+  return index === -1 ? `$<${name}>` : wrap(String(index + 1));
+}
+
+const DIALECTS: Record<string, ReplacementDialect> = {
+  javascript: { dollar: '$$', match: '$&', group: (n) => `$${n}`, named: (n) => `$<${n}>` },
+  // `\g<1>` rather than `\1`, which would swallow a following digit.
+  python: { dollar: '$', match: '\\g<0>', group: (n) => `\\g<${n}>`, named: (n) => `\\g<${n}>` },
+  ruby: { dollar: '$', match: '\\0', group: (n) => `\\${n}`, named: (n) => `\\k<${n}>` },
+  java: { dollar: '\\$', match: '$0', group: (n) => `$${n}`, named: (n) => `\${${n}}` },
+  // Go and Rust read `$1x` as a group named `1x`, so the braces are required.
+  // biome-ignore-start lint/suspicious/noTemplateCurlyInString: the target language's syntax
+  go: { dollar: '$$', match: '${0}', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
+  rust: { dollar: '$$', match: '${0}', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
+  // biome-ignore-end lint/suspicious/noTemplateCurlyInString: the target language's syntax
+  dotnet: { dollar: '$$', match: '$0', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
+  // preg_replace and NSRegularExpression templates are numbered only, so a
+  // named reference has to be resolved against the pattern.
+  php: {
+    dollar: '\\$',
+    match: '$0',
+    group: (n) => `$${n}`,
+    named: (n, names) => numberedRef(n, names, (i) => `\${${i}}`),
+  },
+  swift: {
+    dollar: '\\$',
+    match: '$0',
+    group: (n) => `$${n}`,
+    named: (n, names) => numberedRef(n, names, (i) => `$${i}`),
+  },
+};
+
+function dialectFor(lang: CodeGenLanguage): ReplacementDialect {
+  if (lang === 'typescript') return DIALECTS.javascript;
+  if (lang === 'kotlin') return DIALECTS.java;
+  if (lang === 'pcre2') return DIALECTS.php;
+  return DIALECTS[lang] ?? DIALECTS.javascript;
+}
+
+/** Rewrite a replacement into the target language's template syntax. */
+function renderReplacement(
+  replacement: string,
+  lang: CodeGenLanguage,
+  names: Array<string | null>,
+): string {
+  const dialect = dialectFor(lang);
+  return tokenizeReplacement(replacement, names.length)
+    .map((token) => {
+      if (token.kind === 'text') return token.value;
+      if (token.kind === 'dollar') return dialect.dollar;
+      if (token.kind === 'match') return dialect.match;
+      if (token.kind === 'group') return dialect.group(token.index);
+      return dialect.named(token.name, names);
+    })
+    .join('');
+}
+
+/**
+ * Rewrite a replacement for the target language and wrap it in a string
+ * literal. Two separate layers: the template syntax the regex engine reads,
+ * then the source syntax the compiler reads.
+ */
+export function escapeReplacement(
+  replacement: string,
+  lang: CodeGenLanguage,
+  pattern = '',
+): string {
+  const template = renderReplacement(replacement, lang, collectGroupNames(pattern));
+
   switch (lang) {
     case 'javascript':
     case 'typescript':
-      return `'${replacement.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+      return `'${template.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-    case 'python': {
-      // Convert $1 to \1, $<name> to \g<name>
-      const pyRepl = replacement
-        .replace(/\$(\d+)/g, '\\$1')
-        .replace(/\$<(\w+)>/g, '\\g<$1>')
-        .replace(/\$&/g, '\\g<0>');
-      // Must be a raw string: in a normal literal `'\1'` is U+0001, not a
-      // group reference.
-      return pythonStringLiteral(pyRepl);
-    }
+    case 'python':
+      // Raw, or `\g<1>` would have to be escaped by hand.
+      return pythonStringLiteral(template);
 
     case 'java':
-    case 'kotlin':
-      // Java uses $1, $2 and ${name}
-      return `"${replacement.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-
     case 'go':
-      // Go uses $1, ${name}
-      return `"${replacement.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    case 'rust':
+    case 'swift':
+      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+    case 'kotlin':
+      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`;
 
     case 'dotnet':
-      // .NET uses $1, ${name}
-      return `"${replacement.replace(/"/g, '\\"')}"`;
-
-    case 'rust':
-      // Rust uses $1, $name
-      return `"${replacement.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+      // Verbatim, so a backslash in the replacement stays a backslash.
+      return `@"${template.replace(/"/g, '""')}"`;
 
     case 'pcre2':
     case 'php':
-      // PHP uses $1, ${name}
-      return `'${replacement.replace(/'/g, "\\'")}'`;
+      return `'${template.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-    case 'ruby': {
-      // Ruby uses \1, \k<name>
-      const rbRepl = replacement.replace(/\$(\d+)/g, '\\\\$1').replace(/\$<(\w+)>/g, '\\k<$1>');
-      return `"${rbRepl.replace(/"/g, '\\"')}"`;
-    }
-
-    case 'swift':
-      // Swift uses $1, $0
-      return `"${replacement.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    case 'ruby':
+      // Double quotes, because `\1` has to survive as an escape — which also
+      // means `#` has to be escaped or it would start an interpolation.
+      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/#/g, '\\#')}"`;
 
     default:
-      return `"${replacement.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
   }
 }

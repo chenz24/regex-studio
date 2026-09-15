@@ -13,7 +13,7 @@ export function generateDotNet(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'dotnet');
   const testStr = escapeTestString(testText, 'dotnet');
-  const replaceStr = escapeReplacement(replaceText, 'dotnet');
+  const replaceStr = escapeReplacement(replaceText, 'dotnet', pattern);
 
   const flagsArg =
     flagMapping.compileFlags.length > 0 ? `, ${flagMapping.compileFlags.join(' | ')}` : '';

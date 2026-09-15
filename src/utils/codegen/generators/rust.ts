@@ -21,7 +21,7 @@ export function generateRust(ctx: CodeGenContext): CodeGenResult {
     : `"${fullPattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
   const testStr = escapeTestString(testText, 'rust');
-  const replaceStr = escapeReplacement(replaceText, 'rust');
+  const replaceStr = escapeReplacement(replaceText, 'rust', pattern);
 
   let code = `use regex::Regex;
 

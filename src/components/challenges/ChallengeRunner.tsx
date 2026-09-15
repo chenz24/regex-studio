@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Lightbulb, Link2, Sparkles, Trophy, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Lightbulb,
+  Link2,
+  Sparkles,
+  Trophy,
+  X,
+} from 'lucide-react';
 import { useChallengeStore } from '@/stores/challengeStore';
-import { useRegexStore } from '@/stores/regexStore';
+import { useRegexDerived, useRegexStore } from '@/stores/regexStore';
 import { findChallenge, CHALLENGES } from '@/challenges/data';
-import { evaluateChallenge } from '@/challenges/evaluator';
+import { challengeCaseId, evaluateChallengeFromResults } from '@/challenges/evaluator';
 import { MarkdownLite } from '../tutorial/MarkdownLite';
 import { useT } from '@/lib/i18n';
 
@@ -23,6 +32,17 @@ export function ChallengeRunner() {
 
   const challenge = id ? findChallenge(id) : undefined;
 
+  // Users may edit or delete their playground cases. Grading always uses
+  // the challenge's original inputs, independently of those edits.
+  const gradingCases = useMemo(() => {
+    if (!challenge) return [];
+    return challenge.testCases.map((tc, i) => ({
+      ...tc,
+      id: challengeCaseId(challenge.id, i),
+    }));
+  }, [challenge]);
+  const { validation, testResults, pending, timedOut } = useRegexDerived(gradingCases);
+
   const flagString = useMemo(
     () =>
       flags
@@ -34,8 +54,11 @@ export function ChallengeRunner() {
 
   const evaluation = useMemo(() => {
     if (!challenge) return null;
-    return evaluateChallenge(challenge, pattern, flagString);
-  }, [challenge, pattern, flagString]);
+    const counts = new Map(
+      testResults.filter((r) => !r.pending && !r.timedOut).map((r) => [r.id, r.matchCount]),
+    );
+    return evaluateChallengeFromResults(challenge, pattern, validation, counts);
+  }, [challenge, pattern, validation, testResults]);
 
   // Auto-mark solved the moment evaluation flips to solved.
   useEffect(() => {
@@ -129,13 +152,20 @@ export function ChallengeRunner() {
                     : 'text-gray-700 dark:text-gray-300'
               }`}
             >
-              {solved
-                ? t.chal_runner_passed_all()
-                : evaluation.invalid
-                  ? t.chal_runner_invalid()
-                  : t.chal_runner_progress({ passed: String(evaluation.passed), total: String(evaluation.total) })}
+              {pending
+                ? t.match_pending()
+                : timedOut
+                  ? t.match_timed_out()
+                  : solved
+                    ? t.chal_runner_passed_all()
+                    : evaluation.invalid
+                      ? t.chal_runner_invalid()
+                      : t.chal_runner_progress({
+                          passed: String(evaluation.passed),
+                          total: String(evaluation.total),
+                        })}
             </span>
-            {!solved && pattern && !evaluation.invalid && (
+            {!pending && !timedOut && !solved && pattern && !evaluation.invalid && (
               <span className="text-[11px] text-gray-500 dark:text-gray-400">
                 {t.chal_runner_keep_going()}
               </span>
@@ -176,11 +206,15 @@ export function ChallengeRunner() {
                         : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
                     }`}
                   >
-                    {r.expect === 'match' ? t.chal_runner_expect_match() : t.chal_runner_expect_no_match()}
+                    {r.expect === 'match'
+                      ? t.chal_runner_expect_match()
+                      : t.chal_runner_expect_no_match()}
                   </span>
                 </div>
                 <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                  {r.input || <em className="not-italic text-gray-400">{t.chal_runner_empty_input()}</em>}
+                  {r.input || (
+                    <em className="not-italic text-gray-400">{t.chal_runner_empty_input()}</em>
+                  )}
                 </div>
               </div>
             </div>
@@ -218,7 +252,9 @@ export function ChallengeRunner() {
               </button>
             ) : (
               <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-                <div className="text-xs text-gray-500 dark:text-gray-400">{t.chal_runner_solution_label()}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t.chal_runner_solution_label()}
+                </div>
                 <pre className="text-xs font-mono text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-all">
                   /{challenge.idealSolution.pattern}/{challenge.idealSolution.flags ?? ''}
                 </pre>

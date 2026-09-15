@@ -24,7 +24,7 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
     case 'javascript':
     case 'typescript':
       // JS uses flags directly
-      result.globalHandling = hasFlag('g') ? 'flag' : 'flag';
+      result.globalHandling = 'flag';
       break;
 
     case 'python':
@@ -33,7 +33,7 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
       if (hasFlag('s')) result.compileFlags.push('re.DOTALL');
       if (hasFlag('x')) result.compileFlags.push('re.VERBOSE');
       if (hasFlag('u')) result.compileFlags.push('re.UNICODE');
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       if (hasFlag('d')) result.unsupportedFlags.push('d');
       if (hasFlag('v')) result.unsupportedFlags.push('v');
       break;
@@ -59,7 +59,7 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
       if (goInline.length > 0) {
         result.inlinePrefix = `(?${goInline.join('')})`;
       }
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       if (hasFlag('x')) result.unsupportedFlags.push('x');
       if (hasFlag('d')) result.unsupportedFlags.push('d');
       if (hasFlag('v')) result.unsupportedFlags.push('v');
@@ -72,7 +72,7 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
       if (hasFlag('m')) result.compileFlags.push('RegexOptions.Multiline');
       if (hasFlag('s')) result.compileFlags.push('RegexOptions.Singleline');
       if (hasFlag('x')) result.compileFlags.push('RegexOptions.IgnorePatternWhitespace');
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       if (hasFlag('d')) result.unsupportedFlags.push('d');
       if (hasFlag('v')) result.unsupportedFlags.push('v');
       if (hasFlag('u')) result.unsupportedFlags.push('u');
@@ -88,7 +88,7 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
       if (rustInline.length > 0) {
         result.inlinePrefix = `(?${rustInline.join('')})`;
       }
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       if (hasFlag('d')) result.unsupportedFlags.push('d');
       if (hasFlag('v')) result.unsupportedFlags.push('v');
       if (hasFlag('u')) result.unsupportedFlags.push('u');
@@ -98,19 +98,21 @@ export function mapFlags(flags: string, lang: CodeGenLanguage): FlagMapping {
     case 'pcre2':
     case 'php':
       // PHP uses flag suffixes on pattern
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       break;
 
     case 'ruby':
       // Ruby uses flag suffixes on regex literal
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       break;
 
     case 'swift':
       if (hasFlag('i')) result.compileFlags.push('.caseInsensitive');
-      if (hasFlag('m')) result.compileFlags.push('.anchorsMatchLineEndings');
+      // The option is `anchorsMatchLines`; the other spelling does not exist
+      // and the generated Swift did not compile.
+      if (hasFlag('m')) result.compileFlags.push('.anchorsMatchLines');
       if (hasFlag('s')) result.compileFlags.push('.dotMatchesLineSeparators');
-      result.globalHandling = hasFlag('g') ? 'api' : 'api';
+      result.globalHandling = 'api';
       if (hasFlag('x')) result.unsupportedFlags.push('x');
       if (hasFlag('d')) result.unsupportedFlags.push('d');
       if (hasFlag('v')) result.unsupportedFlags.push('v');

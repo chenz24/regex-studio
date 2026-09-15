@@ -1,6 +1,7 @@
 import { Trophy } from 'lucide-react';
 import { useChallengeStore } from '@/stores/challengeStore';
-import { CHALLENGES } from '@/challenges/data';
+import { challengeContent, loadChallengeContent } from '@/challenges/content';
+import { useLazyMount } from '@/hooks/useLazyMount';
 import { useT } from '@/lib/i18n';
 
 interface Props {
@@ -13,9 +14,12 @@ export function ChallengesLauncher({ onOpen }: Props) {
   const completion = useChallengeStore((s) => s.completion);
   const openCatalog = useChallengeStore((s) => s.openCatalog);
 
-  const total = CHALLENGES.length;
-  const done = Object.keys(completion).length;
   const isOpen = view !== 'closed';
+  // The challenge definitions are a separate chunk; the progress badge
+  // appears once it has been fetched (on demand, or during idle time).
+  const contentReady = useLazyMount(loadChallengeContent, isOpen);
+  const total = contentReady ? (challengeContent()?.CHALLENGES.length ?? 0) : 0;
+  const done = Object.keys(completion).length;
 
   return (
     <button

@@ -1,4 +1,5 @@
 import type { ASTNode } from '../types/regex';
+import { isValidRegex } from './regexMatcher';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -23,9 +24,15 @@ export interface DebugStep {
 }
 
 export interface DebugResult {
+  /** Syntax errors are distinct from a valid pattern that did not match. */
+  error?: string;
   steps: DebugStep[];
   /** Whether a match was found */
   matched: boolean;
+  /** Where the match started, or -1 */
+  matchStart: number;
+  /** Where the match ended, or -1 */
+  matchEnd: number;
   /** Total steps executed */
   totalSteps: number;
   /** Whether we hit the step limit */
@@ -36,18 +43,24 @@ export interface DebugResult {
 
 const MAX_STEPS = 10000;
 
-const ESCAPE_CHAR_CLASS: Record<string, (ch: string) => boolean> = {
-  '\\d': (ch) => /\d/.test(ch),
-  '\\D': (ch) => !/\d/.test(ch),
-  '\\w': (ch) => /\w/.test(ch),
-  '\\W': (ch) => !/\w/.test(ch),
-  '\\s': (ch) => /\s/.test(ch),
-  '\\S': (ch) => !/\s/.test(ch),
-};
+type Captures = Record<number, { value: string; start: number; end: number } | null>;
 
-function charEquals(a: string, b: string, caseInsensitive: boolean): boolean {
-  if (caseInsensitive) return a.toLowerCase() === b.toLowerCase();
-  return a === b;
+/**
+ * The rest of the pattern, as seen from the node currently being matched.
+ *
+ * Backtracking falls out of this: a node that can match in more than one way
+ * calls `cont` for each of them and keeps going while it answers `null`. A
+ * failure arbitrarily far to the right therefore makes an earlier quantifier
+ * give characters back, or an earlier alternative be retried — which a
+ * matcher that just returns its own end position cannot do.
+ */
+// Each yielded task is driven by an explicit stack, never by the JS call stack.
+type MatchTask = Generator<MatchTask, number | null, number | null>;
+type Continuation = (pos: number) => MatchTask;
+
+// biome-ignore lint/correctness/useYield: terminal tasks use the same generator protocol as suspended calls
+function* done(pos: number | null): MatchTask {
+  return pos;
 }
 
 function escapeForDisplay(value: string): string {
@@ -57,32 +70,13 @@ function escapeForDisplay(value: string): string {
   return value;
 }
 
-function matchesCharClass(node: ASTNode, ch: string, caseInsensitive: boolean): boolean {
-  if (!node.children) return false;
-
-  for (const item of node.children) {
-    if (item.type === 'range') {
-      const [from, to] = item.children || [];
-      if (from && to) {
-        const c = caseInsensitive ? ch.toLowerCase() : ch;
-        const lo = caseInsensitive ? from.value.toLowerCase() : from.value;
-        const hi = caseInsensitive ? to.value.toLowerCase() : to.value;
-        if (c >= lo && c <= hi) return true;
-      }
-    } else if (item.type === 'escape') {
-      const test = ESCAPE_CHAR_CLASS[item.value];
-      if (test) {
-        if (test(ch)) return true;
-      } else {
-        const literal = item.value.slice(1);
-        if (charEquals(ch, literal, caseInsensitive)) return true;
-      }
-    } else {
-      if (charEquals(ch, item.value, caseInsensitive)) return true;
-    }
+/** Map every named group in the pattern to its capture number. */
+function collectGroupNumbers(node: ASTNode, out: Map<string, number>): Map<string, number> {
+  if (node.type === 'namedGroup' && node.groupName && node.groupIndex !== undefined) {
+    out.set(node.groupName, node.groupIndex);
   }
-
-  return false;
+  for (const child of node.children || []) collectGroupNumbers(child, out);
+  return out;
 }
 
 // ─── SteppingMatcher ──────────────────────────────────────────────────
@@ -95,9 +89,15 @@ export class SteppingMatcher {
   private caseInsensitive: boolean;
   private multiline: boolean;
   private dotAll: boolean;
-  private captureGroups: Record<number, { value: string; start: number; end: number } | null> = {};
+  private unicode: boolean;
+  private unicodeFlag: string;
+  private direction: 1 | -1 = 1;
+  private captureGroups: Captures = {};
   private depth = 0;
   private truncated = false;
+  private groupNumbers: Map<string, number>;
+  /** Compiled single-character tests, keyed by AST node id. */
+  private charTests = new Map<string, RegExp | null>();
 
   constructor(ast: ASTNode, text: string, flags: string) {
     this.ast = ast;
@@ -105,6 +105,9 @@ export class SteppingMatcher {
     this.caseInsensitive = flags.includes('i');
     this.multiline = flags.includes('m');
     this.dotAll = flags.includes('s');
+    this.unicodeFlag = flags.includes('v') ? 'v' : flags.includes('u') ? 'u' : '';
+    this.unicode = this.unicodeFlag !== '';
+    this.groupNumbers = collectGroupNumbers(ast, new Map());
   }
 
   execute(): DebugResult {
@@ -112,20 +115,89 @@ export class SteppingMatcher {
     this.stepId = 0;
     this.truncated = false;
 
-    const matched = this.tryMatch(0);
+    // An unanchored pattern is retried from each position in turn, the same
+    // way the real engine scans forward.
+    for (let start = 0; start <= this.text.length; start = this.advance(start)) {
+      this.captureGroups = {};
+      this.depth = 0;
+      this.direction = 1;
+      const end = this.run(this.matchNode(this.ast, start, done));
+
+      if (end !== null) {
+        return {
+          steps: this.steps,
+          matched: true,
+          matchStart: start,
+          matchEnd: end,
+          totalSteps: this.steps.length,
+          truncated: this.truncated,
+        };
+      }
+
+      if (this.truncated) break;
+      if (start < this.text.length) {
+        this.record(
+          this.ast.id,
+          start,
+          start,
+          'backtrack',
+          `No match starting at position ${start}, retrying from ${this.advance(start)}`,
+        );
+      }
+    }
 
     return {
       steps: this.steps,
-      matched,
+      matched: false,
+      matchStart: -1,
+      matchEnd: -1,
       totalSteps: this.steps.length,
       truncated: this.truncated,
     };
   }
 
-  private tryMatch(startPos: number): boolean {
-    // Try matching from startPos
-    const result = this.matchNode(this.ast, startPos);
-    return result !== null;
+  /** Drive suspended match calls without consuming the JavaScript call stack. */
+  private run(task: MatchTask): number | null {
+    const stack = [task];
+    let result: number | null = null;
+    while (stack.length > 0 && !this.truncated) {
+      const next = stack[stack.length - 1].next(result);
+      if (next.done) {
+        stack.pop();
+        result = next.value;
+      } else {
+        stack.push(next.value);
+        result = null;
+      }
+    }
+    return this.truncated ? null : result;
+  }
+
+  private clearCaptures(node: ASTNode): void {
+    const stack = [node];
+    while (stack.length) {
+      const current = stack.pop()!;
+      if (current.groupIndex !== undefined) this.captureGroups[current.groupIndex] = null;
+      stack.push(...(current.children ?? []));
+    }
+  }
+
+  /** Index of the preceding code point (or code unit outside Unicode mode). */
+  private retreat(index: number): number {
+    if (this.unicode && index >= 2) {
+      const low = this.text.charCodeAt(index - 1);
+      const high = this.text.charCodeAt(index - 2);
+      if (low >= 0xdc00 && low <= 0xdfff && high >= 0xd800 && high <= 0xdbff) return index - 2;
+    }
+    return index - 1;
+  }
+
+  /** Next index, stepping over an astral character as a whole in Unicode mode. */
+  private advance(index: number): number {
+    if (!this.unicode) return index + 1;
+    const code = this.text.codePointAt(index);
+    if (code === undefined) return index + 1;
+    return index + (code > 0xffff ? 2 : 1);
   }
 
   private record(
@@ -142,8 +214,8 @@ export class SteppingMatcher {
     this.steps.push({
       id: this.stepId++,
       astNodeId,
-      stringPos,
-      stringEnd,
+      stringPos: Math.min(stringPos, stringEnd),
+      stringEnd: Math.max(stringPos, stringEnd),
       action,
       description,
       captureGroups: { ...this.captureGroups },
@@ -153,198 +225,156 @@ export class SteppingMatcher {
   }
 
   /**
-   * Try to match `node` starting at `pos`.
-   * Returns the new position after the match, or `null` if failed.
+   * Try to match `node` at `pos`, then the rest of the pattern via `cont`.
+   * Returns the end position of the overall match, or `null`.
    */
-  private matchNode(node: ASTNode, pos: number): number | null {
+  private *matchNode(node: ASTNode, pos: number, cont: Continuation): MatchTask {
     if (this.truncated) return null;
 
     switch (node.type) {
       case 'sequence':
-        return this.matchSequence(node, pos);
+        return yield this.matchChildren(node.children || [], 0, pos, cont);
       case 'literal':
-        return this.matchLiteral(node, pos);
       case 'dot':
-        return this.matchDot(node, pos);
       case 'escape':
-        return this.matchEscape(node, pos);
       case 'characterClass':
-        return this.matchCharClass(node, pos, false);
       case 'negatedCharacterClass':
-        return this.matchCharClass(node, pos, true);
+        return yield this.matchSingleChar(node, pos, cont);
       case 'anchor':
-        return this.matchAnchor(node, pos);
+        return yield this.matchAnchor(node, pos, cont);
       case 'alternation':
-        return this.matchAlternation(node, pos);
+        return yield this.matchAlternation(node, pos, cont);
       case 'quantifier':
-        return this.matchQuantifier(node, pos);
+        return yield this.matchQuantifier(node, pos, cont);
       case 'group':
       case 'namedGroup':
-        return this.matchCapturingGroup(node, pos);
+        return yield this.matchCapturingGroup(node, pos, cont);
       case 'nonCapturingGroup':
-        return this.matchNonCapturingGroup(node, pos);
+        return yield this.matchNonCapturingGroup(node, pos, cont);
+      case 'atomicGroup':
+        return yield this.matchAtomicGroup(node, pos, cont);
+      case 'inlineFlags':
+        // An instruction to the engine, not something to match. JavaScript
+        // rejects the syntax outright, so this is only ever reached for
+        // another flavour's pattern.
+        return yield cont(pos);
       case 'lookahead':
-        return this.matchLookahead(node, pos, false);
+        return yield this.matchLookahead(node, pos, cont, false);
       case 'negativeLookahead':
-        return this.matchLookahead(node, pos, true);
+        return yield this.matchLookahead(node, pos, cont, true);
       case 'lookbehind':
-        return this.matchLookbehind(node, pos, false);
+        return yield this.matchLookbehind(node, pos, cont, false);
       case 'negativeLookbehind':
-        return this.matchLookbehind(node, pos, true);
+        return yield this.matchLookbehind(node, pos, cont, true);
       case 'backreference':
-        return this.matchBackreference(node, pos);
+        return yield this.matchBackreference(node, pos, cont);
       default:
-        return this.matchLiteral(node, pos);
+        return yield this.matchSingleChar(node, pos, cont);
     }
   }
 
-  private matchSequence(node: ASTNode, pos: number): number | null {
-    if (!node.children || node.children.length === 0) return pos;
-
-    let current = pos;
-    for (const child of node.children) {
-      const result = this.matchNode(child, current);
-      if (result === null) return null;
-      current = result;
-    }
-    return current;
-  }
-
-  private matchLiteral(node: ASTNode, pos: number): number | null {
-    const ch = node.value;
-
-    if (
-      !this.record(
-        node.id,
-        pos,
-        pos,
-        'try',
-        `Try to match "${escapeForDisplay(ch)}" at position ${pos}`,
-      )
-    )
-      return null;
-
-    if (pos < this.text.length && charEquals(this.text[pos], ch, this.caseInsensitive)) {
-      this.record(
-        node.id,
-        pos,
-        pos + 1,
-        'match',
-        `✓ Matched "${escapeForDisplay(ch)}" with "${escapeForDisplay(this.text[pos])}"`,
-      );
-      return pos + 1;
-    }
-
-    const got = pos < this.text.length ? `"${escapeForDisplay(this.text[pos])}"` : 'end of string';
-    this.record(
-      node.id,
-      pos,
-      pos,
-      'fail',
-      `✗ Failed to match "${escapeForDisplay(ch)}", got ${got}`,
+  /** Match `children[i…]` in order, then `cont`. */
+  private *matchChildren(
+    children: ASTNode[],
+    i: number,
+    pos: number,
+    cont: Continuation,
+  ): MatchTask {
+    if (i >= children.length) return yield cont(pos);
+    const index = this.direction === 1 ? i : children.length - 1 - i;
+    return yield this.matchNode(children[index], pos, (next) =>
+      this.matchChildren(children, i + 1, next, cont),
     );
-    return null;
   }
 
-  private matchDot(node: ASTNode, pos: number): number | null {
-    if (!this.record(node.id, pos, pos, 'try', `Try "." (any character) at position ${pos}`))
-      return null;
+  // ── Single characters ───────────────────────────────────────────────
 
-    if (pos < this.text.length) {
-      const ch = this.text[pos];
-      if (this.dotAll || (ch !== '\n' && ch !== '\r')) {
-        this.record(node.id, pos, pos + 1, 'match', `✓ "." matched "${escapeForDisplay(ch)}"`);
-        return pos + 1;
-      }
+  /**
+   * Character-level semantics are delegated to the real engine: the node's
+   * own source is compiled into a one-character test. That keeps `\d`,
+   * `[a-z]`, `\p{L}`, `\x41` and friends behaving exactly as they will in
+   * the Matches panel, which is the whole point of the debugger.
+   */
+  private charTest(node: ASTNode): RegExp | null {
+    const cached = this.charTests.get(node.id);
+    if (cached !== undefined) return cached;
+
+    let flags = '';
+    if (this.caseInsensitive) flags += 'i';
+    if (this.dotAll) flags += 's';
+
+    let test: RegExp | null = null;
+    try {
+      test = new RegExp(`^(?:${node.raw})$`, `${flags}${this.unicodeFlag}`);
+    } catch {
+      test = null;
     }
-
-    this.record(node.id, pos, pos, 'fail', `✗ "." failed at position ${pos}`);
-    return null;
+    this.charTests.set(node.id, test);
+    return test;
   }
 
-  private matchEscape(node: ASTNode, pos: number): number | null {
-    const esc = node.value;
-
-    if (!this.record(node.id, pos, pos, 'try', `Try ${esc} at position ${pos}`)) return null;
-
-    // Shorthand character classes
-    const test = ESCAPE_CHAR_CLASS[esc];
-    if (test) {
-      if (pos < this.text.length && test(this.text[pos])) {
-        this.record(
-          node.id,
-          pos,
-          pos + 1,
-          'match',
-          `✓ ${esc} matched "${escapeForDisplay(this.text[pos])}"`,
-        );
-        return pos + 1;
-      }
-      const got =
-        pos < this.text.length ? `"${escapeForDisplay(this.text[pos])}"` : 'end of string';
-      this.record(node.id, pos, pos, 'fail', `✗ ${esc} failed, got ${got}`);
-      return null;
-    }
-
-    // Word boundary
-    if (esc === '\\b' || esc === '\\B') {
-      const isWordBoundary = this.isWordBoundary(pos);
-      const shouldMatch = esc === '\\b';
-      if (isWordBoundary === shouldMatch) {
-        this.record(node.id, pos, pos, 'match', `✓ ${esc} assertion passed at position ${pos}`);
-        return pos;
-      }
-      this.record(node.id, pos, pos, 'fail', `✗ ${esc} assertion failed at position ${pos}`);
-      return null;
-    }
-
-    // Literal escaped character
-    const literal = esc.length > 1 ? esc.slice(1) : esc;
-    const mappedChar =
-      literal === 'n' ? '\n' : literal === 't' ? '\t' : literal === 'r' ? '\r' : literal;
-
-    if (pos < this.text.length && charEquals(this.text[pos], mappedChar, this.caseInsensitive)) {
-      this.record(
-        node.id,
-        pos,
-        pos + 1,
-        'match',
-        `✓ ${esc} matched "${escapeForDisplay(this.text[pos])}"`,
-      );
-      return pos + 1;
-    }
-
-    const got = pos < this.text.length ? `"${escapeForDisplay(this.text[pos])}"` : 'end of string';
-    this.record(node.id, pos, pos, 'fail', `✗ ${esc} failed, got ${got}`);
-    return null;
+  private isWordBoundaryEscape(node: ASTNode): boolean {
+    return node.type === 'escape' && (node.value === '\\b' || node.value === '\\B');
   }
 
-  private matchCharClass(node: ASTNode, pos: number, negated: boolean): number | null {
-    const display = node.raw || (negated ? '[^...]' : '[...]');
+  private *matchSingleChar(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    // `\b` / `\B` are assertions, not characters.
+    if (this.isWordBoundaryEscape(node)) return yield this.matchWordBoundary(node, pos, cont);
 
+    const display = node.raw || node.value;
     if (!this.record(node.id, pos, pos, 'try', `Try ${display} at position ${pos}`)) return null;
 
-    if (pos >= this.text.length) {
+    const charPos = this.direction === 1 ? pos : this.retreat(pos);
+    if (charPos < 0 || charPos >= this.text.length) {
       this.record(node.id, pos, pos, 'fail', `✗ ${display} failed, at end of string`);
       return null;
     }
 
-    const ch = this.text[pos];
-    const inClass = matchesCharClass(node, ch, this.caseInsensitive);
-    const matches = negated ? !inClass : inClass;
+    const cp = this.unicode ? this.text.codePointAt(charPos) : this.text.charCodeAt(charPos);
+    const ch =
+      cp === undefined
+        ? this.text[charPos]
+        : this.unicode
+          ? String.fromCodePoint(cp)
+          : this.text[charPos];
+    const next = this.direction === 1 ? pos + ch.length : charPos;
 
-    if (matches) {
-      this.record(node.id, pos, pos + 1, 'match', `✓ ${display} matched "${escapeForDisplay(ch)}"`);
-      return pos + 1;
+    let ok: boolean;
+    if (node.type === 'literal') {
+      ok = this.caseInsensitive ? ch.toLowerCase() === node.value.toLowerCase() : ch === node.value;
+    } else {
+      const test = this.charTest(node);
+      ok = test ? test.test(ch) : false;
+    }
+
+    if (ok) {
+      this.record(node.id, pos, next, 'match', `✓ ${display} matched "${escapeForDisplay(ch)}"`);
+      const result = yield cont(next);
+      if (result !== null) return result;
+      this.record(node.id, pos, next, 'backtrack', `↩ Giving back "${escapeForDisplay(ch)}"`);
+      return null;
     }
 
     this.record(node.id, pos, pos, 'fail', `✗ ${display} did not match "${escapeForDisplay(ch)}"`);
     return null;
   }
 
-  private matchAnchor(node: ASTNode, pos: number): number | null {
-    const anchor = node.value;
+  private *matchWordBoundary(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const esc = node.value;
+    if (!this.record(node.id, pos, pos, 'try', `Test ${esc} at position ${pos}`)) return null;
 
+    const isBoundary = this.isWordBoundary(pos);
+    if (isBoundary === (esc === '\\b')) {
+      this.record(node.id, pos, pos, 'match', `✓ ${esc} assertion passed at position ${pos}`);
+      return yield cont(pos);
+    }
+
+    this.record(node.id, pos, pos, 'fail', `✗ ${esc} assertion failed at position ${pos}`);
+    return null;
+  }
+
+  private *matchAnchor(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const anchor = node.value;
     if (
       !this.record(
         node.id,
@@ -356,70 +386,58 @@ export class SteppingMatcher {
     )
       return null;
 
-    let pass = false;
-
+    let pass: boolean;
     if (anchor === '^') {
-      if (pos === 0) {
-        pass = true;
-      } else if (this.multiline && pos > 0 && this.text[pos - 1] === '\n') {
-        pass = true;
-      }
+      pass = pos === 0 || (this.multiline && this.text[pos - 1] === '\n');
     } else {
-      if (pos === this.text.length) {
-        pass = true;
-      } else if (this.multiline && pos < this.text.length && this.text[pos] === '\n') {
-        pass = true;
-      }
+      pass = pos === this.text.length || (this.multiline && this.text[pos] === '\n');
     }
 
     if (pass) {
       this.record(node.id, pos, pos, 'match', `✓ ${anchor} anchor matched at position ${pos}`);
-      return pos;
+      return yield cont(pos);
     }
 
     this.record(node.id, pos, pos, 'fail', `✗ ${anchor} anchor failed at position ${pos}`);
     return null;
   }
 
-  private matchAlternation(node: ASTNode, pos: number): number | null {
-    if (!node.children) return null;
+  // ── Alternation ─────────────────────────────────────────────────────
 
-    for (let i = 0; i < node.children.length; i++) {
-      const branch = node.children[i];
+  private *matchAlternation(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const branches = node.children || [];
 
-      if (
-        !this.record(node.id, pos, pos, 'try', `Try alternative ${i + 1}/${node.children.length}`)
-      )
+    for (let i = 0; i < branches.length; i++) {
+      if (this.truncated) return null;
+      if (!this.record(node.id, pos, pos, 'try', `Try alternative ${i + 1}/${branches.length}`))
         return null;
 
-      const savedCaptures = { ...this.captureGroups };
-      const result = this.matchNode(branch, pos);
+      const saved = { ...this.captureGroups };
+      // `cont` is passed down, so an alternative that matches here but dooms
+      // the rest of the pattern is rejected and the next one is tried.
+      const result = yield this.matchNode(branches[i], pos, cont);
+      if (result !== null) return result;
 
-      if (result !== null) {
-        this.record(node.id, pos, result, 'match', `✓ Alternative ${i + 1} matched`);
-        return result;
-      }
-
-      // Restore captures on failure
-      this.captureGroups = savedCaptures;
-
-      if (i < node.children.length - 1) {
+      this.captureGroups = saved;
+      if (i < branches.length - 1) {
         this.record(node.id, pos, pos, 'backtrack', `Alternative ${i + 1} failed, trying next`);
       } else {
-        this.record(node.id, pos, pos, 'fail', `✗ All alternatives failed`);
+        this.record(node.id, pos, pos, 'fail', '✗ All alternatives failed');
       }
     }
 
     return null;
   }
 
-  private matchQuantifier(node: ASTNode, pos: number): number | null {
-    if (!node.children || !node.quantifier) return null;
+  // ── Quantifiers ─────────────────────────────────────────────────────
 
-    const child = node.children[0];
+  private *matchQuantifier(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const child = node.children?.[0];
+    if (!child || !node.quantifier) return yield cont(pos);
+
     const { min, max, lazy } = node.quantifier;
     const display = node.quantifier.raw;
-    const effectiveMax = max === null ? MAX_STEPS : max;
+    const limit = max === null ? Number.POSITIVE_INFINITY : max;
 
     if (
       !this.record(
@@ -432,179 +450,176 @@ export class SteppingMatcher {
     )
       return null;
 
-    if (lazy) {
-      return this.matchQuantifierLazy(node, child, pos, min, effectiveMax, display);
-    } else {
-      return this.matchQuantifierGreedy(node, child, pos, min, effectiveMax, display);
-    }
-  }
+    /**
+     * `count` repetitions have matched and we are at `from`. A greedy
+     * quantifier tries one more repetition before handing over to the
+     * continuation; a lazy one hands over first.
+     */
+    const self = this;
+    function* repeat(count: number, from: number): MatchTask {
+      if (self.truncated) return null;
 
-  private matchQuantifierGreedy(
-    node: ASTNode,
-    child: ASTNode,
-    pos: number,
-    min: number,
-    max: number,
-    display: string,
-  ): number | null {
-    // Greedy: match as many as possible, then backtrack
-    const positions: number[] = [pos]; // positions[i] = position after i matches
-    let current = pos;
-
-    // Match as many as possible
-    for (let count = 0; count < max; count++) {
-      if (this.truncated) return null;
-      const savedCaptures = { ...this.captureGroups };
-      const result = this.matchNode(child, current);
-      if (result === null || result === current) {
-        this.captureGroups = savedCaptures;
-        break;
-      }
-      current = result;
-      positions.push(current);
-    }
-
-    const matchedCount = positions.length - 1;
-    this.record(
-      node.id,
-      pos,
-      current,
-      'match',
-      `Quantifier ${display} matched ${matchedCount} time(s), now testing continuation`,
-    );
-
-    // Try from most matches down to min
-    for (let count = matchedCount; count >= min; count--) {
-      if (this.truncated) return null;
-      const tryPos = positions[count];
-
-      // For quantifier-level check, we just return the position
-      // The parent sequence will try the next nodes
-      if (count === matchedCount) {
-        // First try with maximum matches
-        return tryPos;
-      }
-
-      this.record(
-        node.id,
-        pos,
-        tryPos,
-        'backtrack',
-        `Backtrack quantifier ${display} to ${count} match(es)`,
-      );
-    }
-
-    if (matchedCount < min) {
-      this.record(
-        node.id,
-        pos,
-        pos,
-        'fail',
-        `✗ Quantifier ${display} needs at least ${min} match(es), got ${matchedCount}`,
-      );
-      return null;
-    }
-
-    return positions[min];
-  }
-
-  private matchQuantifierLazy(
-    node: ASTNode,
-    child: ASTNode,
-    pos: number,
-    min: number,
-    _max: number,
-    display: string,
-  ): number | null {
-    // Lazy: match as few as possible, then try more
-    let current = pos;
-
-    // First match the minimum required
-    for (let count = 0; count < min; count++) {
-      if (this.truncated) return null;
-      const result = this.matchNode(child, current);
-      if (result === null) {
-        this.record(
-          node.id,
-          pos,
-          current,
-          'fail',
-          `✗ Quantifier ${display} needs at least ${min}, failed at ${count}`,
+      function* tryMore(): MatchTask {
+        if (count >= limit) return null;
+        const saved = { ...self.captureGroups };
+        self.clearCaptures(child!);
+        const result = yield self.matchNode(child!, from, (next) =>
+          // A repetition that consumed nothing would repeat forever; allow it
+          // only while it still counts towards `min`.
+          next === from && count >= min ? done(null) : repeat(count + 1, next),
         );
+        if (result !== null) return result;
+        self.captureGroups = saved;
         return null;
       }
-      current = result;
+
+      const tryRest = (): MatchTask => {
+        if (count < min) return done(null);
+        return cont(from);
+      };
+
+      if (lazy) {
+        const rest = yield tryRest();
+        if (rest !== null) return rest;
+        return yield tryMore();
+      }
+
+      const more = yield tryMore();
+      if (more !== null) return more;
+      if (count >= min) {
+        self.record(
+          node.id,
+          pos,
+          from,
+          'backtrack',
+          `Backtrack quantifier ${display} to ${count} repetition(s)`,
+        );
+      }
+      return yield tryRest();
     }
 
-    // Try with min matches first (lazy)
-    this.record(
-      node.id,
-      pos,
-      current,
-      'match',
-      `Quantifier ${display} (lazy) trying with ${min} match(es) first`,
-    );
-    return current;
+    const result = yield repeat(0, pos);
+    if (result === null && !self.truncated) {
+      self.record(node.id, pos, pos, 'fail', `✗ Quantifier ${display} failed`);
+    }
+    return result;
   }
 
-  private matchCapturingGroup(node: ASTNode, pos: number): number | null {
+  // ── Groups ──────────────────────────────────────────────────────────
+
+  private *matchCapturingGroup(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const self = this;
     const groupIdx = node.groupIndex || 0;
     const label = node.groupName
       ? `named group "${node.groupName}" (#${groupIdx})`
       : `capturing group #${groupIdx}`;
 
-    if (!this.record(node.id, pos, pos, 'enter-group', `Enter ${label}`)) return null;
+    if (!self.record(node.id, pos, pos, 'enter-group', `Enter ${label}`)) return null;
 
-    this.depth++;
-    const content = node.children ? this.matchSequenceOfChildren(node.children, pos) : pos;
-    this.depth--;
+    const before = self.captureGroups[groupIdx] ?? null;
+    self.depth++;
 
-    if (content !== null) {
-      const captured = this.text.slice(pos, content);
-      this.captureGroups[groupIdx] = { value: captured, start: pos, end: content };
-      this.record(
-        node.id,
-        pos,
-        content,
-        'exit-group',
-        `Exit ${label}, captured "${escapeForDisplay(captured)}"`,
-      );
-      return content;
+    const result = yield self.matchChildren(
+      node.children || [],
+      0,
+      pos,
+      function* (end): MatchTask {
+        const start = Math.min(pos, end);
+        const finish = Math.max(pos, end);
+        const captured = self.text.slice(start, finish);
+        const previous = self.captureGroups[groupIdx] ?? null;
+        self.captureGroups[groupIdx] = { value: captured, start, end: finish };
+        self.depth--;
+        self.record(
+          node.id,
+          pos,
+          end,
+          'exit-group',
+          `Exit ${label}, captured "${escapeForDisplay(captured)}"`,
+        );
+        self.depth++;
+
+        const rest = yield cont(end);
+        // The capture only stands if everything after it holds up.
+        if (rest === null) self.captureGroups[groupIdx] = previous;
+        return rest;
+      },
+    );
+
+    self.depth--;
+    if (result === null) {
+      self.captureGroups[groupIdx] = before;
+      self.record(node.id, pos, pos, 'fail', `✗ ${label} failed`);
     }
-
-    this.record(node.id, pos, pos, 'fail', `✗ ${label} failed`);
-    return null;
+    return result;
   }
 
-  private matchNonCapturingGroup(node: ASTNode, pos: number): number | null {
-    if (!this.record(node.id, pos, pos, 'enter-group', `Enter non-capturing group`)) return null;
+  private *matchNonCapturingGroup(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const self = this;
+    if (!self.record(node.id, pos, pos, 'enter-group', 'Enter non-capturing group')) return null;
 
-    this.depth++;
-    const content = node.children ? this.matchSequenceOfChildren(node.children, pos) : pos;
-    this.depth--;
+    self.depth++;
+    const result = yield self.matchChildren(
+      node.children || [],
+      0,
+      pos,
+      function* (end): MatchTask {
+        self.depth--;
+        self.record(node.id, pos, end, 'exit-group', 'Exit non-capturing group');
+        self.depth++;
+        return yield cont(end);
+      },
+    );
+    self.depth--;
 
-    if (content !== null) {
-      this.record(node.id, pos, content, 'exit-group', `Exit non-capturing group`);
-      return content;
+    if (result === null) {
+      self.record(node.id, pos, pos, 'fail', '✗ Non-capturing group failed');
     }
-
-    this.record(node.id, pos, pos, 'fail', `✗ Non-capturing group failed`);
-    return null;
+    return result;
   }
 
-  private matchLookahead(node: ASTNode, pos: number, negative: boolean): number | null {
+  // ── Lookaround ──────────────────────────────────────────────────────
+
+  private *matchAtomicGroup(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    if (!this.record(node.id, pos, pos, 'enter-group', 'Enter atomic group')) return null;
+
+    this.depth++;
+    // Atomic: the body is matched on its own and its first result is final —
+    // the continuation can never make it give characters back.
+    const end = yield this.matchChildren(node.children || [], 0, pos, done);
+    this.depth--;
+
+    if (end === null) {
+      this.record(node.id, pos, pos, 'fail', '✗ Atomic group failed');
+      return null;
+    }
+
+    this.record(node.id, pos, end, 'exit-group', 'Exit atomic group (no backtracking into it)');
+    return yield cont(end);
+  }
+
+  private *matchLookahead(
+    node: ASTNode,
+    pos: number,
+    cont: Continuation,
+    negative: boolean,
+  ): MatchTask {
     const label = negative ? 'negative lookahead' : 'positive lookahead';
-
     if (!this.record(node.id, pos, pos, 'try', `Test ${label} at position ${pos}`)) return null;
 
+    const saved = { ...this.captureGroups };
     this.depth++;
-    const savedCaptures = { ...this.captureGroups };
-    const content = node.children ? this.matchSequenceOfChildren(node.children, pos) : pos;
+    // The assertion body is matched on its own: it never hands control to
+    // the rest of the pattern and never consumes anything.
+    const direction = this.direction;
+    this.direction = 1;
+    const found = (yield this.matchChildren(node.children || [], 0, pos, done)) !== null;
+    this.direction = direction;
     this.depth--;
 
-    const found = content !== null;
-    // Restore captures — lookahead doesn't capture
-    this.captureGroups = savedCaptures;
+    // A positive lookahead keeps what it captured (as JavaScript does); a
+    // failed negative one cannot have captured anything that counts.
+    if (negative || !found) this.captureGroups = saved;
 
     if (negative ? !found : found) {
       this.record(
@@ -614,7 +629,9 @@ export class SteppingMatcher {
         'match',
         `✓ ${label} ${negative ? 'correctly did not match' : 'matched'}`,
       );
-      return pos; // Lookahead doesn't consume characters
+      const result = yield cont(pos);
+      if (result === null) this.captureGroups = saved;
+      return result;
     }
 
     this.record(
@@ -627,27 +644,24 @@ export class SteppingMatcher {
     return null;
   }
 
-  private matchLookbehind(node: ASTNode, pos: number, negative: boolean): number | null {
+  private *matchLookbehind(
+    node: ASTNode,
+    pos: number,
+    cont: Continuation,
+    negative: boolean,
+  ): MatchTask {
     const label = negative ? 'negative lookbehind' : 'positive lookbehind';
-
     if (!this.record(node.id, pos, pos, 'try', `Test ${label} at position ${pos}`)) return null;
 
-    // Simple lookbehind: try matching from each prior position
+    const saved = { ...this.captureGroups };
     this.depth++;
-    const savedCaptures = { ...this.captureGroups };
-    let found = false;
-
-    for (let startPos = 0; startPos <= pos; startPos++) {
-      const result = node.children
-        ? this.matchSequenceOfChildren(node.children, startPos)
-        : startPos;
-      if (result === pos) {
-        found = true;
-        break;
-      }
-    }
+    const direction = this.direction;
+    this.direction = -1;
+    const found = (yield this.matchChildren(node.children || [], 0, pos, done)) !== null;
+    this.direction = direction;
     this.depth--;
-    this.captureGroups = savedCaptures;
+
+    if (negative || !found) this.captureGroups = saved;
 
     if (negative ? !found : found) {
       this.record(
@@ -657,7 +671,9 @@ export class SteppingMatcher {
         'match',
         `✓ ${label} ${negative ? 'correctly did not match' : 'matched'}`,
       );
-      return pos;
+      const result = yield cont(pos);
+      if (result === null) this.captureGroups = saved;
+      return result;
     }
 
     this.record(
@@ -670,40 +686,49 @@ export class SteppingMatcher {
     return null;
   }
 
-  private matchBackreference(node: ASTNode, pos: number): number | null {
-    const groupIdx = parseInt(node.value, 10);
-    const captured = this.captureGroups[groupIdx];
+  // ── Backreferences ──────────────────────────────────────────────────
 
-    if (
-      !this.record(node.id, pos, pos, 'try', `Try backreference \\${groupIdx} at position ${pos}`)
-    )
+  private *matchBackreference(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    const groupIdx = node.groupName
+      ? (this.groupNumbers.get(node.groupName) ?? -1)
+      : parseInt(node.value, 10);
+    const display = node.raw || `\\${node.value}`;
+
+    if (!this.record(node.id, pos, pos, 'try', `Try backreference ${display} at position ${pos}`))
       return null;
 
+    const captured = this.captureGroups[groupIdx];
+    // An unset group matches the empty string, as in JavaScript.
     if (!captured) {
       this.record(
         node.id,
         pos,
         pos,
-        'fail',
-        `✗ Backreference \\${groupIdx}: group not yet captured`,
+        'match',
+        `✓ Backreference ${display}: group not set, matches empty`,
       );
-      return null;
+      return yield cont(pos);
     }
 
     const expected = captured.value;
-    const actual = this.text.slice(pos, pos + expected.length);
+    const next = pos + this.direction * expected.length;
+    const actual = this.text.slice(Math.min(pos, next), Math.max(pos, next));
+    const same = this.caseInsensitive
+      ? actual.toLowerCase() === expected.toLowerCase()
+      : actual === expected;
 
-    if (
-      this.caseInsensitive ? actual.toLowerCase() === expected.toLowerCase() : actual === expected
-    ) {
+    if (same) {
       this.record(
         node.id,
         pos,
-        pos + expected.length,
+        next,
         'match',
-        `✓ Backreference \\${groupIdx} matched "${escapeForDisplay(expected)}"`,
+        `✓ Backreference ${display} matched "${escapeForDisplay(expected)}"`,
       );
-      return pos + expected.length;
+      const result = yield cont(next);
+      if (result !== null) return result;
+      this.record(node.id, pos, next, 'backtrack', `↩ Giving back "${escapeForDisplay(expected)}"`);
+      return null;
     }
 
     this.record(
@@ -711,19 +736,9 @@ export class SteppingMatcher {
       pos,
       pos,
       'fail',
-      `✗ Backreference \\${groupIdx} expected "${escapeForDisplay(expected)}", got "${escapeForDisplay(actual)}"`,
+      `✗ Backreference ${display} expected "${escapeForDisplay(expected)}", got "${escapeForDisplay(actual)}"`,
     );
     return null;
-  }
-
-  private matchSequenceOfChildren(children: ASTNode[], pos: number): number | null {
-    let current = pos;
-    for (const child of children) {
-      const result = this.matchNode(child, current);
-      if (result === null) return null;
-      current = result;
-    }
-    return current;
   }
 
   private isWordBoundary(pos: number): boolean {
@@ -736,13 +751,21 @@ export class SteppingMatcher {
 // ─── Public API ───────────────────────────────────────────────────────
 
 export function debugRegex(ast: ASTNode, text: string, flags: string): DebugResult {
-  if (
-    !text &&
-    (!ast || (ast.type === 'sequence' && (!ast.children || ast.children.length === 0)))
-  ) {
-    return { steps: [], matched: false, totalSteps: 0, truncated: false };
+  // Compile only; never execute an arbitrary pattern on the main thread.
+  // Invalid references under u/v must not succeed through an empty branch
+  // or an optional quantifier in the stepping engine.
+  const validation = isValidRegex(ast.raw, flags);
+  if (!validation.valid || (ast.type === 'sequence' && !ast.children?.length)) {
+    return {
+      ...(!validation.valid ? { error: validation.error } : {}),
+      steps: [],
+      matched: false,
+      matchStart: -1,
+      matchEnd: -1,
+      totalSteps: 0,
+      truncated: false,
+    };
   }
 
-  const matcher = new SteppingMatcher(ast, text, flags);
-  return matcher.execute();
+  return new SteppingMatcher(ast, text, flags).execute();
 }

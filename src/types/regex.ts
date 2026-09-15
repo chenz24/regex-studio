@@ -25,6 +25,8 @@ export type ASTNodeType =
   | 'lookbehind'
   | 'negativeLookbehind'
   | 'namedGroup'
+  | 'atomicGroup'
+  | 'inlineFlags'
   | 'alternation'
   | 'quantifier'
   | 'anchor'
@@ -40,6 +42,12 @@ export interface ASTNode {
   quantifier?: QuantifierInfo;
   groupName?: string;
   groupIndex?: number;
+  /**
+   * Length of a group's opening delimiter, e.g. 3 for `(?:`. Stored because
+   * it cannot be derived from the node type alone — `(?<name>`, `(?P<name>`
+   * and `(?i:` all vary.
+   */
+  openLen?: number;
   raw: string;
   id: string;
   start: number;
@@ -104,6 +112,8 @@ export interface TestCaseResult {
   matchCount: number;
   /** True when the regex itself is invalid; result is inconclusive. */
   invalid: boolean;
+  pending?: boolean;
+  timedOut?: boolean;
 }
 
 export interface PatternTemplate {

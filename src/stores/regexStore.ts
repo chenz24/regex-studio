@@ -1,10 +1,19 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '../types/regex';
 import type { RegexEngine, CompatibilityWarning } from '../types/engineTypes';
 import { ENGINE_FLAVORS, toJsFlagString } from '../types/engineTypes';
 import { parseRegex } from '../utils/regexParser';
-import { findMatches, isValidRegex, replaceMatches } from '../utils/regexMatcher';
+import { isValidRegex } from '../utils/regexMatcher';
+import {
+  cachedOutcome,
+  matchInputKey,
+  runMatch,
+  runMatchInlineCached,
+  type MatchInput,
+  type MatchOutcome,
+} from '../utils/matchEngine';
 import { checkCompatibility } from '../utils/compatibilityChecker';
 import { layoutAST, type LayoutResult } from '../utils/diagramLayout';
 
@@ -80,13 +89,18 @@ interface RegexDerived {
   replacedText: string;
   testResults: TestCaseResult[];
   testsPassed: number;
+  /** The pattern overran its deadline and was abandoned. */
+  timedOut: boolean;
+  /** Results shown are from the previous input while the current one runs. */
+  pending: boolean;
 }
 
 type RegexStore = RegexState & RegexActions;
 
 // ─── Derived State Selectors ───────────────────────────────────────────
 
-function computeDerived(state: RegexState): RegexDerived {
+/** Everything derivable from the pattern alone — our own code, and bounded. */
+function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) {
   const flagString = state.flags
     .filter((f) => f.enabled)
     .map((f) => f.key)
@@ -95,15 +109,10 @@ function computeDerived(state: RegexState): RegexDerived {
   // Only the JS-safe subset is forwarded to `new RegExp(...)`. Display-only
   // flags (e.g. Python `x`, PCRE `U/J`, .NET `n`) never reach the engine.
   const jsFlagString = toJsFlagString(state.flags);
-
   const validation = isValidRegex(state.pattern, jsFlagString);
 
-  const matches: MatchInfo[] = validation.valid
-    ? findMatches(state.pattern, jsFlagString, state.testText)
-    : [];
-
   const ast: ASTNode = state.pattern
-    ? parseRegex(state.pattern)
+    ? parseRegex(state.pattern, jsFlagString)
     : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 };
 
   const diagram = layoutAST(ast);
@@ -111,34 +120,59 @@ function computeDerived(state: RegexState): RegexDerived {
   const compatibilityWarnings: CompatibilityWarning[] =
     state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
 
-  const replacedText =
-    state.replacement && validation.valid
-      ? replaceMatches(state.pattern, jsFlagString, state.testText, state.replacement)
-      : state.testText;
+  return { flagString, jsFlagString, validation, ast, diagram, compatibilityWarnings };
+}
 
-  const testResults: TestCaseResult[] = state.testCases.map((tc) => {
-    if (!validation.valid) {
-      return { id: tc.id, pass: false, matchCount: 0, invalid: true };
-    }
-    const m = findMatches(state.pattern, jsFlagString, tc.input);
-    const hasMatch = m.length > 0;
-    const pass = tc.expect === 'match' ? hasMatch : !hasMatch;
-    return { id: tc.id, pass, matchCount: m.length, invalid: false };
-  });
-  const testsPassed = testResults.filter((r) => r.pass).length;
+/**
+ * Run the pattern off the main thread.
+ *
+ * Only the built-in default is computed inline for hydration. Other consumers
+ * can mount after the user has entered an arbitrary pattern.
+ * Every later input goes to the worker, which can be killed if the pattern
+ * turns out to be one that never finishes. While a run is outstanding the
+ * previous result stays on screen rather than flashing to empty.
+ */
+function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean } {
+  const key = matchInputKey(input);
+  const [entry, setEntry] = useState(() => ({
+    key,
+    outcome:
+      cachedOutcome(key) ??
+      (input.pattern === DEFAULT_PATTERN &&
+      input.flags === 'g' &&
+      input.text === DEFAULT_TEXT &&
+      input.replacement === '' &&
+      input.testInputs.length === 0
+        ? runMatchInlineCached(input, key)
+        : undefined),
+  }));
+  const empty = useMemo<MatchOutcome>(
+    () => ({
+      matches: [],
+      replacedText: input.text,
+      testMatchCounts: [],
+      timedOut: false,
+    }),
+    [input.text],
+  );
 
-  return {
-    flagString,
-    jsFlagString,
-    validation,
-    matches,
-    ast,
-    diagram,
-    compatibilityWarnings,
-    replacedText,
-    testResults,
-    testsPassed,
-  };
+  useEffect(() => {
+    let cancelled = false;
+    runMatch(input).then((outcome) => {
+      if (!cancelled) setEntry({ key, outcome });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, input]);
+
+  const settled = entry.key === key ? entry.outcome : cachedOutcome(key);
+  // Must be memoised: consumers key effects off the derived object, and a
+  // fresh identity on every render turns those into an update loop.
+  return useMemo(
+    () => ({ ...(settled ?? entry.outcome ?? empty), pending: settled === undefined }),
+    [settled, entry.outcome, empty],
+  );
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────
@@ -162,12 +196,13 @@ export const useRegexStore = create<RegexStore>((set) => ({
   // Actions
   setEngine: (engine) =>
     set((state) => {
-      // Preserve enabled state for flags that exist (by key) in the new
-      // engine; drop flags that don't apply to the new target.
-      const previouslyEnabled = new Set(state.flags.filter((f) => f.enabled).map((f) => f.key));
+      // Carry the user's choice across for flags the new engine also has —
+      // including the choice to turn one off, which `||` used to undo — and
+      // fall back to the new engine's default for flags that are new.
+      const previous = new Map(state.flags.map((f) => [f.key, f.enabled]));
       const nextFlags = getDefaultFlags(engine).map((f) => ({
         ...f,
-        enabled: previouslyEnabled.has(f.key) || f.enabled,
+        enabled: previous.get(f.key) ?? f.enabled,
       }));
       return { engine, flags: nextFlags };
     }),
@@ -265,30 +300,70 @@ export const useRegexStore = create<RegexStore>((set) => ({
 
 // ─── Selector Hooks ────────────────────────────────────────────────────
 
-export function useRegexDerived(): RegexDerived {
+export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
   const engine = useRegexStore((s) => s.engine);
   const pattern = useRegexStore((s) => s.pattern);
   const flags = useRegexStore((s) => s.flags);
   const testText = useRegexStore((s) => s.testText);
   const replacement = useRegexStore((s) => s.replacement);
-  const showReplace = useRegexStore((s) => s.showReplace);
-  const testCases = useRegexStore((s) => s.testCases);
+  const storedTestCases = useRegexStore((s) => s.testCases);
+  const testCases = fixedTestCases ?? storedTestCases;
+
+  const derived = useMemo(
+    () => computeStatic({ engine, pattern, flags }),
+    [engine, pattern, flags],
+  );
+
+  const matchInput: MatchInput = useMemo(
+    () => ({
+      // An invalid pattern has nothing to run; the error is reported by
+      // `validation` instead.
+      pattern: derived.validation.valid ? pattern : '',
+      flags: derived.jsFlagString,
+      text: testText,
+      replacement,
+      testInputs: testCases.map((tc) => tc.input),
+    }),
+    [pattern, derived.validation.valid, derived.jsFlagString, testText, replacement, testCases],
+  );
+
+  const outcome = useMatchOutcome(matchInput);
 
   return useMemo(() => {
-    return computeDerived({
-      engine,
-      pattern,
-      flags,
-      testText,
-      replacement,
-      showReplace,
-      testCases,
-      selectedMatch: null,
-      hoveredNodeId: null,
-      patternPast: [],
-      patternFuture: [],
+    const testResults: TestCaseResult[] = testCases.map((tc, i) => {
+      if (!derived.validation.valid) {
+        return { id: tc.id, pass: false, matchCount: 0, invalid: true };
+      }
+      if (outcome.pending || outcome.timedOut) {
+        return {
+          id: tc.id,
+          pass: false,
+          matchCount: 0,
+          invalid: false,
+          pending: outcome.pending,
+          timedOut: outcome.timedOut && !outcome.pending,
+        };
+      }
+      const matchCount = outcome.testMatchCounts[i] ?? 0;
+      const hasMatch = matchCount > 0;
+      return {
+        id: tc.id,
+        pass: tc.expect === 'match' ? hasMatch : !hasMatch,
+        matchCount,
+        invalid: false,
+      };
     });
-  }, [engine, pattern, flags, testText, replacement, showReplace, testCases]);
+
+    return {
+      ...derived,
+      matches: outcome.matches,
+      replacedText: outcome.replacedText,
+      testResults,
+      testsPassed: testResults.filter((r) => r.pass).length,
+      timedOut: outcome.timedOut,
+      pending: outcome.pending,
+    };
+  }, [derived, outcome, testCases]);
 }
 
 // Fine-grained selectors for performance
@@ -300,20 +375,26 @@ export const useReplacement = () => useRegexStore((s) => s.replacement);
 export const useSelectedMatch = () => useRegexStore((s) => s.selectedMatch);
 export const useHoveredNodeId = () => useRegexStore((s) => s.hoveredNodeId);
 
-// Action selectors (stable references)
+/**
+ * All actions in one object. The shallow comparator is required: without it
+ * the freshly built object is a new reference on every store read, which
+ * re-renders the consumer on every state change.
+ */
 export const useRegexActions = () =>
-  useRegexStore((s) => ({
-    setEngine: s.setEngine,
-    setPattern: s.setPattern,
-    toggleFlag: s.toggleFlag,
-    setTestText: s.setTestText,
-    setReplacement: s.setReplacement,
-    setShowReplace: s.setShowReplace,
-    loadPattern: s.loadPattern,
-    setSelectedMatch: s.setSelectedMatch,
-    setHoveredNodeId: s.setHoveredNodeId,
-    addTestCase: s.addTestCase,
-    updateTestCase: s.updateTestCase,
-    removeTestCase: s.removeTestCase,
-    setTestCases: s.setTestCases,
-  }));
+  useRegexStore(
+    useShallow((s) => ({
+      setEngine: s.setEngine,
+      setPattern: s.setPattern,
+      toggleFlag: s.toggleFlag,
+      setTestText: s.setTestText,
+      setReplacement: s.setReplacement,
+      setShowReplace: s.setShowReplace,
+      loadPattern: s.loadPattern,
+      setSelectedMatch: s.setSelectedMatch,
+      setHoveredNodeId: s.setHoveredNodeId,
+      addTestCase: s.addTestCase,
+      updateTestCase: s.updateTestCase,
+      removeTestCase: s.removeTestCase,
+      setTestCases: s.setTestCases,
+    })),
+  );

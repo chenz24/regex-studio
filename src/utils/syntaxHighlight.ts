@@ -13,6 +13,8 @@ const TYPE_COLORS: Record<string, { light: string; dark: string }> = {
   group: { light: '#059669', dark: '#34d399' },
   nonCapturingGroup: { light: '#059669', dark: '#34d399' },
   namedGroup: { light: '#059669', dark: '#34d399' },
+  atomicGroup: { light: '#059669', dark: '#34d399' },
+  inlineFlags: { light: '#7c3aed', dark: '#a78bfa' },
   lookahead: { light: '#0891b2', dark: '#22d3ee' },
   negativeLookahead: { light: '#0891b2', dark: '#22d3ee' },
   lookbehind: { light: '#0891b2', dark: '#22d3ee' },
@@ -101,6 +103,7 @@ function collectTokens(node: ASTNode, tokens: HighlightToken[]): void {
     node.type === 'group' ||
     node.type === 'nonCapturingGroup' ||
     node.type === 'namedGroup' ||
+    node.type === 'atomicGroup' ||
     node.type === 'lookahead' ||
     node.type === 'negativeLookahead' ||
     node.type === 'lookbehind' ||
@@ -154,10 +157,14 @@ function collectTokens(node: ASTNode, tokens: HighlightToken[]): void {
 }
 
 function getGroupOpenLen(node: ASTNode): number {
+  // The parser records the real delimiter length: `(?<name>`, `(?P<name>` and
+  // `(?i:` cannot be derived from the node type alone.
+  if (node.openLen !== undefined) return node.openLen;
   switch (node.type) {
     case 'group':
       return 1;
     case 'nonCapturingGroup':
+    case 'atomicGroup':
       return 3;
     case 'lookahead':
       return 3;

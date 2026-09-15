@@ -1,12 +1,31 @@
+import { lazy, Suspense } from 'react';
 import { BookOpen, Bug, ArrowRightLeft, FileJson, List, Code2, FlaskConical } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useT } from '@/lib/i18n';
-import { ExplanationPanel } from '../tools/ExplanationPanel';
 import { DebuggerPanel } from '../tools/DebuggerPanel';
-import { ReplacePanel } from '../tools/ReplacePanel';
-import { MatchDetails } from '../tools/MatchDetails';
-import { CodeGeneratorPanel } from '../tools/CodeGeneratorPanel';
-import { TestCasesPanel } from '../tools/TestCasesPanel';
+
+// Only the debugger is on screen at startup. Radix unmounts the inactive
+// panels, so the rest cost nothing until their tab is opened — including the
+// code generator, which carries a generator for each of ten languages.
+const ExplanationPanel = lazy(() =>
+  import('../tools/ExplanationPanel').then((m) => ({ default: m.ExplanationPanel })),
+);
+const ReplacePanel = lazy(() =>
+  import('../tools/ReplacePanel').then((m) => ({ default: m.ReplacePanel })),
+);
+const MatchDetails = lazy(() =>
+  import('../tools/MatchDetails').then((m) => ({ default: m.MatchDetails })),
+);
+const CodeGeneratorPanel = lazy(() =>
+  import('../tools/CodeGeneratorPanel').then((m) => ({ default: m.CodeGeneratorPanel })),
+);
+const TestCasesPanel = lazy(() =>
+  import('../tools/TestCasesPanel').then((m) => ({ default: m.TestCasesPanel })),
+);
+
+function PanelFallback() {
+  return <div className="h-32 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800/60" />;
+}
 import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '../../types/regex';
 import type { ToolPanelTab } from '@/tutorial/types';
 
@@ -15,6 +34,8 @@ interface ToolPanelProps {
   pattern: string;
   testText: string;
   flagString: string;
+  /** Flags actually forwarded to the engine (JS-safe subset). */
+  jsFlagString: string;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
   replacement: string;
@@ -44,6 +65,7 @@ export function ToolPanel({
   pattern,
   testText,
   flagString,
+  jsFlagString,
   hoveredNodeId,
   onHoverNode,
   replacement,
@@ -149,56 +171,66 @@ export function ToolPanel({
               ast={ast}
               pattern={pattern}
               testText={testText}
-              flagString={flagString}
+              flagString={jsFlagString}
             />
           </TabsContent>
 
           <TabsContent value="matches" className="p-3 mt-0">
-            <MatchDetails
-              matches={matches}
-              selectedMatch={selectedMatch}
-              onSelectMatch={onSelectMatch}
-            />
+            <Suspense fallback={<PanelFallback />}>
+              <MatchDetails
+                matches={matches}
+                selectedMatch={selectedMatch}
+                onSelectMatch={onSelectMatch}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="explanation" className="p-3 mt-0">
-            <ExplanationPanel
-              ast={ast}
-              hoveredNodeId={hoveredNodeId}
-              onHoverNode={onHoverNode}
-              spotlightNodeIds={spotlightNodeIds}
-              spotlightFirstNodeId={spotlightFirstNodeId}
-            />
+            <Suspense fallback={<PanelFallback />}>
+              <ExplanationPanel
+                ast={ast}
+                hoveredNodeId={hoveredNodeId}
+                onHoverNode={onHoverNode}
+                spotlightNodeIds={spotlightNodeIds}
+                spotlightFirstNodeId={spotlightFirstNodeId}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="tests" className="p-3 mt-0">
-            <TestCasesPanel
-              testCases={testCases}
-              testResults={testResults}
-              currentTestText={testText}
-              onAdd={onAddTestCase}
-              onUpdate={onUpdateTestCase}
-              onRemove={onRemoveTestCase}
-              onLoadIntoEditor={onLoadTestCaseInput}
-            />
+            <Suspense fallback={<PanelFallback />}>
+              <TestCasesPanel
+                testCases={testCases}
+                testResults={testResults}
+                currentTestText={testText}
+                onAdd={onAddTestCase}
+                onUpdate={onUpdateTestCase}
+                onRemove={onRemoveTestCase}
+                onLoadIntoEditor={onLoadTestCaseInput}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="replace" className="p-3 mt-0">
-            <ReplacePanel
-              replacement={replacement}
-              onReplacementChange={onReplacementChange}
-              replacedText={replacedText}
-              matchCount={matchCount}
-            />
+            <Suspense fallback={<PanelFallback />}>
+              <ReplacePanel
+                replacement={replacement}
+                onReplacementChange={onReplacementChange}
+                replacedText={replacedText}
+                matchCount={matchCount}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="codegen" className="p-3 mt-0">
-            <CodeGeneratorPanel
-              pattern={pattern}
-              flags={flagString}
-              testText={testText}
-              replacement={replacement}
-            />
+            <Suspense fallback={<PanelFallback />}>
+              <CodeGeneratorPanel
+                pattern={pattern}
+                flags={flagString}
+                testText={testText}
+                replacement={replacement}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="ast" className="p-3 mt-0">

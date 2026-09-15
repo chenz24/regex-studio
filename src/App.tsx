@@ -1,35 +1,67 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Library, FileText, X } from 'lucide-react';
-import { useRegexStore, useRegexDerived } from './stores/regexStore';
+import { useRegexStore, useRegexActions, useRegexDerived } from './stores/regexStore';
 import { useTheme } from './hooks/useTheme';
 import { RegexInput } from './components/editor/RegexInput';
 import { TestArea } from './components/layout/TestArea';
 import { Footer } from './components/layout/Footer';
 import { RailroadBanner } from './components/diagram/RailroadBanner';
 import { ToolPanel } from './components/layout/ToolPanel';
-import { QuickReference } from './components/sidebar/QuickReference';
-import { PatternLibrary } from './components/sidebar/PatternLibrary';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { ShareButton } from './components/ShareButton';
 import { readShareFromLocation, writeShareToLocation, type SharePayload } from './lib/share';
 import type { RegexEngine } from './types/engineTypes';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { TutorialLauncher, TutorialDrawer } from './components/tutorial';
+import { TutorialLauncher } from './components/tutorial/TutorialLauncher';
 import { useTutorialStore } from './stores/tutorialStore';
-import { findLesson } from './tutorial/registry';
+import { findLoadedLesson } from './tutorial/content';
+import { useLazyMount } from './hooks/useLazyMount';
 import { resolveSpotlight } from './tutorial/spotlight';
 import type { ToolPanelTab } from './tutorial/types';
-import { ChallengesLauncher, ChallengesDrawer } from './components/challenges';
+import { ChallengesLauncher } from './components/challenges/ChallengesLauncher';
 import { useChallengeStore } from './stores/challengeStore';
 import { useT } from '@/lib/i18n';
+
+// The drawers pull in all lesson and challenge content, which nobody sees
+// until they open one. They are fetched on demand — or during idle time, so
+// that the first open still animates instead of appearing already open.
+// The reference and pattern-library panels live in a slide-in sidebar that
+// starts closed, so they are fetched the same way as the drawers.
+const loadQuickReference = () => import('./components/sidebar/QuickReference');
+const loadPatternLibrary = () => import('./components/sidebar/PatternLibrary');
+const QuickReference = lazy(() =>
+  loadQuickReference().then((m) => ({ default: m.QuickReference })),
+);
+const PatternLibrary = lazy(() =>
+  loadPatternLibrary().then((m) => ({ default: m.PatternLibrary })),
+);
+
+const loadTutorialDrawer = () => import('./components/tutorial/TutorialDrawer');
+const loadChallengesDrawer = () => import('./components/challenges/ChallengesDrawer');
+const TutorialDrawer = lazy(() =>
+  loadTutorialDrawer().then((m) => ({ default: m.TutorialDrawer })),
+);
+const ChallengesDrawer = lazy(() =>
+  loadChallengesDrawer().then((m) => ({ default: m.ChallengesDrawer })),
+);
 
 type SidebarTab = 'reference' | 'library';
 
 function App() {
   const t = useT();
-  // Zustand store
-  const store = useRegexStore();
+  // Subscribe field by field: reading the whole store re-rendered the entire
+  // app on every hover over a diagram node.
+  const engine = useRegexStore((s) => s.engine);
+  const pattern = useRegexStore((s) => s.pattern);
+  const flags = useRegexStore((s) => s.flags);
+  const testText = useRegexStore((s) => s.testText);
+  const replacement = useRegexStore((s) => s.replacement);
+  const showReplace = useRegexStore((s) => s.showReplace);
+  const testCases = useRegexStore((s) => s.testCases);
+  const selectedMatch = useRegexStore((s) => s.selectedMatch);
+  const hoveredNodeId = useRegexStore((s) => s.hoveredNodeId);
+  const actions = useRegexActions();
   const derived = useRegexDerived();
 
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -52,12 +84,12 @@ function App() {
   const tutorialStepIndex = useTutorialStore((s) => s.currentStepIndex);
   const currentStep = useMemo(() => {
     if (tutorialView !== 'lesson' || !tutorialLessonId) return undefined;
-    return findLesson(tutorialLessonId)?.steps[tutorialStepIndex];
+    return findLoadedLesson(tutorialLessonId)?.steps[tutorialStepIndex];
   }, [tutorialView, tutorialLessonId, tutorialStepIndex]);
 
   const spotlight = useMemo(
-    () => resolveSpotlight(currentStep?.spotlight, store.pattern, derived.ast),
-    [currentStep?.spotlight, store.pattern, derived.ast],
+    () => resolveSpotlight(currentStep?.spotlight, pattern, derived.ast),
+    [currentStep?.spotlight, pattern, derived.ast],
   );
 
   // Controlled Tool panel tab. Defaults to 'debugger'; the tutorial can
@@ -82,17 +114,25 @@ function App() {
   const closeChallenges = useChallengeStore((s) => s.close);
   const challengesOpen = challengeView !== 'closed';
 
-  // Mutex: only one drawer open at a time. When tutorial opens, close
-  // challenges; vice versa.
+  // Mutex: only one drawer open at a time — whichever opened most recently
+  // wins. This has to be a single effect that knows which side just flipped
+  // on: two effects each reacting to "both are open" fire in the same commit
+  // and close both drawers.
+  // Fetching the drawer pulls its content in with it, so one wait covers both
+  // and the drawer is already resolved by the time it mounts.
+  const referenceMounted = useLazyMount(loadQuickReference, sidebarOpen);
+  const libraryMounted = useLazyMount(loadPatternLibrary, sidebarOpen);
+  const tutorialMounted = useLazyMount(loadTutorialDrawer, tutorialOpen);
+  const challengesMounted = useLazyMount(loadChallengesDrawer, challengesOpen);
+
+  const prevDrawersRef = useRef({ tutorial: tutorialOpen, challenges: challengesOpen });
   useEffect(() => {
-    if (tutorialOpen && challengesOpen) closeChallenges();
-  }, [tutorialOpen, challengesOpen, closeChallenges]);
-  // We only react to challengesOpen flipping on; tutorial side handled above.
-  // Keeping a single dependency avoids ping-pong with the other effect.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional single-trigger
-  useEffect(() => {
-    if (challengesOpen && tutorialOpen) closeTutorial();
-  }, [challengesOpen]);
+    const prev = prevDrawersRef.current;
+    prevDrawersRef.current = { tutorial: tutorialOpen, challenges: challengesOpen };
+    if (!tutorialOpen || !challengesOpen) return;
+    if (!prev.tutorial) closeChallenges();
+    else if (!prev.challenges) closeTutorial();
+  }, [tutorialOpen, challengesOpen, closeChallenges, closeTutorial]);
 
   // Hydrate tutorial + challenges progress + parse URL params once on mount.
   useEffect(() => {
@@ -102,19 +142,20 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const challengeId = params.get('challenge');
     if (challengeId) {
-      startChallenge(challengeId);
-      // If the challenge id was invalid, fall back to the catalog so the
-      // user at least sees the list.
-      if (useChallengeStore.getState().view === 'closed') {
-        openChallengeCatalog();
-      }
+      // Starting waits on the challenge content chunk, so the fallback has to
+      // wait with it: if the id was invalid, show the catalogue instead.
+      void startChallenge(challengeId).then(() => {
+        if (useChallengeStore.getState().view === 'closed') {
+          openChallengeCatalog();
+        }
+      });
       return;
     }
     const lessonId = params.get('lesson');
     const stepParam = params.get('step');
     if (lessonId) {
       const stepIndex = stepParam ? Math.max(0, parseInt(stepParam, 10) - 1) : 0;
-      startLesson(lessonId, Number.isFinite(stepIndex) ? stepIndex : 0);
+      void startLesson(lessonId, Number.isFinite(stepIndex) ? stepIndex : 0);
     }
   }, [hydrateTutorial, hydrateChallenges, startLesson, startChallenge, openChallengeCatalog]);
 
@@ -133,22 +174,14 @@ function App() {
     }
     const payload = readShareFromLocation();
     if (!payload) return;
-    store.setEngine(payload.e as RegexEngine);
-    store.loadPattern(payload.p, payload.f);
-    if (payload.t !== undefined) store.setTestText(payload.t);
-    if (payload.r !== undefined) store.setReplacement(payload.r);
-    if (payload.sr !== undefined) store.setShowReplace(payload.sr);
-    if (payload.tc) store.setTestCases(payload.tc);
-    // We intentionally only run this once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    store.setTestCases,
-    store.setEngine,
-    store.setTestText,
-    store.setShowReplace,
-    store.setReplacement,
-    store.loadPattern,
-  ]);
+    actions.setEngine(payload.e as RegexEngine);
+    actions.loadPattern(payload.p, payload.f);
+    if (payload.t !== undefined) actions.setTestText(payload.t);
+    if (payload.r !== undefined) actions.setReplacement(payload.r);
+    if (payload.sr !== undefined) actions.setShowReplace(payload.sr);
+    if (payload.tc) actions.setTestCases(payload.tc);
+    // Runs once: the ref above guards against a second pass.
+  }, [actions]);
 
   // Keep the URL hash in sync with the current state. Debounced and using
   // replaceState so we don't pollute history on every keystroke.
@@ -156,25 +189,17 @@ function App() {
     if (!hydratedRef.current) return;
     const payload: SharePayload = {
       v: 1,
-      p: store.pattern,
+      p: pattern,
       f: derived.flagString,
-      e: store.engine,
-      t: store.testText,
-      r: store.replacement || undefined,
-      sr: store.showReplace || undefined,
-      tc: store.testCases.length > 0 ? store.testCases : undefined,
+      e: engine,
+      t: testText,
+      r: replacement || undefined,
+      sr: showReplace || undefined,
+      tc: testCases.length > 0 ? testCases : undefined,
     };
     const handle = setTimeout(() => writeShareToLocation(payload), 400);
     return () => clearTimeout(handle);
-  }, [
-    store.pattern,
-    derived.flagString,
-    store.engine,
-    store.testText,
-    store.replacement,
-    store.showReplace,
-    store.testCases,
-  ]);
+  }, [pattern, derived.flagString, engine, testText, replacement, showReplace, testCases]);
 
   const openSidebar = (tab: SidebarTab) => {
     if (sidebarOpen && sidebarTab === tab) {
@@ -239,22 +264,18 @@ function App() {
               <BookOpen className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t.header_reference()}</span>
             </button>
-            <TutorialLauncher
-              onOpen={() => setSidebarOpen(false)}
-            />
-            <ChallengesLauncher
-              onOpen={() => setSidebarOpen(false)}
-            />
+            <TutorialLauncher onOpen={() => setSidebarOpen(false)} />
+            <ChallengesLauncher onOpen={() => setSidebarOpen(false)} />
             <ShareButton
               payload={{
                 v: 1,
-                p: store.pattern,
+                p: pattern,
                 f: derived.flagString,
-                e: store.engine,
-                t: store.testText,
-                r: store.replacement || undefined,
-                sr: store.showReplace || undefined,
-                tc: store.testCases.length > 0 ? store.testCases : undefined,
+                e: engine,
+                t: testText,
+                r: replacement || undefined,
+                sr: showReplace || undefined,
+                tc: testCases.length > 0 ? testCases : undefined,
               }}
             />
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
@@ -273,18 +294,19 @@ function App() {
           <div className="px-4 sm:px-6 py-5 space-y-4">
             {/* Regex Input */}
             <RegexInput
-              pattern={store.pattern}
-              onPatternChange={store.setPattern}
-              flags={store.flags}
+              pattern={pattern}
+              onPatternChange={actions.setPattern}
+              flags={flags}
               flagString={derived.flagString}
-              onToggleFlag={store.toggleFlag}
+              onToggleFlag={actions.toggleFlag}
               validation={derived.validation}
               matchCount={derived.matches.length}
+              timedOut={derived.timedOut}
               ast={derived.ast}
-              hoveredNodeId={store.hoveredNodeId}
-              onHoverNode={store.setHoveredNodeId}
-              engine={store.engine}
-              onEngineChange={store.setEngine}
+              hoveredNodeId={hoveredNodeId}
+              onHoverNode={actions.setHoveredNodeId}
+              engine={engine}
+              onEngineChange={actions.setEngine}
               compatibilityWarnings={derived.compatibilityWarnings}
             />
 
@@ -292,10 +314,10 @@ function App() {
             <RailroadBanner
               diagram={derived.diagram}
               ast={derived.ast}
-              pattern={store.pattern}
-              onPatternChange={store.setPattern}
-              hoveredNodeId={store.hoveredNodeId}
-              onHoverNode={store.setHoveredNodeId}
+              pattern={pattern}
+              onPatternChange={actions.setPattern}
+              hoveredNodeId={hoveredNodeId}
+              onHoverNode={actions.setHoveredNodeId}
               spotlightNodeIds={spotlight.nodeIds}
             />
 
@@ -305,11 +327,11 @@ function App() {
               <ResizablePanel defaultSize={45} minSize={30}>
                 <div className="pr-2 h-full">
                   <TestArea
-                    text={store.testText}
-                    onTextChange={store.setTestText}
+                    text={testText}
+                    onTextChange={actions.setTestText}
                     matches={derived.matches}
-                    selectedMatch={store.selectedMatch}
-                    onSelectMatch={store.setSelectedMatch}
+                    selectedMatch={selectedMatch}
+                    onSelectMatch={actions.setSelectedMatch}
                   />
                 </div>
               </ResizablePanel>
@@ -321,25 +343,26 @@ function App() {
                 <div className="pl-2 h-full">
                   <ToolPanel
                     ast={derived.ast}
-                    pattern={store.pattern}
-                    testText={store.testText}
+                    pattern={pattern}
+                    testText={testText}
                     flagString={derived.flagString}
-                    hoveredNodeId={store.hoveredNodeId}
-                    onHoverNode={store.setHoveredNodeId}
-                    replacement={store.replacement}
-                    onReplacementChange={store.setReplacement}
+                    jsFlagString={derived.jsFlagString}
+                    hoveredNodeId={hoveredNodeId}
+                    onHoverNode={actions.setHoveredNodeId}
+                    replacement={replacement}
+                    onReplacementChange={actions.setReplacement}
                     replacedText={derived.replacedText}
                     matchCount={derived.matches.length}
                     matches={derived.matches}
-                    selectedMatch={store.selectedMatch}
-                    onSelectMatch={store.setSelectedMatch}
-                    testCases={store.testCases}
+                    selectedMatch={selectedMatch}
+                    onSelectMatch={actions.setSelectedMatch}
+                    testCases={testCases}
                     testResults={derived.testResults}
                     testsPassed={derived.testsPassed}
-                    onAddTestCase={store.addTestCase}
-                    onUpdateTestCase={store.updateTestCase}
-                    onRemoveTestCase={store.removeTestCase}
-                    onLoadTestCaseInput={store.setTestText}
+                    onAddTestCase={actions.addTestCase}
+                    onUpdateTestCase={actions.updateTestCase}
+                    onRemoveTestCase={actions.removeTestCase}
+                    onLoadTestCaseInput={actions.setTestText}
                     activeTab={activeToolPanelTab}
                     onActiveTabChange={setActiveToolPanelTab}
                     spotlightNodeIds={spotlight.nodeIds}
@@ -367,7 +390,9 @@ function App() {
                   <Library className="w-4 h-4 text-teal-500" />
                 )}
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  {sidebarTab === 'reference' ? 'Quick Reference' : 'Pattern Library'}
+                  {sidebarTab === 'reference'
+                    ? t.sidebar_quick_reference()
+                    : t.sidebar_pattern_library()}
                 </h2>
               </div>
               <button
@@ -388,7 +413,7 @@ function App() {
                 }`}
               >
                 <FileText className="w-3 h-3" />
-                Reference
+                {t.header_reference()}
               </button>
               <button
                 onClick={() => setSidebarTab('library')}
@@ -399,21 +424,29 @@ function App() {
                 }`}
               >
                 <Library className="w-3 h-3" />
-                Patterns
+                {t.header_patterns()}
               </button>
             </div>
 
-            {sidebarTab === 'reference' ? (
-              <QuickReference />
-            ) : (
-              <PatternLibrary onSelect={store.loadPattern} />
-            )}
+            <Suspense fallback={null}>
+              {sidebarTab === 'reference'
+                ? referenceMounted && <QuickReference />
+                : libraryMounted && <PatternLibrary onSelect={actions.loadPattern} />}
+            </Suspense>
           </div>
         </aside>
       </div>
 
-      <TutorialDrawer />
-      <ChallengesDrawer />
+      {tutorialMounted && (
+        <Suspense fallback={null}>
+          <TutorialDrawer />
+        </Suspense>
+      )}
+      {challengesMounted && (
+        <Suspense fallback={null}>
+          <ChallengesDrawer />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   insertAfterNode,
   wrapNodeInGroup,
   changeQuantifier,
+  groupInnerText,
 } from '../../utils/patternEditor';
 import { useT, type Messages } from '@/lib/i18n';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -200,11 +201,7 @@ function getReplaceSuggestions(node: ASTNode, pattern: string): Suggestion[] {
     case 'group':
     case 'nonCapturingGroup':
     case 'namedGroup': {
-      // Extract inner body (between outer parens, skipping any group prefix).
-      const child = node.children?.[0];
-      const inner = child
-        ? pattern.slice(child.start, child.end)
-        : pattern.slice(node.start + 1, node.end - 1);
+      const inner = groupInnerText(node, pattern);
       const out: Suggestion[] = [];
       if (node.type !== 'group')
         out.push({ label: `(${inner})`, value: `(${inner})`, hint: 'capturing' });
@@ -218,10 +215,7 @@ function getReplaceSuggestions(node: ASTNode, pattern: string): Suggestion[] {
     case 'negativeLookahead':
     case 'lookbehind':
     case 'negativeLookbehind': {
-      const child = node.children?.[0];
-      const inner = child
-        ? pattern.slice(child.start, child.end)
-        : pattern.slice(node.start + 1, node.end - 1);
+      const inner = groupInnerText(node, pattern);
       const variants: { t: ASTNode['type']; v: string; hint: string }[] = [
         { t: 'lookahead', v: `(?=${inner})`, hint: 'lookahead' },
         { t: 'negativeLookahead', v: `(?!${inner})`, hint: 'neg lookahead' },

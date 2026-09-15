@@ -802,7 +802,7 @@ function layoutGroup(ir: IR & { type: 'Group' }, x: number, railAbsY: number): P
     borderDark = '#718096';
     dashArr = '5 3';
   } else {
-    label = 'Non-capturing';
+    label = ir.caption ?? 'Non-capturing';
     borderColor = '#a0a0a0';
     borderDark = '#4a5568';
     dashArr = '5 3';

@@ -48,8 +48,15 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
 
   // Run the debugger
   const debugResult: DebugResult = useMemo(() => {
-    if (!pattern || !testText) {
-      return { steps: [], matched: false, totalSteps: 0, truncated: false };
+    if (!pattern) {
+      return {
+        steps: [],
+        matched: false,
+        matchStart: -1,
+        matchEnd: -1,
+        totalSteps: 0,
+        truncated: false,
+      };
     }
     return debugRegex(ast, testText, flagString);
   }, [ast, testText, flagString, pattern]);
@@ -58,12 +65,14 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
   const totalSteps = steps.length;
   const step: DebugStep | null = totalSteps > 0 ? (steps[currentStep] ?? null) : null;
 
-  // Reset step when inputs change
+  // Reset when the inputs change — otherwise the cursor keeps pointing into
+  // the step list of the previous pattern.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the recomputed result
   useEffect(() => {
     setCurrentStep(0);
     setPlaying(false);
     playingRef.current = false;
-  }, []);
+  }, [debugResult]);
 
   // Auto-play
   useEffect(() => {
@@ -138,7 +147,15 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
     return () => window.removeEventListener('keydown', handler);
   }, [goPrev, goNext, togglePlay]);
 
-  if (!pattern || !testText) {
+  if (debugResult.error) {
+    return (
+      <div role="alert" className="p-3 text-sm text-rose-600 dark:text-rose-400">
+        {debugResult.error}
+      </div>
+    );
+  }
+
+  if (!pattern) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500 text-sm gap-2">
         <span>{t.debugger_enter_pattern_hint()}</span>
@@ -354,7 +371,9 @@ function StringDisplay({ text, step }: { text: string; step: DebugStep | null })
           {t.debugger_test_string_label()}
         </span>
         {step && (
-          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">{t.debugger_pos({ pos: String(pos) })}</span>
+          <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
+            {t.debugger_pos({ pos: String(pos) })}
+          </span>
         )}
       </div>
       <div className="px-3 py-2 font-mono text-sm overflow-x-auto custom-scrollbar whitespace-pre relative">

@@ -143,6 +143,22 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         openChar: '(?:',
         closeChar: ')',
       };
+    case 'atomicGroup':
+      return {
+        color: 'green',
+        title: t.explain_atomic_group_title(),
+        desc: t.explain_atomic_group_desc(),
+        openChar: '(?>',
+        closeChar: ')',
+      };
+    case 'inlineFlags':
+      return {
+        color: 'cyan',
+        title: t.explain_inline_flags_title({ flags: node.value }),
+        desc: t.explain_inline_flags_desc({ flags: node.value }),
+        openChar: node.raw,
+        closeChar: '',
+      };
     case 'namedGroup':
       return {
         color: 'green',
@@ -203,8 +219,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
       return {
         color: 'rose',
         title: node.value === '^' ? t.explain_anchor_start_title() : t.explain_anchor_end_title(),
-        desc:
-          node.value === '^' ? t.explain_anchor_start_desc() : t.explain_anchor_end_desc(),
+        desc: node.value === '^' ? t.explain_anchor_start_desc() : t.explain_anchor_end_desc(),
         openChar: node.value,
         closeChar: '',
       };
@@ -235,8 +250,12 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
     case 'backreference':
       return {
         color: 'blue',
-        title: t.explain_backreference_title({ n: node.value }),
-        desc: t.explain_backreference_desc({ n: node.value }),
+        title: node.groupName
+          ? t.explain_named_backreference_title({ name: node.groupName })
+          : t.explain_backreference_title({ n: node.value }),
+        desc: node.groupName
+          ? t.explain_named_backreference_desc({ name: node.groupName })
+          : t.explain_backreference_desc({ n: node.value }),
         openChar: node.raw,
         closeChar: '',
       };
@@ -311,8 +330,12 @@ function ExplainNode({
             <div className="flex items-start gap-3">
               <span className={`font-mono font-bold text-base mt-px ${st.text}`}>{qRaw}</span>
               <div className="flex-1">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{t.explain_quantifier_title()}. </span>
-                <span className="text-gray-500 dark:text-gray-400">{getQuantifierDesc(t, qRaw)}</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">
+                  {t.explain_quantifier_title()}.{' '}
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {getQuantifierDesc(t, qRaw)}
+                </span>
               </div>
             </div>
           </div>

@@ -3,16 +3,49 @@ import type { ASTNode, QuantifierInfo } from '../types/regex';
 let pos = 0;
 let source = '';
 let groupCounter = 0;
+let totalGroups = 0;
+let unicode = false;
 let nodeIdCounter = 0;
 
 function nextNodeId(): string {
   return `ast_${nodeIdCounter++}`;
 }
 
-export function parseRegex(pattern: string): ASTNode {
+function isEmptySequence(node: ASTNode): boolean {
+  return node.type === 'sequence' && (node.children?.length ?? 0) === 0;
+}
+
+/** Count all capture slots, including groups after a forward reference. */
+function countCaptures(pattern: string, unicodeSets: boolean): number {
+  let count = 0;
+  let classDepth = 0;
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      i++;
+    } else if (ch === '[' && (classDepth === 0 || unicodeSets)) {
+      classDepth++;
+    } else if (ch === ']' && classDepth > 0) {
+      classDepth--;
+    } else if (ch === '(' && classDepth === 0) {
+      if (
+        pattern[i + 1] !== '?' ||
+        (pattern[i + 2] === '<' && pattern[i + 3] !== '=' && pattern[i + 3] !== '!') ||
+        (pattern[i + 2] === 'P' && pattern[i + 3] === '<')
+      ) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+export function parseRegex(pattern: string, flags = ''): ASTNode {
   pos = 0;
   source = pattern;
   groupCounter = 0;
+  totalGroups = countCaptures(pattern, flags.includes('v'));
+  unicode = flags.includes('u') || flags.includes('v');
   nodeIdCounter = 0;
 
   if (!pattern) {
@@ -28,8 +61,39 @@ export function parseRegex(pattern: string): ASTNode {
   }
 
   try {
-    const node = parseAlternation();
-    return node;
+    const parts: ASTNode[] = [];
+
+    // `parseAlternation` stops at a `)` it cannot consume. Rather than
+    // dropping the rest of an unbalanced pattern on the floor — `a)b` used to
+    // parse as just `a` — keep the stray delimiter as a literal and carry on,
+    // so the diagram still shows everything the user typed.
+    while (true) {
+      const node = parseAlternation();
+      if (!isEmptySequence(node)) parts.push(node);
+      if (pos >= source.length) break;
+      const strayStart = pos;
+      const ch = source[pos];
+      pos++;
+      parts.push({
+        type: 'literal',
+        value: ch,
+        raw: ch,
+        id: nextNodeId(),
+        start: strayStart,
+        end: pos,
+      });
+    }
+
+    if (parts.length === 1) return parts[0];
+    return {
+      type: 'sequence',
+      value: '',
+      children: parts,
+      raw: source.slice(0, pos),
+      id: nextNodeId(),
+      start: 0,
+      end: pos,
+    };
   } catch {
     return {
       type: 'literal',
@@ -100,6 +164,79 @@ function parseSequence(): ASTNode {
   };
 }
 
+const HEX_DIGIT = /[0-9a-fA-F]/;
+/** Characters that can appear in an inline flag group such as `(?im-sx)`. */
+const INLINE_FLAG_CHAR = /[a-zA-Z-]/;
+/** Escapes that stand for a set of characters and so cannot bound a range. */
+const CLASS_ESCAPE = /^\\[dDwWsSpP]/;
+const CONTROL_LETTER = /[a-zA-Z]/;
+
+/** Consume `count` hex digits, but only if that many are actually there. */
+function consumeHexDigits(count: number): void {
+  for (let i = 0; i < count; i++) {
+    if (pos + i >= source.length || !HEX_DIGIT.test(source[pos + i])) return;
+  }
+  pos += count;
+}
+
+/** Consume a `{...}` payload, e.g. the `{L}` of `\p{L}`. */
+function consumeBraced(): void {
+  const close = source.indexOf('}', pos + 1);
+  if (close !== -1) pos = close + 1;
+}
+
+/**
+ * Consume one complete escape sequence starting at the current backslash and
+ * return its raw text.
+ *
+ * Escapes are not uniformly two characters: `\x41`, `\u0041`, `\u{1F600}`,
+ * `\cJ` and `\p{L}` all carry a payload. Stopping after the first character
+ * leaves the rest to be parsed as literals, so `\x41+` came out as `\x`, `4`
+ * and `1+` — with the quantifier bound to the wrong atom.
+ */
+function consumeEscapeSequence(): string {
+  const start = pos;
+  pos++; // the backslash
+  if (pos >= source.length) return source.slice(start, pos);
+
+  const ch = source[pos];
+  pos++;
+
+  // Annex B octal escapes have at most three digits, or two when the first
+  // digit is 4–7. Leave any remaining digits for the next atom/quantifier.
+  if (!unicode && ch >= '0' && ch <= '7') {
+    const maxDigits = ch <= '3' ? 3 : 2;
+    while (
+      pos - start - 1 < maxDigits &&
+      pos < source.length &&
+      source[pos] >= '0' &&
+      source[pos] <= '7'
+    ) {
+      pos++;
+    }
+    return source.slice(start, pos);
+  }
+
+  switch (ch) {
+    case 'x':
+      consumeHexDigits(2);
+      break;
+    case 'u':
+      if (source[pos] === '{') consumeBraced();
+      else consumeHexDigits(4);
+      break;
+    case 'c':
+      if (pos < source.length && CONTROL_LETTER.test(source[pos])) pos++;
+      break;
+    case 'p':
+    case 'P':
+      if (source[pos] === '{') consumeBraced();
+      break;
+  }
+
+  return source.slice(start, pos);
+}
+
 function parseAtom(): ASTNode | null {
   if (pos >= source.length) return null;
 
@@ -139,42 +276,87 @@ function parseGroup(): ASTNode {
 
   if (pos < source.length && source[pos] === '?') {
     pos++;
-    if (pos < source.length) {
-      if (source[pos] === ':') {
-        type = 'nonCapturingGroup';
-        pos++;
-      } else if (source[pos] === '=') {
-        type = 'lookahead';
+    const marker = source[pos];
+
+    if (marker === ':') {
+      type = 'nonCapturingGroup';
+      pos++;
+    } else if (marker === '=') {
+      type = 'lookahead';
+      pos++;
+    } else if (marker === '!') {
+      type = 'negativeLookahead';
+      pos++;
+    } else if (marker === '>') {
+      // Atomic group (PCRE, Java, Ruby): matches once and never gives back.
+      type = 'atomicGroup';
+      pos++;
+    } else if (marker === '<') {
+      pos++;
+      if (source[pos] === '=') {
+        type = 'lookbehind';
         pos++;
       } else if (source[pos] === '!') {
-        type = 'negativeLookahead';
+        type = 'negativeLookbehind';
         pos++;
-      } else if (source[pos] === '<') {
+      } else {
+        type = 'namedGroup';
+        groupName = readGroupName();
+        groupCounter++;
+        groupIndex = groupCounter;
+      }
+    } else if (marker === 'P' && source[pos + 1] === '<') {
+      // Python's spelling of a named group.
+      pos += 2;
+      type = 'namedGroup';
+      groupName = readGroupName();
+      groupCounter++;
+      groupIndex = groupCounter;
+    } else if (marker === 'P' && source[pos + 1] === '=') {
+      // Python's spelling of a named backreference — a whole construct, not
+      // a group.
+      pos += 2;
+      let name = '';
+      while (pos < source.length && source[pos] !== ')') {
+        name += source[pos];
         pos++;
-        if (pos < source.length && source[pos] === '=') {
-          type = 'lookbehind';
-          pos++;
-        } else if (pos < source.length && source[pos] === '!') {
-          type = 'negativeLookbehind';
-          pos++;
-        } else {
-          type = 'namedGroup';
-          let name = '';
-          while (pos < source.length && source[pos] !== '>') {
-            name += source[pos];
-            pos++;
-          }
-          if (pos < source.length) pos++;
-          groupName = name;
-          groupCounter++;
-          groupIndex = groupCounter;
-        }
+      }
+      if (pos < source.length) pos++;
+      return {
+        type: 'backreference',
+        value: name,
+        groupName: name,
+        raw: source.slice(start, pos),
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
+    } else if (marker !== undefined && INLINE_FLAG_CHAR.test(marker)) {
+      // `(?i)` switches flags on from here; `(?i:…)` scopes them to a group.
+      const flagsStart = pos;
+      while (pos < source.length && INLINE_FLAG_CHAR.test(source[pos])) pos++;
+      const flags = source.slice(flagsStart, pos);
+      if (source[pos] === ':') {
+        pos++;
+        type = 'nonCapturingGroup';
+      } else {
+        if (source[pos] === ')') pos++;
+        return {
+          type: 'inlineFlags',
+          value: flags,
+          raw: source.slice(start, pos),
+          id: nextNodeId(),
+          start,
+          end: pos,
+        };
       }
     }
   } else {
     groupCounter++;
     groupIndex = groupCounter;
   }
+
+  const openLen = pos - start;
 
   const content = parseAlternation();
 
@@ -190,11 +372,23 @@ function parseGroup(): ASTNode {
     children: content.type === 'sequence' && content.children ? content.children : [content],
     groupName,
     groupIndex,
+    openLen,
     raw,
     id: nextNodeId(),
     start,
     end: pos,
   };
+}
+
+/** Read a group name up to and including the closing `>`. */
+function readGroupName(): string {
+  let name = '';
+  while (pos < source.length && source[pos] !== '>') {
+    name += source[pos];
+    pos++;
+  }
+  if (pos < source.length) pos++;
+  return name;
 }
 
 function parseCharacterClass(): ASTNode {
@@ -212,24 +406,25 @@ function parseCharacterClass(): ASTNode {
   while (pos < source.length && source[pos] !== ']') {
     if (source[pos] === '\\' && pos + 1 < source.length) {
       const escStart = pos;
-      pos++;
-      const escaped = source[pos];
-      pos++;
+      const escRaw = consumeEscapeSequence();
 
       const escNode: ASTNode = {
         type: 'escape',
-        value: `\\${escaped}`,
-        raw: source.slice(escStart, pos),
+        value: escRaw,
+        raw: escRaw,
         id: nextNodeId(),
         start: escStart,
         end: pos,
       };
 
+      // `[\d-z]` is not a range: a shorthand class has no single code point
+      // to count from, so the `-` is a literal.
       if (
         pos < source.length &&
         source[pos] === '-' &&
         pos + 1 < source.length &&
-        source[pos + 1] !== ']'
+        source[pos + 1] !== ']' &&
+        !CLASS_ESCAPE.test(escNode.value)
       ) {
         const rangeStart = escStart;
         pos++;
@@ -264,7 +459,8 @@ function parseCharacterClass(): ASTNode {
         pos < source.length &&
         source[pos] === '-' &&
         pos + 1 < source.length &&
-        source[pos + 1] !== ']'
+        source[pos + 1] !== ']' &&
+        !CLASS_ESCAPE.test(source.slice(pos + 1, pos + 3))
       ) {
         pos++;
         const rangeEnd = parseClassAtom();
@@ -301,17 +497,8 @@ function parseCharacterClass(): ASTNode {
 function parseClassAtom(): ASTNode {
   if (source[pos] === '\\' && pos + 1 < source.length) {
     const start = pos;
-    pos++;
-    const ch = source[pos];
-    pos++;
-    return {
-      type: 'escape',
-      value: `\\${ch}`,
-      raw: source.slice(start, pos),
-      id: nextNodeId(),
-      start,
-      end: pos,
-    };
+    const raw = consumeEscapeSequence();
+    return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
   }
   const s = pos;
   const ch = source[pos];
@@ -321,33 +508,56 @@ function parseClassAtom(): ASTNode {
 
 function parseEscape(): ASTNode {
   const start = pos;
-  pos++;
-  if (pos >= source.length) {
+  if (pos + 1 >= source.length) {
+    pos++;
     return { type: 'literal', value: '\\', raw: '\\', id: nextNodeId(), start, end: pos };
   }
 
-  const ch = source[pos];
-  pos++;
+  const ch = source[pos + 1];
 
+  // A decimal escape is a backreference only if that capture slot exists
+  // anywhere in the pattern. Otherwise legacy mode falls back to octal or
+  // an identity escape (8/9); Unicode mode retains the invalid escape for
+  // display, while native syntax validation rejects it before debugging.
   if (ch >= '1' && ch <= '9') {
-    return {
-      type: 'backreference',
-      value: ch,
-      raw: source.slice(start, pos),
-      id: nextNodeId(),
-      start,
-      end: pos,
-    };
+    let end = pos + 2;
+    while (end < source.length && source[end] >= '0' && source[end] <= '9') end++;
+    const digits = source.slice(pos + 1, end);
+    const isReference = Number(digits) <= totalGroups;
+    if (isReference || unicode) {
+      pos = end;
+      const raw = source.slice(start, pos);
+      return {
+        type: isReference ? 'backreference' : 'escape',
+        value: isReference ? digits : raw,
+        raw,
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
+    }
   }
 
-  return {
-    type: 'escape',
-    value: `\\${ch}`,
-    raw: source.slice(start, pos),
-    id: nextNodeId(),
-    start,
-    end: pos,
-  };
+  // Named backreference `\k<name>`.
+  if (ch === 'k' && source[pos + 2] === '<') {
+    const close = source.indexOf('>', pos + 3);
+    if (close !== -1) {
+      const name = source.slice(pos + 3, close);
+      pos = close + 1;
+      return {
+        type: 'backreference',
+        value: name,
+        groupName: name,
+        raw: source.slice(start, pos),
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
+    }
+  }
+
+  const raw = consumeEscapeSequence();
+  return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
 }
 
 function tryParseQuantifier(node: ASTNode): ASTNode {

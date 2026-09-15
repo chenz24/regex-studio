@@ -95,3 +95,51 @@ export function evaluateChallenge(
     total,
   };
 }
+
+/**
+ * Same verdict as `evaluateChallenge`, but from match counts that have
+ * already been computed for the original challenge inputs. Missing counts
+ * are inconclusive, never evidence that a noMatch expectation was satisfied.
+ */
+export function evaluateChallengeFromResults(
+  challenge: Challenge,
+  pattern: string,
+  validation: { valid: boolean; error?: string },
+  matchCountByCaseId: ReadonlyMap<string, number>,
+): ChallengeEvaluation {
+  const total = challenge.testCases.length;
+  const invalid = Boolean(pattern) && !validation.valid;
+
+  const results = challenge.testCases.map((tc, i) => {
+    const count = matchCountByCaseId.get(challengeCaseId(challenge.id, i));
+    const matchCount = count ?? 0;
+    const hasMatch = !invalid && Boolean(pattern) && matchCount > 0;
+    return {
+      index: i,
+      label: tc.label,
+      input: tc.input,
+      expect: tc.expect,
+      pass:
+        count !== undefined &&
+        !invalid &&
+        Boolean(pattern) &&
+        (tc.expect === 'match' ? hasMatch : !hasMatch),
+      matchCount,
+    };
+  });
+
+  const passed = results.filter((r) => r.pass).length;
+  return {
+    solved: passed === total && total > 0,
+    invalid,
+    invalidError: invalid ? validation.error : undefined,
+    results,
+    passed,
+    total,
+  };
+}
+
+/** Id given to a challenge's test case inside the regex store. */
+export function challengeCaseId(challengeId: string, index: number): string {
+  return `${challengeId}__${index}`;
+}

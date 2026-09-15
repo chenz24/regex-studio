@@ -2,12 +2,23 @@ import { Check, X } from 'lucide-react';
 import type { ValidationResult } from '@/tutorial/types';
 import { useT } from '@/lib/i18n';
 
-export function GoalCard({ result }: { result: ValidationResult | null }) {
+export function GoalCard({
+  result,
+  pending = false,
+  timedOut = false,
+}: {
+  result: ValidationResult | null;
+  pending?: boolean;
+  timedOut?: boolean;
+}) {
   const t = useT();
-  if (!result || result.checks.length === 0) {
+  if (pending || timedOut || !result || result.checks.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-3 text-xs text-gray-500 dark:text-gray-400">
-        {t.tut_goal_empty()}
+      <div
+        role={pending || timedOut ? 'status' : undefined}
+        className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-3 text-xs text-gray-500 dark:text-gray-400"
+      >
+        {pending ? t.match_pending() : timedOut ? t.match_timed_out() : t.tut_goal_empty()}
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { LessonProgress, PersistedProgress, ValidationResult } from '@/tutorial/types';
-import { findLesson } from '@/tutorial/registry';
+import { findLoadedLesson, loadTutorialContent } from '@/tutorial/content';
 import { useRegexStore } from './regexStore';
 import type { TestCase } from '@/types/regex';
 
@@ -38,7 +38,7 @@ interface SnapshotBeforeLesson {
 interface TutorialActions {
   openCatalog: () => void;
   close: () => void;
-  startLesson: (lessonId: string, stepIndex?: number) => void;
+  startLesson: (lessonId: string, stepIndex?: number) => Promise<void>;
   exitLesson: (restore?: boolean) => void;
 
   next: () => void;
@@ -47,7 +47,7 @@ interface TutorialActions {
 
   markStepDone: (stepId: string) => void;
   revealSolution: () => void;
-  reportValidation: (r: ValidationResult) => void;
+  reportValidation: (r: ValidationResult | null) => void;
 
   resetLesson: (lessonId: string) => void;
 
@@ -97,7 +97,7 @@ function applyStepSetup(
 }
 
 function applyLessonInitialState(lessonId: string, stepIndex: number): SnapshotBeforeLesson | null {
-  const lesson = findLesson(lessonId);
+  const lesson = findLoadedLesson(lessonId);
   if (!lesson) return null;
 
   const r = useRegexStore.getState();
@@ -151,8 +151,11 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
 
   close: () => set({ view: 'closed' }),
 
-  startLesson: (lessonId, stepIndex = 0) => {
-    const lesson = findLesson(lessonId);
+  // Async because the lesson content is a separate chunk. Every other
+  // transition runs after a lesson has started, so by then it is loaded.
+  startLesson: async (lessonId, stepIndex = 0) => {
+    await loadTutorialContent();
+    const lesson = findLoadedLesson(lessonId);
     if (!lesson) return;
     const idx = Math.max(0, Math.min(stepIndex, lesson.steps.length - 1));
     const snapshot = applyLessonInitialState(lessonId, idx);
@@ -188,7 +191,7 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
   next: () => {
     const { currentLessonId, currentStepIndex } = get();
     if (!currentLessonId) return;
-    const lesson = findLesson(currentLessonId);
+    const lesson = findLoadedLesson(currentLessonId);
     if (!lesson) return;
     const nextIdx = Math.min(currentStepIndex + 1, lesson.steps.length - 1);
     if (nextIdx === currentStepIndex) return;
@@ -206,7 +209,7 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
   goTo: (stepIndex) => {
     const { currentLessonId } = get();
     if (!currentLessonId) return;
-    const lesson = findLesson(currentLessonId);
+    const lesson = findLoadedLesson(currentLessonId);
     if (!lesson) return;
     const idx = Math.max(0, Math.min(stepIndex, lesson.steps.length - 1));
     set({ currentStepIndex: idx, lastResult: null, failCount: 0 });
@@ -244,6 +247,7 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
 
   reportValidation: (r) =>
     set((state) => {
+      if (!r) return state.lastResult === null ? state : { lastResult: null };
       // Only bump fail counter when the result transitions from non-fail to fail
       // or when a previously failing result is replaced by another failure.
       const wasPass = state.lastResult?.pass ?? false;

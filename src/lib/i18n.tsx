@@ -93,6 +93,9 @@ export function setLocaleAndNavigate(locale: Locale) {
   // Best-effort cookie set; fall back to document.cookie for broad support.
   try {
     const expires = new Date(Date.now() + COOKIE_MAX_AGE * 1000).toUTCString();
+    // The Cookie Store API is still missing in Safari and Firefox; the write
+    // is guarded and the locale falls back to the default if it fails.
+    // biome-ignore lint/suspicious/noDocumentCookie: no portable alternative yet
     document.cookie = `${COOKIE_NAME}=${locale}; path=/; expires=${expires}; samesite=lax`;
   } catch {
     // ignore

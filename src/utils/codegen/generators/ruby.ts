@@ -8,7 +8,7 @@ export function generateRuby(ctx: CodeGenContext): CodeGenResult {
 
   const escapedPattern = escapePattern(pattern, 'ruby');
   const testStr = escapeTestString(testText, 'ruby');
-  const replaceStr = escapeReplacement(replaceText, 'ruby');
+  const replaceStr = escapeReplacement(replaceText, 'ruby', pattern);
   const rbFlags = getRubyFlags(flags);
 
   const patternStr = `/${escapedPattern}/${rbFlags}`;

@@ -36,6 +36,8 @@ interface RegexInputProps {
   onToggleFlag: (key: string) => void;
   validation: { valid: boolean; error?: string };
   matchCount: number;
+  /** The pattern overran its deadline and was abandoned. */
+  timedOut?: boolean;
   ast: ASTNode;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
@@ -164,6 +166,7 @@ export function RegexInput({
   onToggleFlag,
   validation,
   matchCount,
+  timedOut,
   ast,
   hoveredNodeId,
   onHoverNode,
@@ -191,6 +194,7 @@ export function RegexInput({
   // every keystroke and steal focus).
   const initialPatternRef = useRef(pattern);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only init
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -440,12 +444,18 @@ export function RegexInput({
 
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
-          {pattern && validation.valid && (
+          {pattern && validation.valid && !timedOut && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
               <Check className="w-3.5 h-3.5" />
               {matchCount === 1
                 ? t.regex_input_match_count_one({ count: String(matchCount) })
                 : t.regex_input_match_count_other({ count: String(matchCount) })}
+            </span>
+          )}
+          {pattern && validation.valid && timedOut && (
+            <span className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {t.regex_input_timed_out()}
             </span>
           )}
           {pattern && !validation.valid && (

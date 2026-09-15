@@ -21,7 +21,7 @@ export function generateGo(ctx: CodeGenContext): CodeGenResult {
     : `"${fullPattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
   const testStr = escapeTestString(testText, 'go');
-  const replaceStr = escapeReplacement(replaceText, 'go');
+  const replaceStr = escapeReplacement(replaceText, 'go', pattern);
 
   let code = `package main
 

@@ -105,3 +105,17 @@ export function getNodeDescription(node: ASTNode): string {
       return node.raw;
   }
 }
+
+/**
+ * Text between a group's delimiters, e.g. `abc` for `(?:abc)`.
+ *
+ * The parser flattens a group's sequence into `children`, so `children[0]`
+ * is only the *first* element of the body — slicing from it would drop
+ * everything after it. Span the whole child list instead.
+ */
+export function groupInnerText(node: ASTNode, pattern: string): string {
+  const children = node.children;
+  // No children means an empty body, e.g. `()` or `(?<name>)`.
+  if (!children || children.length === 0) return '';
+  return pattern.slice(children[0].start, children[children.length - 1].end);
+}

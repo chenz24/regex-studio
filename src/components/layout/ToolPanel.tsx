@@ -15,6 +15,8 @@ interface ToolPanelProps {
   pattern: string;
   testText: string;
   flagString: string;
+  /** Flags actually forwarded to the engine (JS-safe subset). */
+  jsFlagString: string;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
   replacement: string;
@@ -44,6 +46,7 @@ export function ToolPanel({
   pattern,
   testText,
   flagString,
+  jsFlagString,
   hoveredNodeId,
   onHoverNode,
   replacement,
@@ -149,7 +152,7 @@ export function ToolPanel({
               ast={ast}
               pattern={pattern}
               testText={testText}
-              flagString={flagString}
+              flagString={jsFlagString}
             />
           </TabsContent>
 

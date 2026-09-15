@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '../types/regex';
 import type { RegexEngine, CompatibilityWarning } from '../types/engineTypes';
 import { ENGINE_FLAVORS, toJsFlagString } from '../types/engineTypes';
@@ -173,12 +174,13 @@ export const useRegexStore = create<RegexStore>((set) => ({
   // Actions
   setEngine: (engine) =>
     set((state) => {
-      // Preserve enabled state for flags that exist (by key) in the new
-      // engine; drop flags that don't apply to the new target.
-      const previouslyEnabled = new Set(state.flags.filter((f) => f.enabled).map((f) => f.key));
+      // Carry the user's choice across for flags the new engine also has —
+      // including the choice to turn one off, which `||` used to undo — and
+      // fall back to the new engine's default for flags that are new.
+      const previous = new Map(state.flags.map((f) => [f.key, f.enabled]));
       const nextFlags = getDefaultFlags(engine).map((f) => ({
         ...f,
-        enabled: previouslyEnabled.has(f.key) || f.enabled,
+        enabled: previous.get(f.key) ?? f.enabled,
       }));
       return { engine, flags: nextFlags };
     }),
@@ -340,20 +342,26 @@ export const useReplacement = () => useRegexStore((s) => s.replacement);
 export const useSelectedMatch = () => useRegexStore((s) => s.selectedMatch);
 export const useHoveredNodeId = () => useRegexStore((s) => s.hoveredNodeId);
 
-// Action selectors (stable references)
+/**
+ * All actions in one object. The shallow comparator is required: without it
+ * the freshly built object is a new reference on every store read, which
+ * re-renders the consumer on every state change.
+ */
 export const useRegexActions = () =>
-  useRegexStore((s) => ({
-    setEngine: s.setEngine,
-    setPattern: s.setPattern,
-    toggleFlag: s.toggleFlag,
-    setTestText: s.setTestText,
-    setReplacement: s.setReplacement,
-    setShowReplace: s.setShowReplace,
-    loadPattern: s.loadPattern,
-    setSelectedMatch: s.setSelectedMatch,
-    setHoveredNodeId: s.setHoveredNodeId,
-    addTestCase: s.addTestCase,
-    updateTestCase: s.updateTestCase,
-    removeTestCase: s.removeTestCase,
-    setTestCases: s.setTestCases,
-  }));
+  useRegexStore(
+    useShallow((s) => ({
+      setEngine: s.setEngine,
+      setPattern: s.setPattern,
+      toggleFlag: s.toggleFlag,
+      setTestText: s.setTestText,
+      setReplacement: s.setReplacement,
+      setShowReplace: s.setShowReplace,
+      loadPattern: s.loadPattern,
+      setSelectedMatch: s.setSelectedMatch,
+      setHoveredNodeId: s.setHoveredNodeId,
+      addTestCase: s.addTestCase,
+      updateTestCase: s.updateTestCase,
+      removeTestCase: s.removeTestCase,
+      setTestCases: s.setTestCases,
+    })),
+  );

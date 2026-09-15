@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Library, FileText, X } from 'lucide-react';
-import { useRegexStore, useRegexDerived } from './stores/regexStore';
+import { useRegexStore, useRegexActions, useRegexDerived } from './stores/regexStore';
 import { useTheme } from './hooks/useTheme';
 import { RegexInput } from './components/editor/RegexInput';
 import { TestArea } from './components/layout/TestArea';
@@ -28,8 +28,18 @@ type SidebarTab = 'reference' | 'library';
 
 function App() {
   const t = useT();
-  // Zustand store
-  const store = useRegexStore();
+  // Subscribe field by field: reading the whole store re-rendered the entire
+  // app on every hover over a diagram node.
+  const engine = useRegexStore((s) => s.engine);
+  const pattern = useRegexStore((s) => s.pattern);
+  const flags = useRegexStore((s) => s.flags);
+  const testText = useRegexStore((s) => s.testText);
+  const replacement = useRegexStore((s) => s.replacement);
+  const showReplace = useRegexStore((s) => s.showReplace);
+  const testCases = useRegexStore((s) => s.testCases);
+  const selectedMatch = useRegexStore((s) => s.selectedMatch);
+  const hoveredNodeId = useRegexStore((s) => s.hoveredNodeId);
+  const actions = useRegexActions();
   const derived = useRegexDerived();
 
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -56,8 +66,8 @@ function App() {
   }, [tutorialView, tutorialLessonId, tutorialStepIndex]);
 
   const spotlight = useMemo(
-    () => resolveSpotlight(currentStep?.spotlight, store.pattern, derived.ast),
-    [currentStep?.spotlight, store.pattern, derived.ast],
+    () => resolveSpotlight(currentStep?.spotlight, pattern, derived.ast),
+    [currentStep?.spotlight, pattern, derived.ast],
   );
 
   // Controlled Tool panel tab. Defaults to 'debugger'; the tutorial can
@@ -134,22 +144,14 @@ function App() {
     }
     const payload = readShareFromLocation();
     if (!payload) return;
-    store.setEngine(payload.e as RegexEngine);
-    store.loadPattern(payload.p, payload.f);
-    if (payload.t !== undefined) store.setTestText(payload.t);
-    if (payload.r !== undefined) store.setReplacement(payload.r);
-    if (payload.sr !== undefined) store.setShowReplace(payload.sr);
-    if (payload.tc) store.setTestCases(payload.tc);
-    // We intentionally only run this once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    store.setTestCases,
-    store.setEngine,
-    store.setTestText,
-    store.setShowReplace,
-    store.setReplacement,
-    store.loadPattern,
-  ]);
+    actions.setEngine(payload.e as RegexEngine);
+    actions.loadPattern(payload.p, payload.f);
+    if (payload.t !== undefined) actions.setTestText(payload.t);
+    if (payload.r !== undefined) actions.setReplacement(payload.r);
+    if (payload.sr !== undefined) actions.setShowReplace(payload.sr);
+    if (payload.tc) actions.setTestCases(payload.tc);
+    // Runs once: the ref above guards against a second pass.
+  }, [actions]);
 
   // Keep the URL hash in sync with the current state. Debounced and using
   // replaceState so we don't pollute history on every keystroke.
@@ -157,24 +159,24 @@ function App() {
     if (!hydratedRef.current) return;
     const payload: SharePayload = {
       v: 1,
-      p: store.pattern,
+      p: pattern,
       f: derived.flagString,
-      e: store.engine,
-      t: store.testText,
-      r: store.replacement || undefined,
-      sr: store.showReplace || undefined,
-      tc: store.testCases.length > 0 ? store.testCases : undefined,
+      e: engine,
+      t: testText,
+      r: replacement || undefined,
+      sr: showReplace || undefined,
+      tc: testCases.length > 0 ? testCases : undefined,
     };
     const handle = setTimeout(() => writeShareToLocation(payload), 400);
     return () => clearTimeout(handle);
   }, [
-    store.pattern,
+    pattern,
     derived.flagString,
-    store.engine,
-    store.testText,
-    store.replacement,
-    store.showReplace,
-    store.testCases,
+    engine,
+    testText,
+    replacement,
+    showReplace,
+    testCases,
   ]);
 
   const openSidebar = (tab: SidebarTab) => {
@@ -249,13 +251,13 @@ function App() {
             <ShareButton
               payload={{
                 v: 1,
-                p: store.pattern,
+                p: pattern,
                 f: derived.flagString,
-                e: store.engine,
-                t: store.testText,
-                r: store.replacement || undefined,
-                sr: store.showReplace || undefined,
-                tc: store.testCases.length > 0 ? store.testCases : undefined,
+                e: engine,
+                t: testText,
+                r: replacement || undefined,
+                sr: showReplace || undefined,
+                tc: testCases.length > 0 ? testCases : undefined,
               }}
             />
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
@@ -274,19 +276,19 @@ function App() {
           <div className="px-4 sm:px-6 py-5 space-y-4">
             {/* Regex Input */}
             <RegexInput
-              pattern={store.pattern}
-              onPatternChange={store.setPattern}
-              flags={store.flags}
+              pattern={pattern}
+              onPatternChange={actions.setPattern}
+              flags={flags}
               flagString={derived.flagString}
-              onToggleFlag={store.toggleFlag}
+              onToggleFlag={actions.toggleFlag}
               validation={derived.validation}
               matchCount={derived.matches.length}
               timedOut={derived.timedOut}
               ast={derived.ast}
-              hoveredNodeId={store.hoveredNodeId}
-              onHoverNode={store.setHoveredNodeId}
-              engine={store.engine}
-              onEngineChange={store.setEngine}
+              hoveredNodeId={hoveredNodeId}
+              onHoverNode={actions.setHoveredNodeId}
+              engine={engine}
+              onEngineChange={actions.setEngine}
               compatibilityWarnings={derived.compatibilityWarnings}
             />
 
@@ -294,10 +296,10 @@ function App() {
             <RailroadBanner
               diagram={derived.diagram}
               ast={derived.ast}
-              pattern={store.pattern}
-              onPatternChange={store.setPattern}
-              hoveredNodeId={store.hoveredNodeId}
-              onHoverNode={store.setHoveredNodeId}
+              pattern={pattern}
+              onPatternChange={actions.setPattern}
+              hoveredNodeId={hoveredNodeId}
+              onHoverNode={actions.setHoveredNodeId}
               spotlightNodeIds={spotlight.nodeIds}
             />
 
@@ -307,11 +309,11 @@ function App() {
               <ResizablePanel defaultSize={45} minSize={30}>
                 <div className="pr-2 h-full">
                   <TestArea
-                    text={store.testText}
-                    onTextChange={store.setTestText}
+                    text={testText}
+                    onTextChange={actions.setTestText}
                     matches={derived.matches}
-                    selectedMatch={store.selectedMatch}
-                    onSelectMatch={store.setSelectedMatch}
+                    selectedMatch={selectedMatch}
+                    onSelectMatch={actions.setSelectedMatch}
                   />
                 </div>
               </ResizablePanel>
@@ -323,25 +325,26 @@ function App() {
                 <div className="pl-2 h-full">
                   <ToolPanel
                     ast={derived.ast}
-                    pattern={store.pattern}
-                    testText={store.testText}
+                    pattern={pattern}
+                    testText={testText}
                     flagString={derived.flagString}
-                    hoveredNodeId={store.hoveredNodeId}
-                    onHoverNode={store.setHoveredNodeId}
-                    replacement={store.replacement}
-                    onReplacementChange={store.setReplacement}
+                    jsFlagString={derived.jsFlagString}
+                    hoveredNodeId={hoveredNodeId}
+                    onHoverNode={actions.setHoveredNodeId}
+                    replacement={replacement}
+                    onReplacementChange={actions.setReplacement}
                     replacedText={derived.replacedText}
                     matchCount={derived.matches.length}
                     matches={derived.matches}
-                    selectedMatch={store.selectedMatch}
-                    onSelectMatch={store.setSelectedMatch}
-                    testCases={store.testCases}
+                    selectedMatch={selectedMatch}
+                    onSelectMatch={actions.setSelectedMatch}
+                    testCases={testCases}
                     testResults={derived.testResults}
                     testsPassed={derived.testsPassed}
-                    onAddTestCase={store.addTestCase}
-                    onUpdateTestCase={store.updateTestCase}
-                    onRemoveTestCase={store.removeTestCase}
-                    onLoadTestCaseInput={store.setTestText}
+                    onAddTestCase={actions.addTestCase}
+                    onUpdateTestCase={actions.updateTestCase}
+                    onRemoveTestCase={actions.removeTestCase}
+                    onLoadTestCaseInput={actions.setTestText}
                     activeTab={activeToolPanelTab}
                     onActiveTabChange={setActiveToolPanelTab}
                     spotlightNodeIds={spotlight.nodeIds}
@@ -369,7 +372,9 @@ function App() {
                   <Library className="w-4 h-4 text-teal-500" />
                 )}
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  {sidebarTab === 'reference' ? 'Quick Reference' : 'Pattern Library'}
+                  {sidebarTab === 'reference'
+                    ? t.sidebar_quick_reference()
+                    : t.sidebar_pattern_library()}
                 </h2>
               </div>
               <button
@@ -390,7 +395,7 @@ function App() {
                 }`}
               >
                 <FileText className="w-3 h-3" />
-                Reference
+                {t.header_reference()}
               </button>
               <button
                 onClick={() => setSidebarTab('library')}
@@ -401,14 +406,14 @@ function App() {
                 }`}
               >
                 <Library className="w-3 h-3" />
-                Patterns
+                {t.header_patterns()}
               </button>
             </div>
 
             {sidebarTab === 'reference' ? (
               <QuickReference />
             ) : (
-              <PatternLibrary onSelect={store.loadPattern} />
+              <PatternLibrary onSelect={actions.loadPattern} />
             )}
           </div>
         </aside>

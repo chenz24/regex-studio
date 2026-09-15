@@ -5,7 +5,7 @@
 **A modern, visual, debuggable workbench for regular expressions**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ef4444.svg)](https://tanstack.com/start)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff.svg)](https://vitejs.dev)
@@ -73,7 +73,7 @@ Beyond the basics like live matching and capture-group inspection, RegexStudio o
 
 | Category | Technology |
 |---|---|
-| **Framework** | [React 18](https://react.dev) + [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
+| **Framework** | [React 19](https://react.dev) + [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
 | **Build** | [Vite 7](https://vitejs.dev) |
 | **Language** | [TypeScript 5](https://www.typescriptlang.org) |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://www.radix-ui.com) |
@@ -131,7 +131,9 @@ pnpm preview    # preview the production bundle locally
 | `pnpm format` | Format the codebase with Biome |
 | `pnpm check:biome` | Run Biome check + fix |
 | `pnpm typecheck` | Run TypeScript type-check |
-| `pnpm check` | Run typecheck + lint together |
+| `pnpm test` | Run the unit tests (Vitest) |
+| `pnpm test:watch` | Run the unit tests in watch mode |
+| `pnpm check` | Run typecheck + lint + tests together |
 
 ### Project Structure
 
@@ -183,7 +185,7 @@ Contributions of any kind are warmly welcomed — bug reports, feature suggestio
    - 💡 **Feature requests**: describe the use case and value
 2. **Submit a Pull Request**
    1. Fork the repo and create a feature branch off `main`
-   2. Run `pnpm check` before pushing to ensure lint and type-check pass
+   2. Run `pnpm check` before pushing to ensure lint, type-check and tests pass
    3. Keep commit messages clear; we recommend [Conventional Commits](https://www.conventionalcommits.org/)
    4. In the PR description, explain the motivation, scope and how you tested
 3. **Spread the Word**

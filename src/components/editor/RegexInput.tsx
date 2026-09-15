@@ -194,6 +194,7 @@ export function RegexInput({
   // every keystroke and steal focus).
   const initialPatternRef = useRef(pattern);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only init
   useEffect(() => {
     if (!editorRef.current) return;
 

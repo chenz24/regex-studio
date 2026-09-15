@@ -14,6 +14,8 @@
   "header_tagline": "Visualize, Test & Debug Regular Expressions",
   "header_patterns": "Patterns",
   "header_reference": "Reference",
+  "sidebar_quick_reference": "Quick Reference",
+  "sidebar_pattern_library": "Pattern Library",
   "share_title": "Copy a shareable link to this regex, test string, and test cases",
   "share_label": "Share",
   "share_copied": "Copied",

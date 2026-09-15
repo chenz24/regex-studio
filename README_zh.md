@@ -5,7 +5,7 @@
 **现代化、可视化、可调试的正则表达式工作台**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ef4444.svg)](https://tanstack.com/start)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6.svg)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff.svg)](https://vitejs.dev)
@@ -73,7 +73,7 @@
 
 | 类别 | 技术 |
 |---|---|
-| **框架** | [React 18](https://react.dev) + [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
+| **框架** | [React 19](https://react.dev) + [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
 | **构建** | [Vite 7](https://vitejs.dev) |
 | **语言** | [TypeScript 5](https://www.typescriptlang.org) |
 | **样式** | [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://www.radix-ui.com) |
@@ -131,7 +131,9 @@ pnpm preview    # 本地预览生产产物
 | `pnpm format` | 使用 Biome 格式化代码 |
 | `pnpm check:biome` | 运行 Biome check 并自动修复 |
 | `pnpm typecheck` | 运行 TypeScript 类型检查 |
-| `pnpm check` | 同时执行 typecheck 与 lint |
+| `pnpm test` | 运行单元测试(Vitest) |
+| `pnpm test:watch` | 以 watch 模式运行单元测试 |
+| `pnpm check` | 同时执行 typecheck、lint 与测试 |
 
 ### 项目结构
 
@@ -183,7 +185,7 @@ regex-studio/
    - 💡 建议功能:描述使用场景与价值
 2. **提 Pull Request**
    1. Fork 本仓库并基于 `main` 创建特性分支
-   2. 提交前请运行 `pnpm check` 确保通过 lint 与类型检查
+   2. 提交前请运行 `pnpm check` 确保通过 lint、类型检查与测试
    3. 保持提交信息清晰,推荐使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范
    4. PR 描述中说明动机、改动范围与测试方式
 3. **传播与反馈**

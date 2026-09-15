@@ -52,6 +52,22 @@ afterEach(() => {
 });
 
 describe('worker scheduling and recovery', () => {
+  it('isolates syntax validation from matches and separates their cache keys', async () => {
+    const api = await import('./matchEngine');
+    const normal = { ...input('a+'), engine: 'pcre2' as const };
+    const match = api.runMatch(normal);
+    const validation = api.runMatch({ ...normal, validateOnly: true });
+    expect(ControlledWorker.instances).toHaveLength(2);
+    const [matchWorker, validationWorker] = ControlledWorker.instances;
+    matchWorker.ready();
+    validationWorker.ready();
+    expect(validationWorker.requests[0].validateOnly).toBe(true);
+    validationWorker.respond();
+    expect((await validation).timedOut).toBe(false);
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS);
+    expect((await match).timedOut).toBe(true);
+    expect(validationWorker.terminated).toBe(false);
+  });
   it('isolates native traces from matching and does not cache trace payloads', async () => {
     const api = await import('./matchEngine');
     const normal = { ...input('a'), engine: 'pcre2' as const };

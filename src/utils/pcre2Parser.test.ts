@@ -122,7 +122,6 @@ describe('PCRE2 visual parser', () => {
       '[^a]',
       '[]a]',
       '[\\Q]a\\E]',
-      '\\x{1F600}+',
       '\\p{L}+',
       '\\o{123}+',
       '\\N{U+0041}',
@@ -130,16 +129,58 @@ describe('PCRE2 visual parser', () => {
       const all = nodes(pattern);
       expect(all.some((n) => n.type === 'pcreEscape')).toBe(true);
     }
+    expect(nodes('\\x{1F600}+', 'u').find((n) => n.type === 'literal')?.value).toBe('😀');
     expect(nodes('😀+', 'u').find((n) => n.type === 'literal')?.value).toBe('😀');
+  });
+  it('parses assertion conditions with captures before their branches', () => {
+    const all = nodes('(?(?=(a|b))(c)|(d))(e)');
+    const condition = all.find((n) => n.type === 'conditional')!;
+    expect(condition.assertionCondition).toBe(true);
+    expect(condition.children?.map((n) => n.type)).toEqual(['lookahead', 'sequence', 'sequence']);
+    expect(all.filter((n) => n.groupIndex).map((n) => n.groupIndex)).toEqual([1, 2, 3, 4]);
+    const labels = layoutAST(parsePcre2('(?(?=a)b|c)').ast).texts.map((t) => t.text);
+    expect(labels).toEqual(
+      expect.arrayContaining(['If assertion', 'Then', 'Else', '"a"', '"b"', '"c"']),
+    );
+    expect(nodes('(?(VERSION>=10.47)yes|no)').find((n) => n.type === 'conditional')?.value).toBe(
+      'VERSION>=10.47',
+    );
+  });
+  it.each([
+    ['atomic', 'atomicGroup'],
+    ['pla', 'lookahead'],
+    ['positive_lookahead', 'lookahead'],
+    ['nla', 'negativeLookahead'],
+    ['negative_lookahead', 'negativeLookahead'],
+    ['plb', 'lookbehind'],
+    ['positive_lookbehind', 'lookbehind'],
+    ['nlb', 'negativeLookbehind'],
+    ['negative_lookbehind', 'negativeLookbehind'],
+  ])('parses nested long-form %s groups', (prefix, type) => {
+    const pattern = `(*${prefix}:(a|b))`;
+    const group = nodes(pattern).find((n) => n.type === type)!;
+    expect(group.raw).toBe(pattern);
+    expect(group.openLen).toBe(prefix.length + 3);
+    expect(
+      nodes(`(?(*${prefix === 'atomic' ? 'pla' : prefix}:a)b|c)`).some((n) => n.assertionCondition),
+    ).toBe(true);
+  });
+  it('keeps editable IDs and quote/comment boundaries when merging literals', () => {
+    const pattern = 'abc # comment\n def';
+    const all = nodes(pattern, 'x');
+    const literals = all.filter((n) => n.type === 'literal');
+    expect(literals.map((n) => n.value)).toEqual(['abc', 'def']);
+    const layout = layoutAST(parsePcre2(pattern, 'x').ast);
+    for (const label of layout.texts.filter((t) => ['"abc"', '"def"'].includes(t.text)))
+      expect(literals.map((n) => n.id)).toContain(label.nodeId);
   });
   it('declines unsupported or excessive syntax without throwing', () => {
     for (const pattern of [
       '(?C1)a',
-      '(?(?=a)b|c)',
       '(?i:a',
       '(?*a)',
       '\\1234+',
-      '(*atomic:a)',
+      '(*napla:a)',
       '(*CR)a#x',
       `${'('.repeat(100)}a${')'.repeat(100)}`,
       'a'.repeat(3000),

@@ -1,4 +1,5 @@
-import type { ASTNode, QuantifierInfo } from '../types/regex';
+import { readPcre2Quantifier } from './pcre2Quantifier';
+import type { ASTNode } from '../types/regex';
 
 export interface Pcre2ParseResult {
   ast: ASTNode;
@@ -132,7 +133,20 @@ class Parser {
         break;
       const atom = this.atom();
       this.trivia();
-      children.push(this.quantify(atom));
+      const next = this.quantify(atom);
+      const previous = children[children.length - 1];
+      // Merge in the AST so every visible literal keeps a real, editable node ID.
+      // Never cross comments, quote delimiters, or a quantified atom.
+      if (
+        previous?.type === 'literal' &&
+        next.type === 'literal' &&
+        previous.end === next.start &&
+        previous.quoted === next.quoted
+      ) {
+        previous.end = next.end;
+        previous.value += next.value;
+        previous.raw = this.source.slice(previous.start, previous.end);
+      } else children.push(next);
     }
     // Preserve trivia and the complete range, including a one-atom sequence.
     return this.node('sequence', start, { children, value: '' });
@@ -141,6 +155,7 @@ class Parser {
   private atom(): ASTNode {
     const start = this.pos;
     const ch = this.source[this.pos];
+    const quoted = this.quoted;
     if (!this.quoted) {
       if (ch === '(') return this.group();
       if (ch === '[') return this.charClass();
@@ -156,7 +171,7 @@ class Parser {
       /[\uDC00-\uDFFF]/.test(this.source[this.pos] ?? '')
     )
       this.pos++;
-    return this.node('literal', start);
+    return this.node('literal', start, { quoted });
   }
 
   private group(): ASTNode {
@@ -167,25 +182,37 @@ class Parser {
     let name: string | undefined;
     let flagSpec: string | undefined;
     if (this.source[this.pos] === '*') {
-      const end = this.source.indexOf(')', this.pos);
-      if (end < 0 || this.source.slice(this.pos, end).includes('('))
-        this.fail('Unsupported control group');
-      const value = this.source.slice(this.pos + 1, end);
-      // Long-form assertion/group syntax needs structural parsing, not a token.
-      if (
-        /^(?:pla|nla|plb|nlb|napla|naplb|positive_|negative_|non_atomic_|atomic|script_run|sr|asr):/.test(
-          value,
-        )
-      )
-        this.fail('Unsupported long-form group');
-      this.pos = end + 1;
-      this.depth--;
-      if (value === 'UTF') this.options.u = true;
-      // Changing newline conventions also changes x-mode comment boundaries.
-      if (/^(?:CR|CRLF|ANY|ANYCRLF|NUL)$/.test(value)) this.fail('Unsupported newline convention');
-      return this.node('verb', start, { value });
-    }
-    if (this.source[this.pos] === '?') {
+      const longForm =
+        /^\*(atomic|pla|positive_lookahead|nla|negative_lookahead|plb|positive_lookbehind|nlb|negative_lookbehind):/.exec(
+          this.source.slice(this.pos),
+        );
+      if (longForm) {
+        this.pos += longForm[0].length;
+        type =
+          longForm[1] === 'atomic'
+            ? 'atomicGroup'
+            : /^(pla|positive_lookahead)$/.test(longForm[1])
+              ? 'lookahead'
+              : /^(nla|negative_lookahead)$/.test(longForm[1])
+                ? 'negativeLookahead'
+                : /^(plb|positive_lookbehind)$/.test(longForm[1])
+                  ? 'lookbehind'
+                  : 'negativeLookbehind';
+      } else {
+        const end = this.source.indexOf(')', this.pos);
+        if (end < 0 || this.source.slice(this.pos, end).includes('('))
+          this.fail('Unsupported control group');
+        const value = this.source.slice(this.pos + 1, end);
+        if (/^(?:napla|naplb|non_atomic_|script_run|sr|asr|atomic_script_run)/.test(value))
+          this.fail('Unsupported long-form group');
+        this.pos = end + 1;
+        this.depth--;
+        if (value === 'UTF') this.options.u = true;
+        if (/^(?:CR|CRLF|ANY|ANYCRLF|NUL)$/.test(value))
+          this.fail('Unsupported newline convention');
+        return this.node('verb', start, { value });
+      }
+    } else if (this.source[this.pos] === '?') {
       this.pos++;
       const tail = this.source.slice(this.pos);
       const call = /^(R|[+-]?\d+|&[A-Za-z_]\w*|P>[A-Za-z_]\w*)\)/.exec(tail);
@@ -249,13 +276,28 @@ class Parser {
   }
 
   private conditional(start: number, saved: typeof this.options): ASTNode {
-    this.pos++;
-    const end = this.source.indexOf(')', this.pos);
-    if (end < 0) this.fail('Unclosed condition');
-    const condition = this.source.slice(this.pos, end);
-    if (!/^(?:[+-]?\d+|<\w+>|'\w+'|[A-Za-z_]\w*|R[&\w]*)$/.test(condition))
-      this.fail('Unsupported condition');
-    this.pos = end + 1;
+    let assertion: ASTNode | undefined;
+    let condition: string;
+    if (
+      /^\((?:\?(?:[=!]|<[=!])|\*(?:pla|nla|plb|nlb|positive_lookahead|negative_lookahead|positive_lookbehind|negative_lookbehind):)/.test(
+        this.source.slice(this.pos),
+      )
+    ) {
+      assertion = this.group();
+      condition = assertion.raw;
+    } else {
+      this.pos++;
+      const end = this.source.indexOf(')', this.pos);
+      if (end < 0) this.fail('Unclosed condition');
+      condition = this.source.slice(this.pos, end);
+      if (
+        !/^(?:[+-]?\d+|<\w+>|'\w+'|[A-Za-z_]\w*|R[&\w]*|VERSION(?:=|>=)\d+(?:\.\d+)?)$/.test(
+          condition,
+        )
+      )
+        this.fail('Unsupported condition');
+      this.pos = end + 1;
+    }
     const openLen = this.pos - start;
     const child = this.alternation();
     if (this.source[this.pos] !== ')') this.fail('Unclosed conditional');
@@ -264,7 +306,12 @@ class Parser {
     if (branches.length > 2) this.fail('Too many conditional branches');
     this.options = saved;
     this.depth--;
-    return this.node('conditional', start, { value: condition, children: branches, openLen });
+    return this.node('conditional', start, {
+      value: condition,
+      children: assertion ? [assertion, ...branches] : branches,
+      assertionCondition: !!assertion,
+      openLen,
+    });
   }
 
   private updateOptions(spec: string) {
@@ -344,35 +391,29 @@ class Parser {
         this.fail('Ambiguous decimal or octal escape; use an explicit reference or octal escape');
     }
     const raw = this.source.slice(start, this.pos);
-    if (!/[A-Za-z0-9]/.test(ch)) return this.node('literal', start, { value: ch });
+    const hex = /^\\x(?:\{([0-9a-fA-F]+)\}|([0-9a-fA-F]{1,2}))$/.exec(raw);
+    if (hex) {
+      const code = Number.parseInt(hex[1] ?? hex[2], 16);
+      if (code > 0x10ffff) this.fail('Invalid code point');
+      return this.node('literal', start, { value: String.fromCodePoint(code), quoted: false });
+    }
+    if (!/[A-Za-z0-9]/.test(ch)) return this.node('literal', start, { value: ch, quoted: false });
     if (/^\\[1-9]$/.test(raw)) return this.node('backreference', start, { value: ch });
     return this.node('pcreEscape', start);
   }
 
   private quantify(child: ASTNode): ASTNode {
     if (this.quoted) return child;
-    const tail = this.source.slice(this.pos);
-    const match = /^(?:([*+?])|\{(\d+)(?:,(\d*))?\})([?+]?)/.exec(tail);
-    if (!match) return child;
-    const [raw, short, lo, hi, suffix] = match;
-    const min = short ? (short === '+' ? 1 : 0) : Number(lo);
-    const max = short
-      ? short === '?'
-        ? 1
-        : null
-      : hi === undefined
-        ? min
-        : hi === ''
-          ? null
-          : Number(hi);
-    const quantifier: QuantifierInfo = {
-      min,
-      max,
-      raw,
-      lazy: suffix === '+' ? false : this.options.U !== (suffix === '?'),
-      possessive: suffix === '+',
-    };
+    const quantifier = readPcre2Quantifier(this.source.slice(this.pos), this.options.U);
+    if (!quantifier) return child;
+    const raw = quantifier.raw;
+    const quantifierStart = this.pos;
     this.pos += raw.length;
-    return this.node('quantifier', child.start, { value: raw, children: [child], quantifier });
+    return this.node('quantifier', child.start, {
+      value: raw,
+      children: [child],
+      quantifier,
+      quantifierStart,
+    });
   }
 }

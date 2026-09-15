@@ -3,6 +3,7 @@ import { findMatches, replaceMatches } from './regexMatcher';
 import type { Pcre2Trace } from './pcre2Trace';
 
 export interface MatchRequest {
+  validateOnly?: boolean;
   trace?: boolean;
   id: number;
   engine?: 'javascript' | 'pcre2';
@@ -59,6 +60,7 @@ export function matchInputKey(input: MatchInput): string {
   return JSON.stringify([
     input.engine ?? 'javascript',
     input.trace ?? false,
+    input.validateOnly ?? false,
     input.pattern,
     input.flags,
     input.text,
@@ -239,6 +241,8 @@ class EngineQueue {
 const queues = { javascript: new EngineQueue('javascript'), pcre2: new EngineQueue('pcre2') };
 // Debugging has its own Worker so a trace cannot delay live matching or grading.
 const traceQueue = new EngineQueue('pcre2');
+// Syntax checks cannot sit behind a pathological live match or debugger request.
+const validationQueue = new EngineQueue('pcre2');
 
 /**
  * Run `input` off the main thread, resolving with a `timedOut` outcome if it
@@ -257,9 +261,11 @@ export function runMatch(input: MatchInput): Promise<MatchOutcome> {
     resolve = done;
   });
   inFlight.set(key, promise);
-  (input.engine === 'pcre2' && input.trace
-    ? traceQueue
-    : queues[input.engine ?? 'javascript']
+  (input.engine === 'pcre2' && input.validateOnly
+    ? validationQueue
+    : input.engine === 'pcre2' && input.trace
+      ? traceQueue
+      : queues[input.engine ?? 'javascript']
   ).enqueue({ id: nextId++, key, input, resolve });
   return promise;
 }

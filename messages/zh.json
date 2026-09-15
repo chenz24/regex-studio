@@ -534,5 +534,18 @@
   "pcre2_trace_incomplete": "计算已停止，无法判定结果",
   "pcre2_trace_truncated": "仅记录了轨迹的前半部分，最后一步显示原生匹配结果。",
   "pcre2_explain_anchor": "检查起始或结束边界。m 选项允许匹配文本内部的行边界，遵循 PCRE2 的换行约定。",
-  "pcre2_explain_dot": "根据当前 PCRE2 选项匹配一个字符；s 选项允许匹配换行符。"
+  "pcre2_explain_dot": "根据当前 PCRE2 选项匹配一个字符；s 选项允许匹配换行符。",
+  "pcre2_edit_title": "编辑 PCRE2 节点",
+  "pcre2_edit_close": "关闭节点编辑器",
+  "pcre2_edit_unsupported": "请选择字面文本、字符类或重复次数标签进行编辑。其他语法可在主编辑器中修改。",
+  "pcre2_edit_literal": "字面文本",
+  "pcre2_edit_class": "字符类（含方括号）",
+  "pcre2_edit_quantifier": "量词（留空表示一次）",
+  "pcre2_edit_hint": "字面文本会自动转义，量词作用于整段选中文本。量词行为遵循当前 PCRE2 选项，包括 U。",
+  "pcre2_edit_preview": "表达式预览",
+  "pcre2_edit_apply": "校验并应用",
+  "pcre2_edit_validating": "正在校验…",
+  "pcre2_edit_class_error": "请输入完整的单个字符类，例如 [a-z]。",
+  "pcre2_edit_quant_error": "请输入 +、*?、++ 等量词，或留空。",
+  "pcre2_edit_validation_failed": "PCRE2 未能完成此次校验，请重试。"
 }

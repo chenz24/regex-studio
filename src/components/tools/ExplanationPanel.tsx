@@ -203,7 +203,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         color: 'green',
         title: t.explain_atomic_group_title(),
         desc: t.explain_atomic_group_desc(),
-        openChar: '(?>',
+        openChar: node.dialect === 'pcre2' ? node.raw.slice(0, node.openLen) : '(?>',
         closeChar: ')',
       };
     case 'inlineFlags':
@@ -227,7 +227,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         color: 'cyan',
         title: t.explain_lookahead_title(),
         desc: t.explain_lookahead_desc(),
-        openChar: '(?=',
+        openChar: node.dialect === 'pcre2' ? node.raw.slice(0, node.openLen) : '(?=',
         closeChar: ')',
       };
     case 'negativeLookahead':
@@ -235,7 +235,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         color: 'cyan',
         title: t.explain_neg_lookahead_title(),
         desc: t.explain_neg_lookahead_desc(),
-        openChar: '(?!',
+        openChar: node.dialect === 'pcre2' ? node.raw.slice(0, node.openLen) : '(?!',
         closeChar: ')',
       };
     case 'lookbehind':
@@ -243,7 +243,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         color: 'cyan',
         title: t.explain_lookbehind_title(),
         desc: t.explain_lookbehind_desc(),
-        openChar: '(?<=',
+        openChar: node.dialect === 'pcre2' ? node.raw.slice(0, node.openLen) : '(?<=',
         closeChar: ')',
       };
     case 'negativeLookbehind':
@@ -251,7 +251,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
         color: 'cyan',
         title: t.explain_neg_lookbehind_title(),
         desc: t.explain_neg_lookbehind_desc(),
-        openChar: '(?<!',
+        openChar: node.dialect === 'pcre2' ? node.raw.slice(0, node.openLen) : '(?<!',
         closeChar: ')',
       };
     case 'characterClass':

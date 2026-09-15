@@ -534,5 +534,18 @@
   "pcre2_trace_incomplete": "Evaluation stopped; the result is inconclusive",
   "pcre2_trace_truncated": "Only the first part of the trace was recorded. The final step shows the native match result.",
   "pcre2_explain_anchor": "Checks a start or end boundary. The m option also allows internal line boundaries; PCRE2 newline conventions apply.",
-  "pcre2_explain_dot": "Matches one character under the active PCRE2 options. The s option includes newline characters."
+  "pcre2_explain_dot": "Matches one character under the active PCRE2 options. The s option includes newline characters.",
+  "pcre2_edit_title": "Edit PCRE2 node",
+  "pcre2_edit_close": "Close node editor",
+  "pcre2_edit_unsupported": "Select literal text, a character class, or a repetition badge to edit. Other syntax can be edited in the main editor.",
+  "pcre2_edit_literal": "Literal text",
+  "pcre2_edit_class": "Character class (including brackets)",
+  "pcre2_edit_quantifier": "Quantifier (empty = once)",
+  "pcre2_edit_hint": "Literal text is escaped automatically. Repetition applies to the entire selected text. Quantifiers follow the active PCRE2 options, including U.",
+  "pcre2_edit_preview": "Pattern preview",
+  "pcre2_edit_apply": "Validate and apply",
+  "pcre2_edit_validating": "Validating…",
+  "pcre2_edit_class_error": "Enter one complete character class, such as [a-z].",
+  "pcre2_edit_quant_error": "Enter a quantifier such as +, *? or ++, or leave it empty.",
+  "pcre2_edit_validation_failed": "PCRE2 could not validate this edit. Please retry."
 }

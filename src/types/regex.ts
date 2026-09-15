@@ -43,6 +43,10 @@ export type ASTNodeType =
 
 export interface ASTNode {
   dialect?: 'pcre2';
+  /** Source context for lossless PCRE2 visual edits. */
+  quoted?: boolean;
+  quantifierStart?: number;
+  assertionCondition?: boolean;
   flagSpec?: string;
   type: ASTNodeType;
   value: string;

@@ -319,7 +319,8 @@ function App() {
               <EngineCapabilityNotice reason={derived.visualizationReason} />
             ) : (
               <RailroadBanner
-                readOnly={derived.executionEngine === 'pcre2'}
+                key={derived.executionEngine}
+                flags={derived.flagString}
                 diagram={derived.diagram}
                 ast={derived.ast}
                 pattern={pattern}

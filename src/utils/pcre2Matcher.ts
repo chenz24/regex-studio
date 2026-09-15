@@ -103,6 +103,7 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
       };
       return outcome;
     }
+    if (input.validateOnly) return outcome;
     // An empty editor is intentionally idle, matching the JavaScript mode.
     if (!input.pattern) {
       outcome.testMatchCounts = input.testInputs.map(() => 0);

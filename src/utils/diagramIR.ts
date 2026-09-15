@@ -141,7 +141,7 @@ function mergeAdjacentLiterals(nodes: IR[]): IR[] {
 function astToIR(node: ASTNode): IR {
   switch (node.type) {
     case 'sequence': {
-      const children = mergeAdjacentLiterals((node.children || []).map(astToIR));
+      const children = visualChildren(node);
       if (children.length === 1) return children[0];
       return { type: 'Sequence', children, id: node.id };
     }
@@ -207,31 +207,45 @@ function astToIR(node: ASTNode): IR {
         child: wrapChildren(node),
         id: node.id,
       };
-    case 'conditional':
+    case 'conditional': {
+      const branches = node.assertionCondition ? node.children?.slice(1) : node.children;
+      const choice: IR = {
+        type: 'Choice',
+        id: `${node.id}_branches`,
+        alts: [0, 1].map(
+          (i): IR => ({
+            type: 'Group',
+            capturing: false,
+            caption: i === 0 ? 'Then' : 'Else',
+            id: node.id,
+            child: branches?.[i]
+              ? astToIR(branches[i])
+              : { type: 'Sequence', children: [], id: `${node.id}_empty` },
+          }),
+        ),
+      };
       return {
         type: 'Group',
         capturing: false,
-        caption: node.value === 'DEFINE' ? 'Definitions (not executed)' : `If ${node.value}`,
+        caption:
+          node.value === 'DEFINE'
+            ? 'Definitions (not executed)'
+            : node.assertionCondition
+              ? 'If assertion'
+              : `If ${node.value}`,
         id: node.id,
         child:
           node.value === 'DEFINE'
             ? wrapChildren(node)
-            : {
-                type: 'Choice',
-                id: `${node.id}_branches`,
-                alts: [0, 1].map(
-                  (i): IR => ({
-                    type: 'Group',
-                    capturing: false,
-                    caption: i === 0 ? 'Then' : 'Else',
-                    id: `${node.id}_${i}`,
-                    child: node.children?.[i]
-                      ? astToIR(node.children[i])
-                      : { type: 'Sequence', children: [], id: `${node.id}_empty` },
-                  }),
-                ),
-              },
+            : node.assertionCondition && node.children?.[0]
+              ? {
+                  type: 'Sequence',
+                  children: [astToIR(node.children[0]), choice],
+                  id: `${node.id}_condition`,
+                }
+              : choice,
       };
+    }
     case 'lookahead':
     case 'negativeLookahead':
     case 'lookbehind':
@@ -296,8 +310,13 @@ function astToIR(node: ASTNode): IR {
   }
 }
 
+function visualChildren(node: ASTNode): IR[] {
+  const children = (node.children || []).map(astToIR);
+  return node.dialect === 'pcre2' ? children : mergeAdjacentLiterals(children);
+}
+
 function wrapChildren(node: ASTNode): IR {
-  const children = mergeAdjacentLiterals((node.children || []).map(astToIR));
+  const children = visualChildren(node);
   if (children.length === 0) return { type: 'Sequence', children: [], id: `${node.id}_inner` };
   if (children.length === 1) return children[0];
   return { type: 'Sequence', children, id: `${node.id}_inner` };

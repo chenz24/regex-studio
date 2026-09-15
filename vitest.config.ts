@@ -14,7 +14,11 @@ export default defineConfig({
     },
   },
   test: {
+    // Pure-logic tests run in node; component tests opt into jsdom with a
+    // `// @vitest-environment jsdom` docblock.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./vitest.setup.ts'],
+    restoreMocks: true,
   },
 });

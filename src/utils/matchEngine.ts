@@ -47,6 +47,11 @@ export function matchInputKey(input: MatchInput): string {
   ]);
 }
 
+/** Run inline and keep the result, so the follow-up request is a cache hit. */
+export function runMatchInlineCached(input: MatchInput, key: string): MatchOutcome {
+  return cachedOutcome(key) ?? remember(key, runMatchInline(input));
+}
+
 export function runMatchInline(input: MatchInput): MatchOutcome {
   return {
     matches: findMatches(input.pattern, input.flags, input.text),

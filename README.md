@@ -131,7 +131,7 @@ pnpm preview    # preview the production bundle locally
 | `pnpm format` | Format the codebase with Biome |
 | `pnpm check:biome` | Run Biome check + fix |
 | `pnpm typecheck` | Run TypeScript type-check |
-| `pnpm test` | Run the unit tests (Vitest) |
+| `pnpm test` | Run the unit tests and component tests (Vitest) |
 | `pnpm test:watch` | Run the unit tests in watch mode |
 | `pnpm check` | Run typecheck + lint + tests together |
 

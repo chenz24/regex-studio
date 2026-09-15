@@ -10,7 +10,7 @@ import {
   cachedOutcome,
   matchInputKey,
   runMatch,
-  runMatchInline,
+  runMatchInlineCached,
   type MatchInput,
   type MatchOutcome,
 } from '../utils/matchEngine';
@@ -136,7 +136,7 @@ function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean }
   const key = matchInputKey(input);
   const [entry, setEntry] = useState(() => ({
     key,
-    outcome: cachedOutcome(key) ?? runMatchInline(input),
+    outcome: runMatchInlineCached(input, key),
   }));
 
   useEffect(() => {

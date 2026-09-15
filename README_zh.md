@@ -131,7 +131,7 @@ pnpm preview    # 本地预览生产产物
 | `pnpm format` | 使用 Biome 格式化代码 |
 | `pnpm check:biome` | 运行 Biome check 并自动修复 |
 | `pnpm typecheck` | 运行 TypeScript 类型检查 |
-| `pnpm test` | 运行单元测试(Vitest) |
+| `pnpm test` | 运行单元测试与组件测试(Vitest) |
 | `pnpm test:watch` | 以 watch 模式运行单元测试 |
 | `pnpm check` | 同时执行 typecheck、lint 与测试 |
 

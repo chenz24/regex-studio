@@ -59,9 +59,12 @@ describe('evaluateChallengeFromResults', () => {
     expect(ev).toMatchObject({ solved: false, invalid: false, passed: 0 });
   });
 
-  it('treats a missing result as no matches', () => {
+  it('does not pass missing results, including negative cases', () => {
     const ev = evaluateChallengeFromResults(challenge, '\\d', { valid: true }, new Map());
     expect(ev.results.map((r) => r.matchCount)).toEqual([0, 0]);
-    expect(ev.results.map((r) => r.pass)).toEqual([false, true]);
+    expect(ev.results.map((r) => r.pass)).toEqual([false, false]);
+    expect(evaluateChallengeFromResults(challenge, '\\d', { valid: true }, counts(1)).solved).toBe(
+      false,
+    );
   });
 });

@@ -12,7 +12,7 @@ import {
 import { useChallengeStore } from '@/stores/challengeStore';
 import { useRegexDerived, useRegexStore } from '@/stores/regexStore';
 import { findChallenge, CHALLENGES } from '@/challenges/data';
-import { evaluateChallengeFromResults } from '@/challenges/evaluator';
+import { challengeCaseId, evaluateChallengeFromResults } from '@/challenges/evaluator';
 import { MarkdownLite } from '../tutorial/MarkdownLite';
 import { useT } from '@/lib/i18n';
 
@@ -32,7 +32,16 @@ export function ChallengeRunner() {
 
   const challenge = id ? findChallenge(id) : undefined;
 
-  const { validation, testResults } = useRegexDerived();
+  // Users may edit or delete their playground cases. Grading always uses
+  // the challenge's original inputs, independently of those edits.
+  const gradingCases = useMemo(() => {
+    if (!challenge) return [];
+    return challenge.testCases.map((tc, i) => ({
+      ...tc,
+      id: challengeCaseId(challenge.id, i),
+    }));
+  }, [challenge]);
+  const { validation, testResults, pending, timedOut } = useRegexDerived(gradingCases);
 
   const flagString = useMemo(
     () =>
@@ -45,7 +54,9 @@ export function ChallengeRunner() {
 
   const evaluation = useMemo(() => {
     if (!challenge) return null;
-    const counts = new Map(testResults.map((r) => [r.id, r.matchCount]));
+    const counts = new Map(
+      testResults.filter((r) => !r.pending && !r.timedOut).map((r) => [r.id, r.matchCount]),
+    );
     return evaluateChallengeFromResults(challenge, pattern, validation, counts);
   }, [challenge, pattern, validation, testResults]);
 
@@ -141,16 +152,20 @@ export function ChallengeRunner() {
                     : 'text-gray-700 dark:text-gray-300'
               }`}
             >
-              {solved
-                ? t.chal_runner_passed_all()
-                : evaluation.invalid
-                  ? t.chal_runner_invalid()
-                  : t.chal_runner_progress({
-                      passed: String(evaluation.passed),
-                      total: String(evaluation.total),
-                    })}
+              {pending
+                ? t.match_pending()
+                : timedOut
+                  ? t.match_timed_out()
+                  : solved
+                    ? t.chal_runner_passed_all()
+                    : evaluation.invalid
+                      ? t.chal_runner_invalid()
+                      : t.chal_runner_progress({
+                          passed: String(evaluation.passed),
+                          total: String(evaluation.total),
+                        })}
             </span>
-            {!solved && pattern && !evaluation.invalid && (
+            {!pending && !timedOut && !solved && pattern && !evaluation.invalid && (
               <span className="text-[11px] text-gray-500 dark:text-gray-400">
                 {t.chal_runner_keep_going()}
               </span>

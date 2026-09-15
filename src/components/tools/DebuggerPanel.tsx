@@ -48,7 +48,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
 
   // Run the debugger
   const debugResult: DebugResult = useMemo(() => {
-    if (!pattern || !testText) {
+    if (!pattern) {
       return {
         steps: [],
         matched: false,
@@ -147,7 +147,15 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
     return () => window.removeEventListener('keydown', handler);
   }, [goPrev, goNext, togglePlay]);
 
-  if (!pattern || !testText) {
+  if (debugResult.error) {
+    return (
+      <div role="alert" className="p-3 text-sm text-rose-600 dark:text-rose-400">
+        {debugResult.error}
+      </div>
+    );
+  }
+
+  if (!pattern) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-gray-500 text-sm gap-2">
         <span>{t.debugger_enter_pattern_hint()}</span>

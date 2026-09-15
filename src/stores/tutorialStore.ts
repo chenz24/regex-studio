@@ -47,7 +47,7 @@ interface TutorialActions {
 
   markStepDone: (stepId: string) => void;
   revealSolution: () => void;
-  reportValidation: (r: ValidationResult) => void;
+  reportValidation: (r: ValidationResult | null) => void;
 
   resetLesson: (lessonId: string) => void;
 
@@ -247,6 +247,7 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
 
   reportValidation: (r) =>
     set((state) => {
+      if (!r) return state.lastResult === null ? state : { lastResult: null };
       // Only bump fail counter when the result transitions from non-fail to fail
       // or when a previously failing result is replaced by another failure.
       const wasPass = state.lastResult?.pass ?? false;

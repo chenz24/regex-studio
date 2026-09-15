@@ -112,10 +112,15 @@ export function collectGroupNames(pattern: string): Array<string | null> {
     }
     // `(?<name>` is a named group; `(?<=` / `(?<!` are lookbehinds, and
     // every other `(?…` form is non-capturing.
-    if (pattern[i + 2] !== '<' || pattern[i + 3] === '=' || pattern[i + 3] === '!') continue;
-    const close = pattern.indexOf('>', i + 3);
+    const nameStart = pattern[i + 2] === 'P' && pattern[i + 3] === '<' ? i + 4 : i + 3;
+    if (
+      nameStart === i + 3 &&
+      (pattern[i + 2] !== '<' || pattern[i + 3] === '=' || pattern[i + 3] === '!')
+    )
+      continue;
+    const close = pattern.indexOf('>', nameStart);
     if (close === -1) continue;
-    names.push(pattern.slice(i + 3, close));
+    names.push(pattern.slice(nameStart, close));
   }
 
   return names;

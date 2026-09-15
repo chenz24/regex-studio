@@ -94,12 +94,16 @@ export function LessonRunner() {
   // Run validation whenever the context changes.
   useEffect(() => {
     if (!step || !ctx) return;
+    if (derived.pending || derived.timedOut) {
+      reportValidation(null);
+      return;
+    }
     const result = step.validate(ctx);
     reportValidation(result);
     if (result.pass && step.autoAdvance !== false) {
       markStepDone(step.id);
     }
-  }, [step, ctx, reportValidation, markStepDone]);
+  }, [step, ctx, derived.pending, derived.timedOut, reportValidation, markStepDone]);
 
   if (!lesson || !step) {
     return (
@@ -190,7 +194,7 @@ export function LessonRunner() {
           />
         )}
 
-        <GoalCard result={lastResult} />
+        <GoalCard result={lastResult} pending={derived.pending} timedOut={derived.timedOut} />
 
         <HintList step={step} failCount={failCount} onRevealSolution={revealSolution} />
 
@@ -207,7 +211,9 @@ export function LessonRunner() {
                 className="w-full inline-flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-gray-900 border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
               >
                 <div className="text-left">
-                  <div className="text-[11px] text-gray-500 dark:text-gray-400">{t.tut_runner_next_lesson_label()}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                    {t.tut_runner_next_lesson_label()}
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {nextLesson.title}
                   </div>
@@ -224,7 +230,8 @@ export function LessonRunner() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between gap-2"
+      <div
+        className="border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between gap-2"
         title={t.tut_runner_keyboard_hint()}
       >
         <button

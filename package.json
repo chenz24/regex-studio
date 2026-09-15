@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "verify:content": "tsx scripts/verify-content.ts",
     "verify:codegen": "tsx scripts/verify-codegen.ts",
+    "verify:debugger": "node --import tsx scripts/verify-debugger.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "cf:dev": "wrangler dev",
     "deploy": "pnpm build && wrangler deploy"

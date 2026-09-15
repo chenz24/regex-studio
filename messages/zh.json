@@ -499,5 +499,7 @@
   "flag_desc_rust_m": "(?m) — 多行模式",
   "flag_desc_rust_s": "(?s) — 让 . 匹配 \\n",
   "flag_desc_rust_u": "Unicode — 默认开启；用 (?-u) 关闭",
-  "flag_desc_rust_x": "(?x) — 忽略空白和 # 注释（仅显示）"
+  "flag_desc_rust_x": "(?x) — 忽略空白和 # 注释（仅显示）",
+  "match_pending": "正在计算…",
+  "match_timed_out": "计算超时"
 }

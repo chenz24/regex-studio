@@ -112,7 +112,7 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
   const validation = isValidRegex(state.pattern, jsFlagString);
 
   const ast: ASTNode = state.pattern
-    ? parseRegex(state.pattern)
+    ? parseRegex(state.pattern, jsFlagString)
     : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 };
 
   const diagram = layoutAST(ast);
@@ -126,8 +126,8 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
 /**
  * Run the pattern off the main thread.
  *
- * The first result is computed inline so that the server and the first client
- * render agree; at that point the pattern is always the built-in default.
+ * Only the built-in default is computed inline for hydration. Other consumers
+ * can mount after the user has entered an arbitrary pattern.
  * Every later input goes to the worker, which can be killed if the pattern
  * turns out to be one that never finishes. While a run is outstanding the
  * previous result stays on screen rather than flashing to empty.
@@ -136,8 +136,25 @@ function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean }
   const key = matchInputKey(input);
   const [entry, setEntry] = useState(() => ({
     key,
-    outcome: runMatchInlineCached(input, key),
+    outcome:
+      cachedOutcome(key) ??
+      (input.pattern === DEFAULT_PATTERN &&
+      input.flags === 'g' &&
+      input.text === DEFAULT_TEXT &&
+      input.replacement === '' &&
+      input.testInputs.length === 0
+        ? runMatchInlineCached(input, key)
+        : undefined),
   }));
+  const empty = useMemo<MatchOutcome>(
+    () => ({
+      matches: [],
+      replacedText: input.text,
+      testMatchCounts: [],
+      timedOut: false,
+    }),
+    [input.text],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -153,8 +170,8 @@ function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean }
   // Must be memoised: consumers key effects off the derived object, and a
   // fresh identity on every render turns those into an update loop.
   return useMemo(
-    () => ({ ...(settled ?? entry.outcome), pending: settled === undefined }),
-    [settled, entry.outcome],
+    () => ({ ...(settled ?? entry.outcome ?? empty), pending: settled === undefined }),
+    [settled, entry.outcome, empty],
   );
 }
 
@@ -283,13 +300,14 @@ export const useRegexStore = create<RegexStore>((set) => ({
 
 // ─── Selector Hooks ────────────────────────────────────────────────────
 
-export function useRegexDerived(): RegexDerived {
+export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
   const engine = useRegexStore((s) => s.engine);
   const pattern = useRegexStore((s) => s.pattern);
   const flags = useRegexStore((s) => s.flags);
   const testText = useRegexStore((s) => s.testText);
   const replacement = useRegexStore((s) => s.replacement);
-  const testCases = useRegexStore((s) => s.testCases);
+  const storedTestCases = useRegexStore((s) => s.testCases);
+  const testCases = fixedTestCases ?? storedTestCases;
 
   const derived = useMemo(
     () => computeStatic({ engine, pattern, flags }),
@@ -315,6 +333,16 @@ export function useRegexDerived(): RegexDerived {
     const testResults: TestCaseResult[] = testCases.map((tc, i) => {
       if (!derived.validation.valid) {
         return { id: tc.id, pass: false, matchCount: 0, invalid: true };
+      }
+      if (outcome.pending || outcome.timedOut) {
+        return {
+          id: tc.id,
+          pass: false,
+          matchCount: 0,
+          invalid: false,
+          pending: outcome.pending,
+          timedOut: outcome.timedOut && !outcome.pending,
+        };
       }
       const matchCount = outcome.testMatchCounts[i] ?? 0;
       const hasMatch = matchCount > 0;

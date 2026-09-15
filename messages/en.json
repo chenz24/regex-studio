@@ -499,5 +499,7 @@
   "flag_desc_rust_m": "(?m) - multiline",
   "flag_desc_rust_s": "(?s) - let . match \\n",
   "flag_desc_rust_u": "Unicode - enabled by default; (?-u) to disable",
-  "flag_desc_rust_x": "(?x) - ignore whitespace and # comments (display only)"
+  "flag_desc_rust_x": "(?x) - ignore whitespace and # comments (display only)",
+  "match_pending": "Evaluating…",
+  "match_timed_out": "Timed out"
 }

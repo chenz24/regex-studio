@@ -41,6 +41,8 @@ const MATCH_CASES: Case[] = [
   { name: 'anchors', pattern: '^[\\w.]+@[\\w.]+$', text: 'a.b@c.d' },
   { name: 'multiline', pattern: '^two$', text: 'one "x"\ntwo\nthree#{z}\\end', flags: 'm' },
   { name: 'no-match', pattern: 'zzz(\\d)', text: 'nothing here' },
+  { name: 'literal-group-in-class', pattern: '[(?<x>)]', text: 'P' },
+  { name: 'literal-named-reference', pattern: String.raw`\\k<name>`, text: String.raw`\k<name>` },
 ];
 
 const REPLACE_CASES: Case[] = [
@@ -52,6 +54,15 @@ const REPLACE_CASES: Case[] = [
   { name: 'named', pattern: '(?<num>\\d+)', text: 'a 42 b', replace: '<$<num>>' },
   { name: 'digit-after-ref', pattern: '(\\d)', text: 'x5y', replace: '$10' },
   { name: 'hash', pattern: '(\\w+)', text: 'hi', replace: '#{$1}' },
+  { name: 'unknown-number', pattern: '(a)', text: 'a', replace: '$2' },
+  { name: 'zero-number', pattern: '(a)', text: 'a', replace: '$0' },
+  { name: 'leading-zero', pattern: '(a)', text: 'a', replace: '$01' },
+  { name: 'name-without-groups', pattern: 'a', text: 'a', replace: '$<name>' },
+  { name: 'unknown-name', pattern: '(?<name>a)', text: 'a', replace: '$<other>' },
+  { name: 'literal-path', pattern: 'a', text: 'a', replace: String.raw`C:\users\tmp` },
+  { name: 'literal-backreference', pattern: '(a)', text: 'a', replace: String.raw`\1` },
+  { name: 'backslash-then-reference', pattern: '(a)', text: 'a', replace: String.raw`\$1` },
+  { name: 'plain-dollar', pattern: 'a', text: 'a', replace: '$price' },
 ];
 
 interface Runner {

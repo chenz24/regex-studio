@@ -70,8 +70,62 @@ describe('parseRegex', () => {
 
   describe('backreferences', () => {
     it('reads all digits of a numbered backreference', () => {
-      const node = parseRegex('\\10');
+      const node = parseRegex('\\10(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)').children?.[0];
       expect(node).toMatchObject({ type: 'backreference', value: '10', raw: '\\10' });
+    });
+
+    it.each(['', 'u', 'v'])('counts forward and named captures with flags %s', (flags) => {
+      const ast = parseRegex('\\2(a)(?:b)(?=c)(?!d)(?<=e)(?<!f)(?<last>g)', flags);
+      expect(ast.children?.[0]).toMatchObject({ type: 'backreference', value: '2' });
+    });
+
+    it.each([
+      String.raw`\1\(a\)`,
+      String.raw`\1[(]`,
+      String.raw`\1[\](]`,
+      String.raw`\1(?:a)(?=b)(?!c)(?<=d)(?<!e)`,
+    ])('does not count escaped parentheses or non-capturing groups in %s', (pattern) => {
+      expect(parseRegex(pattern).children?.[0]).toMatchObject({ type: 'escape', raw: '\\1' });
+    });
+
+    it.each([
+      ['\\1', ['\\1']],
+      ['\\8', ['\\8']],
+      ['\\9', ['\\9']],
+      ['\\118{2}', ['\\11', '8{2}']],
+      ['\\1234+', ['\\123', '4+']],
+      ['\\400{2}', ['\\40', '0{2}']],
+      ['\\777+', ['\\77', '7+']],
+      ['\\0123{2}', ['\\012', '3{2}']],
+      ['\\08+', ['\\0', '8+']],
+    ])('splits legacy decimal escape %s at the native atom boundary', (pattern, rawAtoms) => {
+      const ast = parseRegex(pattern);
+      const atoms = ast.type === 'sequence' ? ast.children! : [ast];
+      expect(atoms.map((atom) => atom.raw)).toEqual(rawAtoms);
+      expect(atoms[0].type).toBe('escape');
+      for (const atom of atoms) {
+        expect(pattern.slice(atom.start, atom.end)).toBe(atom.raw);
+      }
+      if (atoms.length > 1) expect(atoms[1].type).toBe('quantifier');
+    });
+
+    it.each(['u', 'v'])('keeps invalid Unicode references out of capture nodes: %s', (flags) => {
+      expect(parseRegex('\\118', flags)).toMatchObject({ type: 'escape', raw: '\\118' });
+      expect(parseRegex('\\0123', flags).children?.map((node) => node.raw)).toEqual([
+        '\\0',
+        '1',
+        '2',
+        '3',
+      ]);
+    });
+
+    it('reads octal ranges inside character classes even when captures exist', () => {
+      const ast = parseRegex('(a)[\\141-\\143]');
+      expect(ast.children?.[1].children?.[0]).toMatchObject({
+        type: 'range',
+        raw: '\\141-\\143',
+        children: [{ raw: '\\141' }, { raw: '\\143' }],
+      });
     });
 
     it('recognises a named backreference', () => {

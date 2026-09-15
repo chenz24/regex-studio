@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act, render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as matchEngine from '@/utils/matchEngine';
 import { useRegexStore } from '@/stores/regexStore';
 import { useTutorialStore } from '@/stores/tutorialStore';
 import { LessonRunner } from './LessonRunner';
 
 const LESSON = 'basics-literals';
+afterEach(cleanup);
 
 beforeEach(async () => {
   await act(async () => {
@@ -28,6 +30,31 @@ async function startLesson(stepIndex = 0) {
 }
 
 describe('LessonRunner', () => {
+  it('withholds validation while matching is pending or timed out', async () => {
+    await startLesson();
+    const { getByRole } = render(<LessonRunner />);
+    await act(async () => useRegexStore.getState().setPattern('cat'));
+    await waitFor(() => expect(useTutorialStore.getState().lastResult?.pass).toBe(true));
+
+    let finish!: () => void;
+    vi.spyOn(matchEngine, 'runMatch').mockImplementation(
+      (input) =>
+        new Promise((resolve) => {
+          finish = () => resolve(matchEngine.timedOutOutcome(input));
+        }),
+    );
+    await act(async () => useRegexStore.getState().setPattern('cat(?:)'));
+    expect(getByRole('status').textContent).toBe('Evaluating…');
+    expect(useTutorialStore.getState().lastResult).toBeNull();
+    expect(useTutorialStore.getState().failCount).toBe(0);
+    await act(async () => finish());
+    expect(getByRole('status').textContent).toBe('Timed out');
+    expect(useTutorialStore.getState().lastResult).toBeNull();
+    expect(useTutorialStore.getState().failCount).toBe(0);
+
+    await act(async () => useRegexStore.getState().setPattern('cat'));
+    await waitFor(() => expect(useTutorialStore.getState().lastResult?.pass).toBe(true));
+  });
   it('renders the current step', async () => {
     await startLesson();
     const { container } = render(<LessonRunner />);

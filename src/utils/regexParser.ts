@@ -3,6 +3,8 @@ import type { ASTNode, QuantifierInfo } from '../types/regex';
 let pos = 0;
 let source = '';
 let groupCounter = 0;
+let totalGroups = 0;
+let unicode = false;
 let nodeIdCounter = 0;
 
 function nextNodeId(): string {
@@ -13,10 +15,37 @@ function isEmptySequence(node: ASTNode): boolean {
   return node.type === 'sequence' && (node.children?.length ?? 0) === 0;
 }
 
-export function parseRegex(pattern: string): ASTNode {
+/** Count all capture slots, including groups after a forward reference. */
+function countCaptures(pattern: string, unicodeSets: boolean): number {
+  let count = 0;
+  let classDepth = 0;
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      i++;
+    } else if (ch === '[' && (classDepth === 0 || unicodeSets)) {
+      classDepth++;
+    } else if (ch === ']' && classDepth > 0) {
+      classDepth--;
+    } else if (ch === '(' && classDepth === 0) {
+      if (
+        pattern[i + 1] !== '?' ||
+        (pattern[i + 2] === '<' && pattern[i + 3] !== '=' && pattern[i + 3] !== '!') ||
+        (pattern[i + 2] === 'P' && pattern[i + 3] === '<')
+      ) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+export function parseRegex(pattern: string, flags = ''): ASTNode {
   pos = 0;
   source = pattern;
   groupCounter = 0;
+  totalGroups = countCaptures(pattern, flags.includes('v'));
+  unicode = flags.includes('u') || flags.includes('v');
   nodeIdCounter = 0;
 
   if (!pattern) {
@@ -173,6 +202,21 @@ function consumeEscapeSequence(): string {
   const ch = source[pos];
   pos++;
 
+  // Annex B octal escapes have at most three digits, or two when the first
+  // digit is 4–7. Leave any remaining digits for the next atom/quantifier.
+  if (!unicode && ch >= '0' && ch <= '7') {
+    const maxDigits = ch <= '3' ? 3 : 2;
+    while (
+      pos - start - 1 < maxDigits &&
+      pos < source.length &&
+      source[pos] >= '0' &&
+      source[pos] <= '7'
+    ) {
+      pos++;
+    }
+    return source.slice(start, pos);
+  }
+
   switch (ch) {
     case 'x':
       consumeHexDigits(2);
@@ -187,10 +231,6 @@ function consumeEscapeSequence(): string {
     case 'p':
     case 'P':
       if (source[pos] === '{') consumeBraced();
-      break;
-    case '0':
-      // `\0` is NUL; legacy octal escapes carry up to two more digits.
-      while (pos < source.length && source[pos] >= '0' && source[pos] <= '7') pos++;
       break;
   }
 
@@ -475,22 +515,27 @@ function parseEscape(): ASTNode {
 
   const ch = source[pos + 1];
 
-  // Numbered backreference — `\10` is group 10, not group 1 followed by `0`.
+  // A decimal escape is a backreference only if that capture slot exists
+  // anywhere in the pattern. Otherwise legacy mode falls back to octal or
+  // an identity escape (8/9); Unicode mode retains the invalid escape for
+  // display, while native syntax validation rejects it before debugging.
   if (ch >= '1' && ch <= '9') {
-    pos += 2;
-    let digits = ch;
-    while (pos < source.length && source[pos] >= '0' && source[pos] <= '9') {
-      digits += source[pos];
-      pos++;
+    let end = pos + 2;
+    while (end < source.length && source[end] >= '0' && source[end] <= '9') end++;
+    const digits = source.slice(pos + 1, end);
+    const isReference = Number(digits) <= totalGroups;
+    if (isReference || unicode) {
+      pos = end;
+      const raw = source.slice(start, pos);
+      return {
+        type: isReference ? 'backreference' : 'escape',
+        value: isReference ? digits : raw,
+        raw,
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
     }
-    return {
-      type: 'backreference',
-      value: digits,
-      raw: source.slice(start, pos),
-      id: nextNodeId(),
-      start,
-      end: pos,
-    };
   }
 
   // Named backreference `\k<name>`.

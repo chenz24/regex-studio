@@ -134,6 +134,7 @@ pnpm preview    # 本地预览生产产物
 | `pnpm test` | 运行单元测试与组件测试(Vitest) |
 | `pnpm verify:content` | 校验全部挑战与课程的参考答案 |
 | `pnpm verify:codegen` | 编译并运行生成的代码片段(需要对应工具链) |
+| `pnpm verify:debugger` | 与原生 RegExp 差分比对匹配结果和捕获组(固定种子，可用 `REGEX_FUZZ_SEED` 覆盖) |
 | `pnpm test:watch` | 以 watch 模式运行单元测试 |
 | `pnpm check` | 同时执行 typecheck、lint 与测试 |
 

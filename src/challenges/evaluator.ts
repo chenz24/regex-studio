@@ -98,9 +98,8 @@ export function evaluateChallenge(
 
 /**
  * Same verdict as `evaluateChallenge`, but from match counts that have
- * already been computed — the challenge's cases are pushed into the regex
- * store when it starts, so the worker has evaluated them and there is no
- * reason to run the user's pattern a second time on the main thread.
+ * already been computed for the original challenge inputs. Missing counts
+ * are inconclusive, never evidence that a noMatch expectation was satisfied.
  */
 export function evaluateChallengeFromResults(
   challenge: Challenge,
@@ -112,14 +111,19 @@ export function evaluateChallengeFromResults(
   const invalid = Boolean(pattern) && !validation.valid;
 
   const results = challenge.testCases.map((tc, i) => {
-    const matchCount = matchCountByCaseId.get(challengeCaseId(challenge.id, i)) ?? 0;
+    const count = matchCountByCaseId.get(challengeCaseId(challenge.id, i));
+    const matchCount = count ?? 0;
     const hasMatch = !invalid && Boolean(pattern) && matchCount > 0;
     return {
       index: i,
       label: tc.label,
       input: tc.input,
       expect: tc.expect,
-      pass: !invalid && Boolean(pattern) && (tc.expect === 'match' ? hasMatch : !hasMatch),
+      pass:
+        count !== undefined &&
+        !invalid &&
+        Boolean(pattern) &&
+        (tc.expect === 'match' ? hasMatch : !hasMatch),
       matchCount,
     };
   });

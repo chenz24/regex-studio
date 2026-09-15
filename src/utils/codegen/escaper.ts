@@ -23,6 +23,38 @@ function escapeUnescaped(pattern: string, chars: string): string {
   return out;
 }
 
+/** Translate actual named constructs, leaving escaped text and classes intact. */
+function pythonPattern(pattern: string): string {
+  let out = '';
+  let inClass = false;
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === '\\') {
+      const ref = !inClass && /^\\k<([^>]+)>/.exec(pattern.slice(i));
+      if (ref) {
+        out += `(?P=${ref[1]})`;
+        i += ref[0].length - 1;
+      } else {
+        out += pattern[i] + (pattern[++i] ?? '');
+      }
+    } else if (inClass) {
+      out += pattern[i];
+      if (pattern[i] === ']') inClass = false;
+    } else if (pattern[i] === '[') {
+      inClass = true;
+      out += '[';
+    } else {
+      const group = /^\(\?<([^=!][^>]*)>/.exec(pattern.slice(i));
+      if (group) {
+        out += `(?P<${group[1]}>`;
+        i += group[0].length - 1;
+      } else {
+        out += pattern[i];
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Python string literal for `value`.
  *
@@ -61,7 +93,7 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
       // `(?<year>…)` and `\k<year>` have to be translated or the generated
       // code raises at compile time. Callers wrap the result with
       // pythonStringLiteral().
-      return pattern.replace(/\(\?<(?![=!])(\w+)>/g, '(?P<$1>').replace(/\\k<(\w+)>/g, '(?P=$1)');
+      return pythonPattern(pattern);
 
     case 'java':
       // For string "...", double backslashes and escape quotes
@@ -223,7 +255,9 @@ type ReplacementToken =
  * reference, but a pass that rewrites `$1` first leaves the `$$` behind for
  * the next pass to mangle.
  */
-function tokenizeReplacement(replacement: string, groupCount: number): ReplacementToken[] {
+function tokenizeReplacement(replacement: string, names: Array<string | null>): ReplacementToken[] {
+  const groupCount = names.length;
+  const hasNamedGroups = names.some((name) => name !== null);
   const tokens: ReplacementToken[] = [];
   let text = '';
   const flush = () => {
@@ -246,10 +280,12 @@ function tokenizeReplacement(replacement: string, groupCount: number): Replaceme
       flush();
       tokens.push({ kind: 'match' });
       i++;
-    } else if (/^<\w+>/.test(rest)) {
-      const name = /^<(\w+)>/.exec(rest)?.[1] ?? '';
+    } else if (hasNamedGroups && /^<[^>]*>/.test(rest)) {
+      const name = /^<([^>]*)>/.exec(rest)?.[1] ?? '';
       flush();
-      tokens.push({ kind: 'named', name });
+      // With named captures, unknown names substitute an empty string. With
+      // no named captures at all, `$<name>` is ordinary text in JavaScript.
+      if (names.includes(name)) tokens.push({ kind: 'named', name });
       i += name.length + 2;
     } else if (/^\d/.test(rest)) {
       // `$10` is group 10 only if the pattern has one; with fewer groups
@@ -257,11 +293,15 @@ function tokenizeReplacement(replacement: string, groupCount: number): Replaceme
       const digits = /^\d{1,2}/.exec(rest)?.[0] ?? '';
       const index =
         digits.length === 2 && Number(digits) > groupCount ? digits.slice(0, 1) : digits;
-      flush();
-      tokens.push({ kind: 'group', index });
-      i += index.length;
+      if (Number(index) > 0 && Number(index) <= groupCount) {
+        flush();
+        tokens.push({ kind: 'group', index: String(Number(index)) });
+        i += index.length;
+      } else {
+        text += '$';
+      }
     } else {
-      // `$\`` and `$'` have no equivalent anywhere else; leave them alone.
+      // Prefix/suffix forms are handled by targets that share this syntax.
       text += '$';
     }
   }
@@ -272,6 +312,7 @@ function tokenizeReplacement(replacement: string, groupCount: number): Replaceme
 
 /** How a target language spells the same references. */
 interface ReplacementDialect {
+  text: (value: string) => string;
   dollar: string;
   match: string;
   group: (index: string) => string;
@@ -286,32 +327,89 @@ function numberedRef(name: string, names: Array<string | null>, wrap: (n: string
 }
 
 const DIALECTS: Record<string, ReplacementDialect> = {
-  javascript: { dollar: '$$', match: '$&', group: (n) => `$${n}`, named: (n) => `$<${n}>` },
+  javascript: {
+    text: (v) => v,
+    dollar: '$$',
+    match: '$&',
+    group: (n) => `$${n}`,
+    named: (n) => `$<${n}>`,
+  },
   // `\g<1>` rather than `\1`, which would swallow a following digit.
-  python: { dollar: '$', match: '\\g<0>', group: (n) => `\\g<${n}>`, named: (n) => `\\g<${n}>` },
-  ruby: { dollar: '$', match: '\\0', group: (n) => `\\${n}`, named: (n) => `\\k<${n}>` },
-  java: { dollar: '\\$', match: '$0', group: (n) => `$${n}`, named: (n) => `\${${n}}` },
-  // Go and Rust read `$1x` as a group named `1x`, so the braces are required.
-  // biome-ignore-start lint/suspicious/noTemplateCurlyInString: the target language's syntax
-  go: { dollar: '$$', match: '${0}', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
-  rust: { dollar: '$$', match: '${0}', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
-  // biome-ignore-end lint/suspicious/noTemplateCurlyInString: the target language's syntax
-  dotnet: { dollar: '$$', match: '$0', group: (n) => `\${${n}}`, named: (n) => `\${${n}}` },
-  // preg_replace and NSRegularExpression templates are numbered only, so a
-  // named reference has to be resolved against the pattern.
-  php: {
+  python: {
+    text: escapeBackslashes,
+    dollar: '$',
+    match: '\\g<0>',
+    group: (n) => `\\g<${n}>`,
+    named: (n) => `\\g<${n}>`,
+  },
+  ruby: {
+    text: escapeBackslashes,
+    dollar: '$',
+    match: '\\0',
+    group: (n) => `\\${n}`,
+    named: (n) => `\\k<${n}>`,
+  },
+  java: {
+    text: escapeTemplate,
     dollar: '\\$',
     match: '$0',
     group: (n) => `$${n}`,
+    named: (n) => `\${${n}}`,
+  },
+  // Go and Rust read `$1x` as a group named `1x`, so the braces are required.
+  // biome-ignore-start lint/suspicious/noTemplateCurlyInString: the target language's syntax
+  go: {
+    text: escapeDollars,
+    dollar: '$$',
+    match: '${0}',
+    group: (n) => `\${${n}}`,
+    named: (n) => `\${${n}}`,
+  },
+  rust: {
+    text: escapeDollars,
+    dollar: '$$',
+    match: '${0}',
+    group: (n) => `\${${n}}`,
+    named: (n) => `\${${n}}`,
+  },
+  // biome-ignore-end lint/suspicious/noTemplateCurlyInString: the target language's syntax
+  dotnet: {
+    // .NET shares JavaScript's prefix and suffix substitutions.
+    text: (value) => value.replace(/\$(?![`'])/g, () => '$$'),
+    dollar: '$$',
+    match: '$0',
+    group: (n) => `\${${n}}`,
+    named: (n) => `\${${n}}`,
+  },
+  // preg_replace and NSRegularExpression templates are numbered only, so a
+  // named reference has to be resolved against the pattern.
+  php: {
+    text: escapeTemplate,
+    dollar: '\\$',
+    match: '$0',
+    group: (n) => `\${${n}}`,
     named: (n, names) => numberedRef(n, names, (i) => `\${${i}}`),
   },
   swift: {
+    text: escapeTemplate,
     dollar: '\\$',
     match: '$0',
     group: (n) => `$${n}`,
     named: (n, names) => numberedRef(n, names, (i) => `$${i}`),
   },
 };
+
+function escapeBackslashes(value: string): string {
+  return value.replace(/\\/g, '\\\\');
+}
+
+function escapeDollars(value: string): string {
+  return value.replace(/\$/g, () => '$$');
+}
+
+function escapeTemplate(value: string): string {
+  return escapeBackslashes(value).replace(/\$/g, '\\$');
+}
 
 function dialectFor(lang: CodeGenLanguage): ReplacementDialect {
   if (lang === 'typescript') return DIALECTS.javascript;
@@ -326,10 +424,12 @@ function renderReplacement(
   lang: CodeGenLanguage,
   names: Array<string | null>,
 ): string {
+  // Preserve all native JavaScript forms, including prefix/suffix references.
+  if (lang === 'javascript' || lang === 'typescript') return replacement;
   const dialect = dialectFor(lang);
-  return tokenizeReplacement(replacement, names.length)
+  return tokenizeReplacement(replacement, names)
     .map((token) => {
-      if (token.kind === 'text') return token.value;
+      if (token.kind === 'text') return dialect.text(token.value);
       if (token.kind === 'dollar') return dialect.dollar;
       if (token.kind === 'match') return dialect.match;
       if (token.kind === 'group') return dialect.group(token.index);

@@ -161,6 +161,15 @@ describe('escapeReplacement', () => {
 });
 
 describe('python named groups', () => {
+  it.each([
+    String.raw`\\k<name>`,
+    '[(?<x>)]',
+    String.raw`[\\](?<x>a)\\k<x>`,
+  ])('does not rewrite literal syntax inside %s', (pattern) => {
+    const expected =
+      pattern === String.raw`[\\](?<x>a)\\k<x>` ? String.raw`[\\](?P<x>a)\\k<x>` : pattern;
+    expect(escapePattern(pattern, 'python')).toBe(expected);
+  });
   it('translates the named-group syntax Python does not accept', () => {
     const code = gen({ language: 'python', pattern: '(?<year>\\d{4})-\\k<year>' });
     expect(code).toContain("re.compile(r'(?P<year>\\d{4})-(?P=year)'");
@@ -168,5 +177,46 @@ describe('python named groups', () => {
 
   it('leaves lookbehind alone', () => {
     expect(gen({ language: 'python', pattern: '(?<=a)b' })).toContain("re.compile(r'(?<=a)b'");
+  });
+});
+
+describe('replacement literals and nonexistent references', () => {
+  it('keeps native prefix and suffix references for JavaScript and .NET', () => {
+    const replacement = "$`-$'";
+    expect(escapeReplacement(replacement, 'javascript', 'a')).toBe("'$`-$\\''");
+    expect(escapeReplacement(replacement, 'dotnet', 'a')).toBe('@"$`-$\'"');
+  });
+
+  it('counts Python-style named captures when rendering replacement references', () => {
+    expect(escapeReplacement('$1-$<name>', 'python', '(?P<name>a)')).toBe("r'\\g<1>-\\g<name>'");
+  });
+  it.each([
+    '$0',
+    '$00',
+    '$2',
+    '$99',
+    '$<missing>',
+  ])('preserves literal %s without the corresponding capture', (replacement) => {
+    expect(escapeReplacement(replacement, 'python', '(a)')).toBe(`r'${replacement}'`);
+    expect(escapeReplacement(replacement, 'javascript', '(a)')).toBe(`'${replacement}'`);
+  });
+
+  it('substitutes unknown names with empty text only when named captures exist', () => {
+    expect(escapeReplacement('$<missing>-$<a>', 'python', '(?<a>x)')).toBe("r'-\\g<a>'");
+  });
+
+  it('recognizes leading-zero numbered references and their following literal digits', () => {
+    expect(escapeReplacement('$01-$10', 'python', '(a)')).toBe("r'\\g<1>-\\g<1>0'");
+  });
+
+  it.each([
+    String.raw`C:\users`,
+    String.raw`C:\tmp`,
+    String.raw`\1`,
+    String.raw`\$1`,
+  ])('escapes literal backslashes without escaping generated references: %s', (replacement) => {
+    const expected =
+      replacement === String.raw`\$1` ? String.raw`\\\g<1>` : replacement.replace(/\\/g, '\\\\');
+    expect(escapeReplacement(replacement, 'python', '(a)')).toBe(`r'${expected}'`);
   });
 });

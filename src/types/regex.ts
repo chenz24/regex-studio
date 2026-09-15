@@ -112,6 +112,8 @@ export interface TestCaseResult {
   matchCount: number;
   /** True when the regex itself is invalid; result is inconclusive. */
   invalid: boolean;
+  pending?: boolean;
+  timedOut?: boolean;
 }
 
 export interface PatternTemplate {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Library, FileText, X } from 'lucide-react';
 import { useRegexStore, useRegexActions, useRegexDerived } from './stores/regexStore';
 import { useTheme } from './hooks/useTheme';
@@ -7,22 +7,44 @@ import { TestArea } from './components/layout/TestArea';
 import { Footer } from './components/layout/Footer';
 import { RailroadBanner } from './components/diagram/RailroadBanner';
 import { ToolPanel } from './components/layout/ToolPanel';
-import { QuickReference } from './components/sidebar/QuickReference';
-import { PatternLibrary } from './components/sidebar/PatternLibrary';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { ShareButton } from './components/ShareButton';
 import { readShareFromLocation, writeShareToLocation, type SharePayload } from './lib/share';
 import type { RegexEngine } from './types/engineTypes';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { TutorialLauncher, TutorialDrawer } from './components/tutorial';
+import { TutorialLauncher } from './components/tutorial/TutorialLauncher';
 import { useTutorialStore } from './stores/tutorialStore';
-import { findLesson } from './tutorial/registry';
+import { findLoadedLesson } from './tutorial/content';
+import { useLazyMount } from './hooks/useLazyMount';
 import { resolveSpotlight } from './tutorial/spotlight';
 import type { ToolPanelTab } from './tutorial/types';
-import { ChallengesLauncher, ChallengesDrawer } from './components/challenges';
+import { ChallengesLauncher } from './components/challenges/ChallengesLauncher';
 import { useChallengeStore } from './stores/challengeStore';
 import { useT } from '@/lib/i18n';
+
+// The drawers pull in all lesson and challenge content, which nobody sees
+// until they open one. They are fetched on demand — or during idle time, so
+// that the first open still animates instead of appearing already open.
+// The reference and pattern-library panels live in a slide-in sidebar that
+// starts closed, so they are fetched the same way as the drawers.
+const loadQuickReference = () => import('./components/sidebar/QuickReference');
+const loadPatternLibrary = () => import('./components/sidebar/PatternLibrary');
+const QuickReference = lazy(() =>
+  loadQuickReference().then((m) => ({ default: m.QuickReference })),
+);
+const PatternLibrary = lazy(() =>
+  loadPatternLibrary().then((m) => ({ default: m.PatternLibrary })),
+);
+
+const loadTutorialDrawer = () => import('./components/tutorial/TutorialDrawer');
+const loadChallengesDrawer = () => import('./components/challenges/ChallengesDrawer');
+const TutorialDrawer = lazy(() =>
+  loadTutorialDrawer().then((m) => ({ default: m.TutorialDrawer })),
+);
+const ChallengesDrawer = lazy(() =>
+  loadChallengesDrawer().then((m) => ({ default: m.ChallengesDrawer })),
+);
 
 type SidebarTab = 'reference' | 'library';
 
@@ -62,7 +84,7 @@ function App() {
   const tutorialStepIndex = useTutorialStore((s) => s.currentStepIndex);
   const currentStep = useMemo(() => {
     if (tutorialView !== 'lesson' || !tutorialLessonId) return undefined;
-    return findLesson(tutorialLessonId)?.steps[tutorialStepIndex];
+    return findLoadedLesson(tutorialLessonId)?.steps[tutorialStepIndex];
   }, [tutorialView, tutorialLessonId, tutorialStepIndex]);
 
   const spotlight = useMemo(
@@ -96,6 +118,13 @@ function App() {
   // wins. This has to be a single effect that knows which side just flipped
   // on: two effects each reacting to "both are open" fire in the same commit
   // and close both drawers.
+  // Fetching the drawer pulls its content in with it, so one wait covers both
+  // and the drawer is already resolved by the time it mounts.
+  const referenceMounted = useLazyMount(loadQuickReference, sidebarOpen);
+  const libraryMounted = useLazyMount(loadPatternLibrary, sidebarOpen);
+  const tutorialMounted = useLazyMount(loadTutorialDrawer, tutorialOpen);
+  const challengesMounted = useLazyMount(loadChallengesDrawer, challengesOpen);
+
   const prevDrawersRef = useRef({ tutorial: tutorialOpen, challenges: challengesOpen });
   useEffect(() => {
     const prev = prevDrawersRef.current;
@@ -113,19 +142,20 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const challengeId = params.get('challenge');
     if (challengeId) {
-      startChallenge(challengeId);
-      // If the challenge id was invalid, fall back to the catalog so the
-      // user at least sees the list.
-      if (useChallengeStore.getState().view === 'closed') {
-        openChallengeCatalog();
-      }
+      // Starting waits on the challenge content chunk, so the fallback has to
+      // wait with it: if the id was invalid, show the catalogue instead.
+      void startChallenge(challengeId).then(() => {
+        if (useChallengeStore.getState().view === 'closed') {
+          openChallengeCatalog();
+        }
+      });
       return;
     }
     const lessonId = params.get('lesson');
     const stepParam = params.get('step');
     if (lessonId) {
       const stepIndex = stepParam ? Math.max(0, parseInt(stepParam, 10) - 1) : 0;
-      startLesson(lessonId, Number.isFinite(stepIndex) ? stepIndex : 0);
+      void startLesson(lessonId, Number.isFinite(stepIndex) ? stepIndex : 0);
     }
   }, [hydrateTutorial, hydrateChallenges, startLesson, startChallenge, openChallengeCatalog]);
 
@@ -169,15 +199,7 @@ function App() {
     };
     const handle = setTimeout(() => writeShareToLocation(payload), 400);
     return () => clearTimeout(handle);
-  }, [
-    pattern,
-    derived.flagString,
-    engine,
-    testText,
-    replacement,
-    showReplace,
-    testCases,
-  ]);
+  }, [pattern, derived.flagString, engine, testText, replacement, showReplace, testCases]);
 
   const openSidebar = (tab: SidebarTab) => {
     if (sidebarOpen && sidebarTab === tab) {
@@ -242,12 +264,8 @@ function App() {
               <BookOpen className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t.header_reference()}</span>
             </button>
-            <TutorialLauncher
-              onOpen={() => setSidebarOpen(false)}
-            />
-            <ChallengesLauncher
-              onOpen={() => setSidebarOpen(false)}
-            />
+            <TutorialLauncher onOpen={() => setSidebarOpen(false)} />
+            <ChallengesLauncher onOpen={() => setSidebarOpen(false)} />
             <ShareButton
               payload={{
                 v: 1,
@@ -410,17 +428,25 @@ function App() {
               </button>
             </div>
 
-            {sidebarTab === 'reference' ? (
-              <QuickReference />
-            ) : (
-              <PatternLibrary onSelect={actions.loadPattern} />
-            )}
+            <Suspense fallback={null}>
+              {sidebarTab === 'reference'
+                ? referenceMounted && <QuickReference />
+                : libraryMounted && <PatternLibrary onSelect={actions.loadPattern} />}
+            </Suspense>
           </div>
         </aside>
       </div>
 
-      <TutorialDrawer />
-      <ChallengesDrawer />
+      {tutorialMounted && (
+        <Suspense fallback={null}>
+          <TutorialDrawer />
+        </Suspense>
+      )}
+      {challengesMounted && (
+        <Suspense fallback={null}>
+          <ChallengesDrawer />
+        </Suspense>
+      )}
     </div>
   );
 }

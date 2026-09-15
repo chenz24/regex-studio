@@ -1,6 +1,7 @@
 import { GraduationCap } from 'lucide-react';
 import { useTutorialStore } from '@/stores/tutorialStore';
-import { totalCompleted, totalLessons } from '@/tutorial/registry';
+import { loadTutorialContent, tutorialContent } from '@/tutorial/content';
+import { useLazyMount } from '@/hooks/useLazyMount';
 import { useT } from '@/lib/i18n';
 
 interface Props {
@@ -13,9 +14,13 @@ export function TutorialLauncher({ onOpen }: Props) {
   const completion = useTutorialStore((s) => s.completion);
   const openCatalog = useTutorialStore((s) => s.openCatalog);
 
-  const total = totalLessons();
-  const done = totalCompleted({ version: 1, completion });
   const isOpen = view !== 'closed';
+  // The lesson content is a separate chunk; the progress badge appears once
+  // it has been fetched (on demand, or during idle time).
+  const contentReady = useLazyMount(loadTutorialContent, isOpen);
+  const registry = contentReady ? tutorialContent() : null;
+  const total = registry?.totalLessons() ?? 0;
+  const done = registry?.totalCompleted({ version: 1, completion }) ?? 0;
 
   return (
     <button

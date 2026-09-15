@@ -22,6 +22,21 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep the large, rarely-changing dependencies in their own chunks so
+        // a change to app code does not invalidate them in the browser cache.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('@codemirror') || id.includes('@lezer')) return 'codemirror';
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
+          if (id.includes('@tanstack')) return 'tanstack';
+          if (id.includes('radix-ui') || id.includes('@floating-ui')) return 'radix';
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

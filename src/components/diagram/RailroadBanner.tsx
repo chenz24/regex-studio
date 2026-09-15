@@ -1,7 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Maximize2, Minimize2, Pencil, Undo2, Redo2 } from 'lucide-react';
 import { RailroadDiagram } from './RailroadDiagram';
-import { NodeEditor } from './NodeEditor';
+
+// Only mounted once the user starts editing a node.
+const NodeEditor = lazy(() => import('./NodeEditor').then((m) => ({ default: m.NodeEditor })));
 import { findNodeById } from '../../utils/patternEditor';
 import { useRegexStore } from '../../stores/regexStore';
 import type { ASTNode } from '../../types/regex';
@@ -202,13 +204,19 @@ export function RailroadBanner({
         {/* Node Editor (slides in when editing) */}
         {isEditing && (
           <div className="w-72 shrink-0 overflow-y-auto custom-scrollbar">
-            <NodeEditor
-              ast={ast}
-              selectedNodeId={selectedNodeId}
-              pattern={pattern}
-              onPatternChange={handleEditPatternChange}
-              onClose={handleCloseEditor}
-            />
+            <Suspense
+              fallback={
+                <div className="h-40 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800/60" />
+              }
+            >
+              <NodeEditor
+                ast={ast}
+                selectedNodeId={selectedNodeId}
+                pattern={pattern}
+                onPatternChange={handleEditPatternChange}
+                onClose={handleCloseEditor}
+              />
+            </Suspense>
           </div>
         )}
       </div>

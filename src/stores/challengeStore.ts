@@ -1,9 +1,6 @@
 import { create } from 'zustand';
-import { findChallenge } from '@/challenges/data';
-import type {
-  ChallengeProgress,
-  PersistedChallengeProgress,
-} from '@/challenges/types';
+import { findLoadedChallenge, loadChallengeContent } from '@/challenges/content';
+import type { ChallengeProgress, PersistedChallengeProgress } from '@/challenges/types';
 import { useRegexStore } from './regexStore';
 import type { TestCase } from '@/types/regex';
 
@@ -33,7 +30,7 @@ interface State {
 interface Actions {
   openCatalog: () => void;
   close: () => void;
-  startChallenge: (id: string) => void;
+  startChallenge: (id: string) => Promise<void>;
   exitChallenge: (restore?: boolean) => void;
 
   /** Mark the active challenge as solved with the current regex state. */
@@ -108,8 +105,10 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     set({ view: 'closed', currentChallengeId: null, snapshotBeforeChallenge: null });
   },
 
-  startChallenge: (id) => {
-    const challenge = findChallenge(id);
+  // Async because the challenge content is a separate chunk.
+  startChallenge: async (id) => {
+    await loadChallengeContent();
+    const challenge = findLoadedChallenge(id);
     if (!challenge) return;
 
     const snapshot = get().snapshotBeforeChallenge ?? snapshotRegex();

@@ -95,3 +95,47 @@ export function evaluateChallenge(
     total,
   };
 }
+
+/**
+ * Same verdict as `evaluateChallenge`, but from match counts that have
+ * already been computed — the challenge's cases are pushed into the regex
+ * store when it starts, so the worker has evaluated them and there is no
+ * reason to run the user's pattern a second time on the main thread.
+ */
+export function evaluateChallengeFromResults(
+  challenge: Challenge,
+  pattern: string,
+  validation: { valid: boolean; error?: string },
+  matchCountByCaseId: ReadonlyMap<string, number>,
+): ChallengeEvaluation {
+  const total = challenge.testCases.length;
+  const invalid = Boolean(pattern) && !validation.valid;
+
+  const results = challenge.testCases.map((tc, i) => {
+    const matchCount = matchCountByCaseId.get(challengeCaseId(challenge.id, i)) ?? 0;
+    const hasMatch = !invalid && Boolean(pattern) && matchCount > 0;
+    return {
+      index: i,
+      label: tc.label,
+      input: tc.input,
+      expect: tc.expect,
+      pass: !invalid && Boolean(pattern) && (tc.expect === 'match' ? hasMatch : !hasMatch),
+      matchCount,
+    };
+  });
+
+  const passed = results.filter((r) => r.pass).length;
+  return {
+    solved: passed === total && total > 0,
+    invalid,
+    invalidError: invalid ? validation.error : undefined,
+    results,
+    passed,
+    total,
+  };
+}
+
+/** Id given to a challenge's test case inside the regex store. */
+export function challengeCaseId(challengeId: string, index: number): string {
+  return `${challengeId}__${index}`;
+}

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { findLoadedChallenge, loadChallengeContent } from '@/challenges/content';
+import { challengeCaseId } from '@/challenges/evaluator';
 import type { ChallengeProgress, PersistedChallengeProgress } from '@/challenges/types';
 import { useRegexStore } from './regexStore';
 import type { TestCase } from '@/types/regex';
@@ -118,7 +119,7 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     // test panel UI evaluates them live. We give them stable ids so result
     // ordering is predictable.
     const tcs: TestCase[] = challenge.testCases.map((tc, i) => ({
-      id: `${challenge.id}__${i}`,
+      id: challengeCaseId(challenge.id, i),
       label: tc.label,
       input: tc.input,
       expect: tc.expect,

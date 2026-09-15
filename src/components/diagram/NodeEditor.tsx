@@ -135,6 +135,21 @@ interface Suggestion {
 }
 
 /**
+ * Text between a group's delimiters, e.g. `abc` for `(?:abc)`.
+ *
+ * The parser flattens a group's sequence into `children`, so `children[0]`
+ * is only the *first* element of the body — slicing from it would drop
+ * everything after it. Span the whole child list instead, and fall back to
+ * the raw text minus the delimiters when a group has no children.
+ */
+function groupInnerText(node: ASTNode, pattern: string): string {
+  const children = node.children;
+  // No children means an empty body, e.g. `()` or `(?<name>)`.
+  if (!children || children.length === 0) return '';
+  return pattern.slice(children[0].start, children[children.length - 1].end);
+}
+
+/**
  * Compute context-aware Replace suggestions for the given node.
  * `pattern` is used when we need to extract inner text (e.g. group body).
  */
@@ -200,11 +215,7 @@ function getReplaceSuggestions(node: ASTNode, pattern: string): Suggestion[] {
     case 'group':
     case 'nonCapturingGroup':
     case 'namedGroup': {
-      // Extract inner body (between outer parens, skipping any group prefix).
-      const child = node.children?.[0];
-      const inner = child
-        ? pattern.slice(child.start, child.end)
-        : pattern.slice(node.start + 1, node.end - 1);
+      const inner = groupInnerText(node, pattern);
       const out: Suggestion[] = [];
       if (node.type !== 'group')
         out.push({ label: `(${inner})`, value: `(${inner})`, hint: 'capturing' });
@@ -218,10 +229,7 @@ function getReplaceSuggestions(node: ASTNode, pattern: string): Suggestion[] {
     case 'negativeLookahead':
     case 'lookbehind':
     case 'negativeLookbehind': {
-      const child = node.children?.[0];
-      const inner = child
-        ? pattern.slice(child.start, child.end)
-        : pattern.slice(node.start + 1, node.end - 1);
+      const inner = groupInnerText(node, pattern);
       const variants: { t: ASTNode['type']; v: string; hint: string }[] = [
         { t: 'lookahead', v: `(?=${inner})`, hint: 'lookahead' },
         { t: 'negativeLookahead', v: `(?!${inner})`, hint: 'neg lookahead' },

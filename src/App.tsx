@@ -82,17 +82,18 @@ function App() {
   const closeChallenges = useChallengeStore((s) => s.close);
   const challengesOpen = challengeView !== 'closed';
 
-  // Mutex: only one drawer open at a time. When tutorial opens, close
-  // challenges; vice versa.
+  // Mutex: only one drawer open at a time — whichever opened most recently
+  // wins. This has to be a single effect that knows which side just flipped
+  // on: two effects each reacting to "both are open" fire in the same commit
+  // and close both drawers.
+  const prevDrawersRef = useRef({ tutorial: tutorialOpen, challenges: challengesOpen });
   useEffect(() => {
-    if (tutorialOpen && challengesOpen) closeChallenges();
-  }, [tutorialOpen, challengesOpen, closeChallenges]);
-  // We only react to challengesOpen flipping on; tutorial side handled above.
-  // Keeping a single dependency avoids ping-pong with the other effect.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional single-trigger
-  useEffect(() => {
-    if (challengesOpen && tutorialOpen) closeTutorial();
-  }, [challengesOpen]);
+    const prev = prevDrawersRef.current;
+    prevDrawersRef.current = { tutorial: tutorialOpen, challenges: challengesOpen };
+    if (!tutorialOpen || !challengesOpen) return;
+    if (!prev.tutorial) closeChallenges();
+    else if (!prev.challenges) closeTutorial();
+  }, [tutorialOpen, challengesOpen, closeChallenges, closeTutorial]);
 
   // Hydrate tutorial + challenges progress + parse URL params once on mount.
   useEffect(() => {

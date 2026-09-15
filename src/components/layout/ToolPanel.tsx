@@ -3,6 +3,7 @@ import { BookOpen, Bug, ArrowRightLeft, FileJson, List, Code2, FlaskConical } fr
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useT } from '@/lib/i18n';
 import { DebuggerPanel } from '../tools/DebuggerPanel';
+import { EngineCapabilityNotice } from '../EngineCapabilityNotice';
 
 // Only the debugger is on screen at startup. Radix unmounts the inactive
 // panels, so the rest cost nothing until their tab is opened — including the
@@ -30,6 +31,9 @@ import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '../../types/r
 import type { ToolPanelTab } from '@/tutorial/types';
 
 interface ToolPanelProps {
+  executionEngine: 'javascript' | 'pcre2';
+  replacementError?: string;
+  pending?: boolean;
   ast: ASTNode;
   pattern: string;
   testText: string;
@@ -61,6 +65,9 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({
+  executionEngine,
+  replacementError,
+  pending,
   ast,
   pattern,
   testText,
@@ -167,12 +174,16 @@ export function ToolPanel({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar min-h-[200px]">
           <TabsContent value="debugger" className="p-3 mt-0">
-            <DebuggerPanel
-              ast={ast}
-              pattern={pattern}
-              testText={testText}
-              flagString={jsFlagString}
-            />
+            {executionEngine === 'pcre2' ? (
+              <EngineCapabilityNotice debuggerOnly />
+            ) : (
+              <DebuggerPanel
+                ast={ast}
+                pattern={pattern}
+                testText={testText}
+                flagString={jsFlagString}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="matches" className="p-3 mt-0">
@@ -187,13 +198,17 @@ export function ToolPanel({
 
           <TabsContent value="explanation" className="p-3 mt-0">
             <Suspense fallback={<PanelFallback />}>
-              <ExplanationPanel
-                ast={ast}
-                hoveredNodeId={hoveredNodeId}
-                onHoverNode={onHoverNode}
-                spotlightNodeIds={spotlightNodeIds}
-                spotlightFirstNodeId={spotlightFirstNodeId}
-              />
+              {executionEngine === 'pcre2' ? (
+                <EngineCapabilityNotice />
+              ) : (
+                <ExplanationPanel
+                  ast={ast}
+                  hoveredNodeId={hoveredNodeId}
+                  onHoverNode={onHoverNode}
+                  spotlightNodeIds={spotlightNodeIds}
+                  spotlightFirstNodeId={spotlightFirstNodeId}
+                />
+              )}
             </Suspense>
           </TabsContent>
 
@@ -214,6 +229,9 @@ export function ToolPanel({
           <TabsContent value="replace" className="p-3 mt-0">
             <Suspense fallback={<PanelFallback />}>
               <ReplacePanel
+                executionEngine={executionEngine}
+                error={replacementError}
+                pending={pending}
                 replacement={replacement}
                 onReplacementChange={onReplacementChange}
                 replacedText={replacedText}
@@ -223,6 +241,11 @@ export function ToolPanel({
           </TabsContent>
 
           <TabsContent value="codegen" className="p-3 mt-0">
+            {executionEngine === 'pcre2' && (
+              <p className="mb-3 text-xs text-amber-700 dark:text-amber-300">
+                {t.pcre2_codegen_notice()}
+              </p>
+            )}
             <Suspense fallback={<PanelFallback />}>
               <CodeGeneratorPanel
                 pattern={pattern}
@@ -234,9 +257,13 @@ export function ToolPanel({
           </TabsContent>
 
           <TabsContent value="ast" className="p-3 mt-0">
-            <pre className="text-xs font-mono text-teal-700 dark:text-teal-300 bg-gray-50 dark:bg-gray-800/60 p-4 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto custom-scrollbar leading-relaxed max-h-[600px]">
-              {JSON.stringify(ast, null, 2)}
-            </pre>
+            {executionEngine === 'pcre2' ? (
+              <EngineCapabilityNotice />
+            ) : (
+              <pre className="text-xs font-mono text-teal-700 dark:text-teal-300 bg-gray-50 dark:bg-gray-800/60 p-4 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto custom-scrollbar leading-relaxed max-h-[600px]">
+                {JSON.stringify(ast, null, 2)}
+              </pre>
+            )}
           </TabsContent>
         </div>
       </Tabs>

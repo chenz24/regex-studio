@@ -12,9 +12,13 @@ const testCases: TestCase[] = [
 ];
 const testResults: TestCaseResult[] = [{ id: 't1', pass: true, matchCount: 1, invalid: false }];
 
-function renderPanel(activeTab: ToolPanelTab) {
+function renderPanel(
+  activeTab: ToolPanelTab,
+  executionEngine: 'javascript' | 'pcre2' = 'javascript',
+) {
   const view = render(
     <ToolPanel
+      executionEngine={executionEngine}
       ast={parseRegex('needle')}
       pattern="needle"
       testText="a needle here"
@@ -45,6 +49,16 @@ function renderPanel(activeTab: ToolPanelTab) {
 }
 
 describe('ToolPanel', () => {
+  it.each<ToolPanelTab>([
+    'debugger',
+    'explanation',
+    'ast',
+  ])('identifies unavailable PCRE2 %s instead of showing a JS interpretation', async (tab) => {
+    const { openPanel } = renderPanel(tab, 'pcre2');
+    await waitFor(() => expect(openPanel()?.textContent).toContain('not available'));
+    expect(openPanel()?.textContent).not.toContain('needle');
+  });
+
   it('renders the open tab without waiting on a lazy chunk', () => {
     // The debugger is what is on screen at startup, so it is imported
     // eagerly: its content has to be there on the very first render.

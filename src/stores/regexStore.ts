@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '../types/regex';
@@ -77,6 +77,7 @@ interface RegexActions {
 }
 
 interface RegexDerived {
+  executionEngine: 'javascript' | 'pcre2';
   /** Flags as displayed in `/pattern/flags` (target-engine view). */
   flagString: string;
   /** Flags actually forwarded to `new RegExp(...)`. JS-safe subset only. */
@@ -93,6 +94,9 @@ interface RegexDerived {
   timedOut: boolean;
   /** Results shown are from the previous input while the current one runs. */
   pending: boolean;
+  executionError?: string;
+  replacementError?: string;
+  retry: () => void;
 }
 
 type RegexStore = RegexState & RegexActions;
@@ -106,21 +110,33 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
     .map((f) => f.key)
     .join('');
 
-  // Only the JS-safe subset is forwarded to `new RegExp(...)`. Display-only
-  // flags (e.g. Python `x`, PCRE `U/J`, .NET `n`) never reach the engine.
+  // Compatibility targets use only the JS-safe subset. PCRE2 receives its
+  // complete flagString separately, including x/U/J.
   const jsFlagString = toJsFlagString(state.flags);
-  const validation = isValidRegex(state.pattern, jsFlagString);
+  const executionEngine: 'javascript' | 'pcre2' = state.engine === 'pcre2' ? 'pcre2' : 'javascript';
+  const validation =
+    executionEngine === 'pcre2' ? { valid: true } : isValidRegex(state.pattern, jsFlagString);
 
-  const ast: ASTNode = state.pattern
-    ? parseRegex(state.pattern, jsFlagString)
-    : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 };
+  // PCRE2 execution must not depend on the JavaScript-oriented visual parser.
+  const ast: ASTNode =
+    state.pattern && executionEngine !== 'pcre2'
+      ? parseRegex(state.pattern, jsFlagString)
+      : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 };
 
   const diagram = layoutAST(ast);
 
   const compatibilityWarnings: CompatibilityWarning[] =
     state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
 
-  return { flagString, jsFlagString, validation, ast, diagram, compatibilityWarnings };
+  return {
+    flagString,
+    jsFlagString,
+    executionEngine,
+    validation,
+    ast,
+    diagram,
+    compatibilityWarnings,
+  };
 }
 
 /**
@@ -132,13 +148,18 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
  * turns out to be one that never finishes. While a run is outstanding the
  * previous result stays on screen rather than flashing to empty.
  */
-function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean } {
+function useMatchOutcome(
+  input: MatchInput,
+): MatchOutcome & { pending: boolean; retry: () => void } {
   const key = matchInputKey(input);
+  const [attempt, setAttempt] = useState(0);
   const [entry, setEntry] = useState(() => ({
     key,
+    engine: input.engine,
     outcome:
       cachedOutcome(key) ??
-      (input.pattern === DEFAULT_PATTERN &&
+      (input.engine !== 'pcre2' &&
+      input.pattern === DEFAULT_PATTERN &&
       input.flags === 'g' &&
       input.text === DEFAULT_TEXT &&
       input.replacement === '' &&
@@ -156,22 +177,32 @@ function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean }
     [input.text],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt deliberately retries identical input.
   useEffect(() => {
     let cancelled = false;
     runMatch(input).then((outcome) => {
-      if (!cancelled) setEntry({ key, outcome });
+      if (!cancelled) setEntry({ key, engine: input.engine, outcome });
     });
     return () => {
       cancelled = true;
     };
-  }, [key, input]);
+  }, [key, input, attempt]);
+
+  const retry = useCallback(() => {
+    setEntry({ key, engine: input.engine, outcome: undefined });
+    setAttempt((value) => value + 1);
+  }, [key, input.engine]);
 
   const settled = entry.key === key ? entry.outcome : cachedOutcome(key);
   // Must be memoised: consumers key effects off the derived object, and a
   // fresh identity on every render turns those into an update loop.
   return useMemo(
-    () => ({ ...(settled ?? entry.outcome ?? empty), pending: settled === undefined }),
-    [settled, entry.outcome, empty],
+    () => ({
+      ...(settled ?? (entry.engine === input.engine ? entry.outcome : undefined) ?? empty),
+      pending: settled === undefined,
+      retry,
+    }),
+    [settled, entry.outcome, entry.engine, input.engine, empty, retry],
   );
 }
 
@@ -316,22 +347,37 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
 
   const matchInput: MatchInput = useMemo(
     () => ({
+      engine: derived.executionEngine,
       // An invalid pattern has nothing to run; the error is reported by
       // `validation` instead.
       pattern: derived.validation.valid ? pattern : '',
-      flags: derived.jsFlagString,
+      flags: derived.executionEngine === 'pcre2' ? derived.flagString : derived.jsFlagString,
       text: testText,
       replacement,
       testInputs: testCases.map((tc) => tc.input),
     }),
-    [pattern, derived.validation.valid, derived.jsFlagString, testText, replacement, testCases],
+    [
+      pattern,
+      derived.validation.valid,
+      derived.executionEngine,
+      derived.flagString,
+      derived.jsFlagString,
+      testText,
+      replacement,
+      testCases,
+    ],
   );
 
   const outcome = useMatchOutcome(matchInput);
 
   return useMemo(() => {
+    const validation =
+      derived.executionEngine === 'pcre2' && !outcome.pending
+        ? (outcome.validation ?? derived.validation)
+        : derived.validation;
+    const executionError = outcome.pending ? undefined : outcome.executionError;
     const testResults: TestCaseResult[] = testCases.map((tc, i) => {
-      if (!derived.validation.valid) {
+      if (!validation.valid) {
         return { id: tc.id, pass: false, matchCount: 0, invalid: true };
       }
       if (outcome.pending || outcome.timedOut) {
@@ -344,7 +390,16 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
           timedOut: outcome.timedOut && !outcome.pending,
         };
       }
-      const matchCount = outcome.testMatchCounts[i] ?? 0;
+      const matchCount = outcome.testMatchCounts[i];
+      if (executionError || matchCount === undefined) {
+        return {
+          id: tc.id,
+          pass: false,
+          matchCount: 0,
+          invalid: false,
+          executionError: executionError ?? 'Match result unavailable',
+        };
+      }
       const hasMatch = matchCount > 0;
       return {
         id: tc.id,
@@ -356,12 +411,16 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
 
     return {
       ...derived,
+      validation,
       matches: outcome.matches,
       replacedText: outcome.replacedText,
       testResults,
       testsPassed: testResults.filter((r) => r.pass).length,
-      timedOut: outcome.timedOut,
+      timedOut: !outcome.pending && outcome.timedOut,
       pending: outcome.pending,
+      executionError,
+      replacementError: outcome.pending ? undefined : outcome.replacementError,
+      retry: outcome.retry,
     };
   }, [derived, outcome, testCases]);
 }

@@ -50,8 +50,26 @@ Beyond the basics like live matching and capture-group inspection, RegexStudio o
 
 ### Multi-flavor & Code Generation
 
-- 🌐 **Flavor selector** — Switch between JavaScript, PCRE, Python, Java, Go, .NET, Rust, Ruby and more
+- 🌐 **Execution engines** — Native JavaScript and PCRE2 10.47 (WebAssembly); Python, Java, Go, .NET and Rust remain compatibility targets using JavaScript execution
 - 🛠️ **Code generator** — One-click snippets for **10 languages**: JavaScript / TypeScript, Python, Java, Go, Rust, C# (.NET), PHP, Ruby, Swift, Kotlin
+
+### PCRE2 execution
+
+Select **PCRE2** to run matching, captures, replacements and test cases with the
+real PCRE2 10.47 engine. The Worker and WASM load on demand; JavaScript users do
+not download them. PCRE2 supports `\K`, recursion, atomic groups, possessive
+quantifiers, and the `g/i/m/s/u/x/U/J` controls. `g` enables global iteration.
+
+- Matching uses 16-bit code units, with exact UTF-16 capture offsets. This is
+  not a PHP runtime: PHP uses an 8-bit library. `u` enables UTF and UCP here.
+- Replacement syntax: `$0`, `$1`, `${name}`, `$$`. An empty replacement deletes matches.
+- Worker execution has a 2-second budget, plus PCRE2 backtracking/memory limits.
+  First-time engine loading has a separate 15-second budget; failures can be retried.
+- PCRE2 railroad diagrams, explanations, visual editing and step debugging are
+  not available yet. These panels show an explicit capability notice.
+- The generated runtime is checked in, so `pnpm build` needs no C compiler.
+  See [runtime build instructions](src/vendor/pcre2/README.md) and the
+  [PCRE2 licence](src/vendor/pcre2/LICENSE.md).
 
 ### Learning
 

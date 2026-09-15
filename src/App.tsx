@@ -7,6 +7,7 @@ import { TestArea } from './components/layout/TestArea';
 import { Footer } from './components/layout/Footer';
 import { RailroadBanner } from './components/diagram/RailroadBanner';
 import { ToolPanel } from './components/layout/ToolPanel';
+import { EngineCapabilityNotice } from './components/EngineCapabilityNotice';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { ShareButton } from './components/ShareButton';
@@ -302,6 +303,9 @@ function App() {
               validation={derived.validation}
               matchCount={derived.matches.length}
               timedOut={derived.timedOut}
+              pending={derived.pending}
+              executionError={derived.executionError}
+              onRetry={derived.retry}
               ast={derived.ast}
               hoveredNodeId={hoveredNodeId}
               onHoverNode={actions.setHoveredNodeId}
@@ -311,15 +315,19 @@ function App() {
             />
 
             {/* Railroad Banner — full width */}
-            <RailroadBanner
-              diagram={derived.diagram}
-              ast={derived.ast}
-              pattern={pattern}
-              onPatternChange={actions.setPattern}
-              hoveredNodeId={hoveredNodeId}
-              onHoverNode={actions.setHoveredNodeId}
-              spotlightNodeIds={spotlight.nodeIds}
-            />
+            {derived.executionEngine === 'pcre2' ? (
+              <EngineCapabilityNotice />
+            ) : (
+              <RailroadBanner
+                diagram={derived.diagram}
+                ast={derived.ast}
+                pattern={pattern}
+                onPatternChange={actions.setPattern}
+                hoveredNodeId={hoveredNodeId}
+                onHoverNode={actions.setHoveredNodeId}
+                spotlightNodeIds={spotlight.nodeIds}
+              />
+            )}
 
             {/* Two-column: Test Area + Match Details | Tool Panel */}
             <ResizablePanelGroup orientation="horizontal" className="min-h-[400px] rounded-xl">
@@ -342,6 +350,9 @@ function App() {
               <ResizablePanel defaultSize={55} minSize={30}>
                 <div className="pl-2 h-full">
                   <ToolPanel
+                    executionEngine={derived.executionEngine}
+                    replacementError={derived.replacementError}
+                    pending={derived.pending}
                     ast={derived.ast}
                     pattern={pattern}
                     testText={testText}

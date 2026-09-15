@@ -114,6 +114,7 @@ export interface TestCaseResult {
   invalid: boolean;
   pending?: boolean;
   timedOut?: boolean;
+  executionError?: string;
 }
 
 export interface PatternTemplate {

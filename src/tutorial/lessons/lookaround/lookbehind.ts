@@ -5,14 +5,15 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Lookbehind `(?<=...)` and `(?<!...)`',
-    summary: 'Assert what does/doesn\'t precede — also zero-width.',
+    summary: "Assert what does/doesn't precede — also zero-width.",
     s1_title: 'Positive lookbehind `(?<=...)`',
     s1_body: [
       'Goal: digits prefixed by `$` — money amounts only, not other identifiers.',
       '',
       'Write `(?<=\\$)\\d+`. Only the amount **5** should match.',
     ].join('\n'),
-    s1_hint: '`(?<=...)` checks the **left** of the cursor, zero-width. The match does not include `$`.',
+    s1_hint:
+      '`(?<=...)` checks the **left** of the cursor, zero-width. The match does not include `$`.',
     s1_explanation: '"$5" qualifies; "A1" has "A" before it, "7" has a space — both excluded.',
     s2_title: 'Negative lookbehind `(?<!...)`',
     s2_body: [
@@ -25,7 +26,8 @@ const TEXTS = {
     s3_body: [
       'Variable-length lookbehind support varies:',
       '',
-      '- **JavaScript / PCRE2**: full variable-length, e.g. `(?<=foo|barbaz)`',
+      '- **JavaScript**: full variable-length lookbehind',
+      '- **PCRE2 10.43+**: bounded variable-length lookbehind, e.g. `(?<=a{1,3})`; unbounded `(?<=a+)` is rejected',
       '- **Python `re`**: only **fixed-width** — even branches must match equal lengths; the third-party `regex` package unlocks variable-length',
       '- **Java**: requires a computable upper bound',
       '',
@@ -33,8 +35,10 @@ const TEXTS = {
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript fully supports variable-length lookbehind since ES2018.',
-      pcre2: 'PCRE2 also supports variable-length lookbehind, matching JS behavior.',
-      python: '⚠️ Python `re` requires lookbehind to be **fixed-width**. For variable-length, use the third-party `regex` package.',
+      pcre2:
+        'PCRE2 10.43+ supports bounded variable-length lookbehind. Unbounded repetition such as (?<=a+) is not supported.',
+      python:
+        '⚠️ Python `re` requires lookbehind to be **fixed-width**. For variable-length, use the third-party `regex` package.',
       java: '⚠️ Java requires lookbehind to have a **computable upper bound**; `*` and `+` are rejected.',
       go: '❌ Go (RE2) does not support lookbehind at all.',
     },
@@ -71,7 +75,8 @@ const TEXTS = {
     s3_body: [
       '后行断言的**变长**支持各家不一样：',
       '',
-      '- **JavaScript / PCRE2**：完全支持变长后行，比如 `(?<=foo|barbaz)`',
+      '- **JavaScript**：完整支持变长后行断言',
+      '- **PCRE2 10.43+**：支持有上界的变长后行，如 `(?<=a{1,3})`；不支持无上界的 `(?<=a+)`',
       '- **Python `re`**：只接受**固定宽度**——`(?<=foo|bar)` 在某些版本下也只放行长度一致的分支；用第三方 `regex` 包可解锁变长',
       '- **Java**：要求宽度可推算上界',
       '',
@@ -79,7 +84,7 @@ const TEXTS = {
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript 从 ES2018 开始完整支持变长后行断言。',
-      pcre2: 'PCRE2 也支持变长后行断言，表现与 JS 一致。',
+      pcre2: 'PCRE2 10.43+ 支持有上界的变长后行断言，不支持 (?<=a+) 这样的无上界重复。',
       python: '⚠️ Python `re` 要求后行断言是**固定宽度**。需变长请用第三方 `regex` 包。',
       java: '⚠️ Java 要求后行断言有**可推算上界**的长度；`*` `+` 这种无上限量词会被拒。',
       go: '❌ Go (RE2) 不支持任何后行断言。',

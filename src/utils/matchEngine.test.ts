@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MatchInput, MatchRequest, MatchResponse } from './matchEngine';
+import type { MatchInput, MatchRequest, WorkerResponse } from './matchEngine';
 
 class ControlledWorker {
   static instances: ControlledWorker[] = [];
   requests: MatchRequest[] = [];
   terminated = false;
-  onmessage?: (event: { data: MatchResponse }) => void;
+  onmessage?: (event: { data: WorkerResponse }) => void;
   onerror?: () => void;
 
   constructor() {
@@ -16,6 +16,9 @@ class ControlledWorker {
   }
   terminate() {
     this.terminated = true;
+  }
+  ready() {
+    this.onmessage?.({ data: { type: 'ready' } });
   }
   respond(index = 0) {
     this.onmessage?.({
@@ -100,8 +103,99 @@ describe('worker scheduling and recovery', () => {
     const failed = runMatch(input('broken'));
     const queued = runMatch(input('a+'));
     ControlledWorker.instances[0].onerror?.();
-    expect((await failed).timedOut).toBe(true);
+    expect(await failed).toMatchObject({ timedOut: false, executionError: expect.any(String) });
     ControlledWorker.instances[1].respond();
     expect((await queued).timedOut).toBe(false);
+  });
+
+  it('separates PCRE2 loading from matching and lets JavaScript run concurrently', async () => {
+    const api = await import('./matchEngine');
+    const pcre = api.runMatch({ ...input('a+'), engine: 'pcre2' });
+    const pcreWorker = ControlledWorker.instances[0];
+    expect(pcreWorker.requests).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS + 100);
+    expect(pcreWorker.terminated).toBe(false);
+
+    const js = api.runMatch({ ...input('a+'), engine: 'javascript' });
+    const jsWorker = ControlledWorker.instances[1];
+    expect(jsWorker.requests).toHaveLength(1);
+    jsWorker.respond();
+    expect((await js).timedOut).toBe(false);
+    pcreWorker.ready();
+    expect(pcreWorker.requests).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS - 1);
+    expect(pcreWorker.terminated).toBe(false);
+    pcreWorker.respond();
+    expect((await pcre).timedOut).toBe(false);
+  });
+
+  it('times out an uninitialized PCRE2 engine as a load error and allows retry', async () => {
+    const api = await import('./matchEngine');
+    const value = { ...input('foo\\Kbar'), engine: 'pcre2' as const };
+    const failed = api.runMatch(value);
+    await vi.advanceTimersByTimeAsync(api.ENGINE_LOAD_TIMEOUT_MS);
+    expect(await failed).toMatchObject({ timedOut: false, executionError: expect.any(String) });
+    expect(api.cachedOutcome(api.matchInputKey(value))).toBeUndefined();
+    const retry = api.runMatch(value);
+    const replacement = ControlledWorker.instances[1];
+    ControlledWorker.instances[0].ready();
+    expect(replacement.requests).toHaveLength(0);
+    replacement.ready();
+    replacement.respond();
+    expect((await retry).executionError).toBeUndefined();
+  });
+
+  it('never serves a JavaScript cache entry to PCRE2', async () => {
+    const api = await import('./matchEngine');
+    const jsInput = input('foo\\Kbar');
+    const js = api.runMatch(jsInput);
+    ControlledWorker.instances[0].respond();
+    await js;
+    const pcreInput = { ...jsInput, engine: 'pcre2' as const };
+    expect(api.matchInputKey(jsInput)).not.toBe(api.matchInputKey(pcreInput));
+    const pcre = api.runMatch(pcreInput);
+    expect(ControlledWorker.instances).toHaveLength(2);
+    ControlledWorker.instances[1].ready();
+    ControlledWorker.instances[1].respond();
+    await pcre;
+  });
+
+  it('does not fall back to JavaScript when a PCRE2 Worker cannot be created', async () => {
+    vi.stubGlobal(
+      'Worker',
+      class {
+        constructor() {
+          throw new Error('blocked');
+        }
+      },
+    );
+    const api = await import('./matchEngine');
+    const result = await api.runMatch({ ...input('(a+)+$'), engine: 'pcre2' });
+    expect(result.executionError).toBeDefined();
+    expect(result.matches).toEqual([]);
+    expect(result.timedOut).toBe(false);
+  });
+
+  it('recreates a PCRE2 instance after a runtime failure', async () => {
+    const api = await import('./matchEngine');
+    const value = { ...input('a+'), engine: 'pcre2' as const };
+    const first = api.runMatch(value);
+    const original = ControlledWorker.instances[0];
+    original.ready();
+    original.onmessage?.({
+      data: {
+        id: original.requests[0].id,
+        matches: [],
+        replacedText: '',
+        testMatchCounts: [],
+        executionError: 'out of memory',
+      },
+    });
+    expect((await first).executionError).toBe('out of memory');
+    expect(original.terminated).toBe(true);
+    const retry = api.runMatch(value);
+    ControlledWorker.instances[1].ready();
+    ControlledWorker.instances[1].respond();
+    expect((await retry).executionError).toBeUndefined();
   });
 });

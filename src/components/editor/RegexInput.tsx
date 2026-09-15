@@ -38,6 +38,9 @@ interface RegexInputProps {
   matchCount: number;
   /** The pattern overran its deadline and was abandoned. */
   timedOut?: boolean;
+  pending?: boolean;
+  executionError?: string;
+  onRetry?: () => void;
   ast: ASTNode;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
@@ -167,6 +170,9 @@ export function RegexInput({
   validation,
   matchCount,
   timedOut,
+  pending,
+  executionError,
+  onRetry,
   ast,
   hoveredNodeId,
   onHoverNode,
@@ -388,8 +394,10 @@ export function RegexInput({
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={8}>
                   <div className="font-semibold">{flag.label}</div>
-                  <div className="opacity-80 mt-0.5">{resolveDesc(t, flag.descKey, flag.description)}</div>
-                  {!flag.jsFlag && (
+                  <div className="opacity-80 mt-0.5">
+                    {resolveDesc(t, flag.descKey, flag.description)}
+                  </div>
+                  {!flag.jsFlag && engine !== 'pcre2' && (
                     <div className="opacity-60 mt-1 text-[10px]">
                       {t.regex_input_display_only()}
                     </div>
@@ -399,6 +407,12 @@ export function RegexInput({
             ))}
           </div>
         </TooltipProvider>
+      </div>
+
+      <div className="px-1 text-xs text-gray-500 dark:text-gray-400">
+        {t.execution_engine_label({
+          engine: engine === 'pcre2' ? 'PCRE2 10.47 (16-bit)' : 'JavaScript',
+        })}
       </div>
 
       <div className="relative group">
@@ -444,7 +458,17 @@ export function RegexInput({
 
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
-          {pattern && validation.valid && !timedOut && (
+          {pending && (
+            <span role="status" className="text-sm text-gray-500">
+              {t.match_pending()}
+            </span>
+          )}
+          {!pending && executionError && (
+            <span role="alert" className="text-sm text-amber-600">
+              {t.engine_execution_failed()}: {executionError}
+            </span>
+          )}
+          {pattern && validation.valid && !timedOut && !pending && !executionError && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
               <Check className="w-3.5 h-3.5" />
               {matchCount === 1
@@ -452,17 +476,22 @@ export function RegexInput({
                 : t.regex_input_match_count_other({ count: String(matchCount) })}
             </span>
           )}
-          {pattern && validation.valid && timedOut && (
+          {pattern && validation.valid && timedOut && !pending && (
             <span className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium">
               <AlertCircle className="w-3.5 h-3.5" />
               {t.regex_input_timed_out()}
             </span>
           )}
-          {pattern && !validation.valid && (
+          {pattern && !validation.valid && !pending && (
             <span className="flex items-center gap-1.5 text-sm text-red-500">
               <AlertCircle className="w-3.5 h-3.5" />
               {validation.error}
             </span>
+          )}
+          {!pending && (timedOut || executionError) && onRetry && (
+            <button onClick={onRetry} className="text-sm text-teal-600 underline">
+              {t.engine_retry()}
+            </button>
           )}
         </div>
       </div>

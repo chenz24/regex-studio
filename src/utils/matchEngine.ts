@@ -3,6 +3,7 @@ import { findMatches, replaceMatches } from './regexMatcher';
 
 export interface MatchRequest {
   id: number;
+  engine?: 'javascript' | 'pcre2';
   pattern: string;
   flags: string;
   text: string;
@@ -15,7 +16,16 @@ export interface MatchResponse {
   matches: MatchInfo[];
   replacedText: string;
   testMatchCounts: number[];
+  timedOut?: boolean;
+  validation?: { valid: boolean; error?: string; offset?: number };
+  executionError?: string;
+  replacementError?: string;
 }
+
+export type WorkerResponse =
+  | MatchResponse
+  | { type: 'ready' }
+  | { type: 'load-error'; message: string };
 
 export type MatchInput = Omit<MatchRequest, 'id'>;
 
@@ -23,8 +33,11 @@ export interface MatchOutcome {
   matches: MatchInfo[];
   replacedText: string;
   testMatchCounts: number[];
-  /** The pattern was still running when the deadline passed. */
+  /** The deadline or a native engine resource limit was reached. */
   timedOut: boolean;
+  validation?: { valid: boolean; error?: string; offset?: number };
+  executionError?: string;
+  replacementError?: string;
 }
 
 /**
@@ -33,12 +46,14 @@ export interface MatchOutcome {
  * pattern does not look like a hang.
  */
 export const MATCH_TIMEOUT_MS = 2000;
+export const ENGINE_LOAD_TIMEOUT_MS = 15_000;
 
 /** Distinct results kept around so repeated state churn does not re-run work. */
 const CACHE_LIMIT = 50;
 
 export function matchInputKey(input: MatchInput): string {
   return JSON.stringify([
+    input.engine ?? 'javascript',
     input.pattern,
     input.flags,
     input.text,
@@ -53,6 +68,9 @@ export function runMatchInlineCached(input: MatchInput, key: string): MatchOutco
 }
 
 export function runMatchInline(input: MatchInput): MatchOutcome {
+  if (input.engine === 'pcre2') {
+    return failedOutcome(input, 'PCRE2 requires a browser Worker');
+  }
   return {
     matches: findMatches(input.pattern, input.flags, input.text),
     replacedText: replaceMatches(input.pattern, input.flags, input.text, input.replacement),
@@ -70,6 +88,10 @@ export function timedOutOutcome(input: MatchInput): MatchOutcome {
     testMatchCounts: input.testInputs.map(() => 0),
     timedOut: true,
   };
+}
+
+function failedOutcome(input: MatchInput, executionError: string): MatchOutcome {
+  return { ...timedOutOutcome(input), timedOut: false, testMatchCounts: [], executionError };
 }
 
 const cache = new Map<string, MatchOutcome>();
@@ -96,81 +118,119 @@ interface InFlight {
   input: MatchInput;
 }
 
-let worker: Worker | null = null;
 let nextId = 1;
-let running: InFlight | null = null;
-let timer: ReturnType<typeof setTimeout> | undefined;
-const queue: InFlight[] = [];
 const inFlight = new Map<string, Promise<MatchOutcome>>();
 
 function workerAvailable(): boolean {
   return typeof Worker !== 'undefined';
 }
 
-function getWorker(): Worker | null {
-  if (!workerAvailable()) return null;
-  if (worker) return worker;
-  try {
-    const created = new Worker(new URL('../workers/matchWorker.ts', import.meta.url), {
-      type: 'module',
-    });
-    worker = created;
-    created.onmessage = (event: MessageEvent<MatchResponse>) => {
-      if (worker !== created) return;
-      const { id, matches, replacedText, testMatchCounts } = event.data;
-      if (running?.id !== id) return; // response from an abandoned request
-      finish({ matches, replacedText, testMatchCounts, timedOut: false });
-    };
-    created.onerror = () => {
-      if (worker === created) discardWorker();
-    };
-  } catch {
-    worker = null;
+/** Separate queues let JavaScript keep working while PCRE2 initializes or runs. */
+class EngineQueue {
+  private worker: Worker | null = null;
+  private ready = false;
+  private running: InFlight | null = null;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private queue: InFlight[] = [];
+
+  constructor(private engine: 'javascript' | 'pcre2') {}
+
+  enqueue(entry: InFlight) {
+    this.queue.push(entry);
+    this.startNext();
   }
-  return worker;
+
+  private discard(message?: string) {
+    this.worker?.terminate();
+    this.worker = null;
+    this.ready = false;
+    if (this.running)
+      this.finish(
+        message ? failedOutcome(this.running.input, message) : timedOutOutcome(this.running.input),
+      );
+  }
+
+  private finish(outcome: MatchOutcome) {
+    const entry = this.running;
+    if (!entry) return;
+    clearTimeout(this.timer);
+    this.running = null;
+    inFlight.delete(entry.key);
+    if (!outcome.timedOut && !outcome.executionError) remember(entry.key, outcome);
+    entry.resolve(outcome);
+    this.startNext();
+  }
+
+  private dispatch() {
+    if (!this.running || !this.worker || !this.ready) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.discard(), MATCH_TIMEOUT_MS);
+    try {
+      this.worker.postMessage({
+        id: this.running.id,
+        ...this.running.input,
+      } satisfies MatchRequest);
+    } catch {
+      this.discard('Unable to send input to the regex engine');
+    }
+  }
+
+  private startNext() {
+    if (this.running) return;
+    const entry = this.queue.shift();
+    if (!entry) return;
+    this.running = entry;
+    if (!workerAvailable()) {
+      this.finish(runMatchInline(entry.input));
+      return;
+    }
+    if (!this.worker) {
+      try {
+        const created =
+          this.engine === 'pcre2'
+            ? new Worker(new URL('../workers/pcre2Worker.ts', import.meta.url), { type: 'module' })
+            : new Worker(new URL('../workers/matchWorker.ts', import.meta.url), { type: 'module' });
+        this.worker = created;
+        this.ready = this.engine === 'javascript';
+        created.onmessage = (event: MessageEvent<WorkerResponse>) => {
+          if (this.worker !== created) return;
+          const response = event.data;
+          if ('type' in response) {
+            if (response.type === 'load-error') this.discard(response.message);
+            else if (!this.ready) {
+              this.ready = true;
+              this.dispatch();
+            }
+            return;
+          }
+          if (response.id !== this.running?.id) return;
+          const { id: _id, ...outcome } = response;
+          // A WASM allocation/trap failure can leave its instance unusable.
+          // Start a fresh engine for the next request, including explicit retries.
+          if (outcome.executionError) {
+            this.discard(outcome.executionError);
+            return;
+          }
+          this.finish({ ...outcome, timedOut: outcome.timedOut ?? false });
+        };
+        created.onerror = () => {
+          if (this.worker === created) this.discard('Unable to load or run the regex engine');
+        };
+      } catch {
+        this.discard('Unable to start the regex engine');
+        return;
+      }
+    }
+    if (this.ready) this.dispatch();
+    else
+      this.timer = setTimeout(
+        () => this.discard('PCRE2 engine loading timed out'),
+        ENGINE_LOAD_TIMEOUT_MS,
+      );
+  }
 }
 
-/**
- * Only the running request failed. Queued requests have not used any of
- * their execution budget and can continue on a fresh worker.
- */
-function discardWorker(): void {
-  worker?.terminate();
-  worker = null;
-  if (running) finish(timedOutOutcome(running.input));
-}
-
-function finish(outcome: MatchOutcome): void {
-  const entry = running;
-  if (!entry) return;
-  clearTimeout(timer);
-  running = null;
-  inFlight.delete(entry.key);
-  // A timeout is not a reusable matching result; an explicit retry may work.
-  if (!outcome.timedOut) remember(entry.key, outcome);
-  entry.resolve(outcome);
-  startNext();
-}
-
-function startNext(): void {
-  if (running) return;
-  const entry = queue.shift();
-  if (!entry) return;
-  running = entry;
-  const active = getWorker();
-  if (!active) {
-    // SSR/test runtimes do not provide Worker. A browser that failed to
-    // construct one must not execute an arbitrary regex on its UI thread.
-    finish(workerAvailable() ? timedOutOutcome(entry.input) : runMatchInline(entry.input));
-    return;
-  }
-  timer = setTimeout(discardWorker, MATCH_TIMEOUT_MS);
-  try {
-    active.postMessage({ id: entry.id, ...entry.input } satisfies MatchRequest);
-  } catch {
-    discardWorker();
-  }
-}
+const queues = { javascript: new EngineQueue('javascript'), pcre2: new EngineQueue('pcre2') };
 
 /**
  * Run `input` off the main thread, resolving with a `timedOut` outcome if it
@@ -184,10 +244,11 @@ export function runMatch(input: MatchInput): Promise<MatchOutcome> {
 
   const pending = inFlight.get(key);
   if (pending) return pending;
-  const promise = new Promise<MatchOutcome>((resolve) => {
-    queue.push({ id: nextId++, key, input, resolve });
+  let resolve!: (outcome: MatchOutcome) => void;
+  const promise = new Promise<MatchOutcome>((done) => {
+    resolve = done;
   });
   inFlight.set(key, promise);
-  startNext();
+  queues[input.engine ?? 'javascript'].enqueue({ id: nextId++, key, input, resolve });
   return promise;
 }

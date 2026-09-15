@@ -50,7 +50,7 @@
 
 ### 多引擎与代码生成
 
-- 🌐 **引擎风味切换** —— 可在 JavaScript、PCRE、Python、Java、Go、.NET、Rust、Ruby 等之间切换
+- 🌐 **执行引擎** —— 原生 JavaScript 与 PCRE2 10.47（WebAssembly）；Python、Java、Go、.NET、Rust 提供基于 JavaScript 执行的兼容性检查
 - 🛠️ **代码生成器** —— 一键生成 **10 种语言** 的可运行代码：JavaScript / TypeScript、Python、Java、Go、Rust、C# (.NET)、PHP、Ruby、Swift、Kotlin
 
 ### 学习与练习
@@ -68,6 +68,21 @@
 - ⚡ **SSR 友好** —— 基于 TanStack Start，首屏即可渲染，SEO & 分享更友好
 
 ---
+
+## PCRE2 执行引擎
+
+选择 **PCRE2** 后，匹配、捕获组、替换和测试用例使用真实的 PCRE2 10.47
+引擎，支持 `\K`、递归、原子组、占有量词及 `g/i/m/s/u/x/U/J` 控制。
+Worker 与 WASM 按需加载；默认 JavaScript 模式不会下载它们。
+
+- 使用 16 位版本，区间与编辑器的 UTF-16 索引一致。它不是 PHP 运行时；
+  PHP 使用 8 位版本。这里的 `u` 同时启用 UTF 与 Unicode 属性。
+- 替换语法：`$0`、`$1`、`${name}`、`$$`；空替换字符串会删除匹配内容。
+- 执行有 2 秒时间预算及 PCRE2 回溯/内存限制；首次加载独立限时 15 秒，失败可重试。
+- PCRE2 的铁路图、语法解释、可视化编辑和逐步调试暂未开放，界面会明确提示。
+- Python、Java、Go、.NET、Rust 仍是兼容性目标，实际匹配使用 JavaScript。
+- WASM 产物已包含在仓库中，常规构建不需要 C 编译器。
+  参见[构建说明](src/vendor/pcre2/README.md)及 [PCRE2 许可证](src/vendor/pcre2/LICENSE.md)。
 
 ## 技术栈
 

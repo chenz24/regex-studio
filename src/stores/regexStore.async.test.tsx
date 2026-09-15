@@ -26,6 +26,7 @@ beforeEach(() => {
       }),
   );
   act(() => {
+    useRegexStore.getState().setEngine('javascript');
     useRegexStore.getState().loadPattern('a+', 'g');
     useRegexStore.getState().setTestText('aaa');
     useRegexStore.getState().setTestCases([
@@ -74,5 +75,51 @@ describe('asynchronous matching results', () => {
     await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
     expect(result.current.pending).toBe(false);
     expect(result.current.testsPassed).toBe(0);
+  });
+
+  it('sends PCRE2 syntax and flags to its engine before validating, and clears JS results on switch', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () => requests[0].resolve(runMatchInline(requests[0].input)));
+    act(() => {
+      useRegexStore.getState().setEngine('pcre2');
+      useRegexStore.getState().loadPattern('(?>a+)', 'gxU');
+    });
+    const request = requests[requests.length - 1];
+    expect(request.input).toMatchObject({ engine: 'pcre2', pattern: '(?>a+)', flags: 'gxU' });
+    expect(result.current.pending).toBe(true);
+    expect(result.current.matches).toEqual([]);
+    await act(async () =>
+      request.resolve({
+        matches: [],
+        replacedText: 'aaa',
+        testMatchCounts: [],
+        timedOut: false,
+        validation: { valid: false, error: 'native compile error' },
+      }),
+    );
+    expect(result.current.validation).toEqual({ valid: false, error: 'native compile error' });
+    expect(result.current.testsPassed).toBe(0);
+  });
+
+  it('withholds grading on an engine error and retries the same input', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () =>
+      requests[0].resolve({
+        matches: [],
+        replacedText: 'aaa',
+        testMatchCounts: [],
+        timedOut: false,
+        executionError: 'load failed',
+      }),
+    );
+    expect(result.current.testsPassed).toBe(0);
+    expect(result.current.testResults.every((test) => test.executionError && !test.pass)).toBe(
+      true,
+    );
+    act(() => result.current.retry());
+    expect(result.current.pending).toBe(true);
+    expect(result.current.executionError).toBeUndefined();
+    await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
+    expect(result.current.testsPassed).toBe(2);
   });
 });

@@ -89,7 +89,7 @@ function TestCaseRow({ tc, result, onUpdate, onRemove, onLoadIntoEditor }: TestC
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingInput, setEditingInput] = useState(false);
 
-  const unsettled = result?.pending || result?.timedOut;
+  const unsettled = result?.pending || result?.timedOut || result?.executionError;
   const status = result?.invalid || unsettled ? 'invalid' : result?.pass ? 'pass' : 'fail';
 
   const statusStyles: Record<string, string> = {
@@ -111,15 +111,17 @@ function TestCaseRow({ tc, result, onUpdate, onRemove, onLoadIntoEditor }: TestC
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/60 dark:bg-gray-800/60">
         <span
           title={
-            result?.pending
-              ? t.match_pending()
-              : result?.timedOut
-                ? t.match_timed_out()
-                : status === 'invalid'
-                  ? t.testcases_status_invalid_hint()
-                  : status === 'pass'
-                    ? t.testcases_status_pass()
-                    : t.testcases_status_fail()
+            result?.executionError
+              ? t.engine_execution_failed()
+              : result?.pending
+                ? t.match_pending()
+                : result?.timedOut
+                  ? t.match_timed_out()
+                  : status === 'invalid'
+                    ? t.testcases_status_invalid_hint()
+                    : status === 'pass'
+                      ? t.testcases_status_pass()
+                      : t.testcases_status_fail()
           }
           className={`flex items-center justify-center w-5 h-5 rounded-full border ${statusStyles[status]}`}
         >
@@ -149,15 +151,17 @@ function TestCaseRow({ tc, result, onUpdate, onRemove, onLoadIntoEditor }: TestC
         )}
 
         <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
-          {result?.pending
-            ? t.match_pending()
-            : result?.timedOut
-              ? t.match_timed_out()
-              : result?.invalid
-                ? t.testcases_invalid_dash()
-                : (result?.matchCount ?? 0) === 1
-                  ? t.testcases_match_count_one({ count: String(result?.matchCount ?? 0) })
-                  : t.testcases_match_count_other({ count: String(result?.matchCount ?? 0) })}
+          {result?.executionError
+            ? t.engine_execution_failed()
+            : result?.pending
+              ? t.match_pending()
+              : result?.timedOut
+                ? t.match_timed_out()
+                : result?.invalid
+                  ? t.testcases_invalid_dash()
+                  : (result?.matchCount ?? 0) === 1
+                    ? t.testcases_match_count_one({ count: String(result?.matchCount ?? 0) })
+                    : t.testcases_match_count_other({ count: String(result?.matchCount ?? 0) })}
         </span>
       </div>
 

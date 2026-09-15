@@ -22,7 +22,7 @@ SOURCES = """auto_possess chartables chkdint compile compile_cgroup compile_clas
 config context convert dfa_match error extuni find_bracket jit_compile maketables
 match match_data match_next newline ord2utf pattern_info script_run serialize
 string_utils study substitute substring tables ucd valid_utf xclass""".split()
-EXPORTS = ["malloc", "free"] + [f"pcre2_{name}_16" for name in """compile code_free
+EXPORTS = ["malloc", "free", "rs_set_trace"] + [f"pcre2_{name}_16" for name in """compile code_free
 match_data_create_from_pattern match_data_free match_context_create match_context_free
 set_match_limit set_depth_limit set_heap_limit match next_match get_ovector_pointer
 pattern_info get_error_message substitute config""".split()]
@@ -60,6 +60,7 @@ def main():
                    "-I" + str(headers), "-I" + str(source / "src")]
         command += [str((headers if name == "chartables" else source / "src") /
                         f"pcre2_{name}.c") for name in SOURCES]
+        command += [str(OUTPUT / "trace.c")]
         command += ["--no-entry", "-sMODULARIZE=1", "-sEXPORT_ES6=1",
                     "-sENVIRONMENT=web,worker", "-sFILESYSTEM=0", "-sASSERTIONS=0",
                     "-sALLOW_MEMORY_GROWTH=1", "-sINITIAL_MEMORY=8388608",
@@ -69,6 +70,7 @@ def main():
                     "-sINCOMING_MODULE_JS_API=['wasmBinary','locateFile']",
                     "-o", str(OUTPUT / "pcre2.js")]
         subprocess.run(command, check=True)
+        (OUTPUT / "pcre2.wasm").chmod(0o644)
         shutil.copyfile(source / "LICENCE.md", OUTPUT / "LICENSE.md")
         notices = ROOT / "public/licenses"
         notices.mkdir(parents=True, exist_ok=True)

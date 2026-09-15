@@ -522,5 +522,17 @@
   "pcre2_possessive": "占有模式：回溯时不会退还已完成的重复。",
   "pcre2_lazy": "惰性：优先尝试较少的重复次数。",
   "pcre2_greedy": "贪婪：优先尝试较多的重复次数。",
-  "pcre2_compatibility_unavailable": "暂不支持对 PCRE2 语法进行跨引擎兼容性检查。"
+  "pcre2_compatibility_unavailable": "暂不支持对 PCRE2 语法进行跨引擎兼容性检查。",
+  "pcre2_trace_pending": "正在获取 PCRE2 执行轨迹…",
+  "pcre2_trace_notice": "首个匹配的原生 PCRE2 轨迹。每条事件表示下一项执行前的检查点；原生优化可能跳过部分检查点。捕获组显示该检查点的状态。",
+  "pcre2_trace_before": "执行前：{item}",
+  "pcre2_trace_backtrack": "已回溯；执行前：{item}",
+  "pcre2_trace_start": "从位置 {position} 开始尝试",
+  "pcre2_trace_end": "表达式末尾",
+  "pcre2_trace_matched": "PCRE2 匹配成功 [{start}, {end})",
+  "pcre2_trace_no_match": "PCRE2：未匹配",
+  "pcre2_trace_incomplete": "计算已停止，无法判定结果",
+  "pcre2_trace_truncated": "仅记录了轨迹的前半部分，最后一步显示原生匹配结果。",
+  "pcre2_explain_anchor": "检查起始或结束边界。m 选项允许匹配文本内部的行边界，遵循 PCRE2 的换行约定。",
+  "pcre2_explain_dot": "根据当前 PCRE2 选项匹配一个字符；s 选项允许匹配换行符。"
 }

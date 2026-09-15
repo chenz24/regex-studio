@@ -3,6 +3,7 @@ import wasmUrl from '../vendor/pcre2/pcre2.wasm?url';
 import type { MatchInfo } from '../types/regex';
 import type { MatchInput, MatchOutcome } from './matchEngine';
 import { MAX_MATCHES } from './regexMatcher';
+import { createTraceCollector } from './pcre2Trace';
 
 const UNSET = 0xffff_ffff;
 const MAX_OUTPUT_LENGTH = 2_000_000;
@@ -19,8 +20,20 @@ const FLAG_BITS: Record<string, number> = {
 
 /** No module initialization occurs on the UI thread. Tests supply the same binary. */
 export async function createPcre2Matcher(wasmBinary?: Uint8Array) {
-  const m = await createModule({ wasmBinary, locateFile: () => wasmUrl });
-  return (input: MatchInput): MatchOutcome => execute(m, input);
+  let active: ReturnType<typeof createTraceCollector> | undefined;
+  const m = await createModule({
+    wasmBinary,
+    locateFile: () => wasmUrl,
+    onTrace: (...args) => active?.record(...(args as Parameters<typeof active.record>)),
+  });
+  return (input: MatchInput): MatchOutcome => {
+    active = input.trace ? createTraceCollector(m) : undefined;
+    try {
+      return { ...execute(m, input), ...(active ? { trace: active.trace } : {}) };
+    } finally {
+      active = undefined;
+    }
+  };
 }
 
 function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
@@ -68,7 +81,8 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
   let data = 0;
   let context = 0;
   try {
-    let flags = 0;
+    // Keep normal optimizations: callouts describe actual native execution.
+    let flags = input.trace ? 0x4 : 0;
     for (const flag of input.flags) {
       if (!(flag in FLAG_BITS)) {
         outcome.validation = { valid: false, error: `Unsupported PCRE2 flag: ${flag}` };
@@ -100,6 +114,7 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
     m._pcre2_set_match_limit_16(context, 1_000_000);
     m._pcre2_set_depth_limit_16(context, 10_000);
     m._pcre2_set_heap_limit_16(context, 16_384);
+    if (input.trace) m._rs_set_trace(context);
     const info = (what: number) => {
       const rc = m._pcre2_pattern_info_16(compiled, what, scratch);
       if (rc < 0) throw new Error(errorMessage(rc));
@@ -117,7 +132,7 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
       while (length < nameSize - 1 && m.HEAPU16[(pointer >> 1) + 1 + length]) length++;
       names.set(group, decode(pointer + 2, length));
     }
-    const global = input.flags.includes('g');
+    const global = !input.trace && input.flags.includes('g');
     const find = (text: string, collect: boolean) => {
       const subject = encode(text);
       const matches: MatchInfo[] = [];
@@ -174,6 +189,7 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
       }
     };
     outcome.matches = find(input.text, true).matches;
+    if (input.trace) return outcome;
     outcome.testMatchCounts = input.testInputs.map((text) => find(text, false).count);
 
     const subject = encode(input.text);

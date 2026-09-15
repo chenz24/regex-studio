@@ -52,6 +52,32 @@ afterEach(() => {
 });
 
 describe('worker scheduling and recovery', () => {
+  it('isolates native traces from matching and does not cache trace payloads', async () => {
+    const api = await import('./matchEngine');
+    const normal = { ...input('a'), engine: 'pcre2' as const };
+    const debug = { ...normal, trace: true };
+    const pendingTrace = api.runMatch(debug);
+    expect(api.runMatch(debug)).toBe(pendingTrace);
+    const matching = api.runMatch(normal);
+    expect(ControlledWorker.instances).toHaveLength(2);
+    const [traceWorker, matchWorker] = ControlledWorker.instances;
+    traceWorker.ready();
+    matchWorker.ready();
+    matchWorker.respond();
+    expect((await matching).timedOut).toBe(false);
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS);
+    expect((await pendingTrace).timedOut).toBe(true);
+    expect(matchWorker.terminated).toBe(false);
+    const retry = api.runMatch(debug);
+    const nextWorker = ControlledWorker.instances[2];
+    nextWorker.ready();
+    nextWorker.respond();
+    await retry;
+    const rerun = api.runMatch(debug);
+    expect(nextWorker.requests).toHaveLength(2);
+    nextWorker.respond(1);
+    await rerun;
+  });
   it('gives a queued request a fresh budget after the running request times out', async () => {
     const api = await import('./matchEngine');
     const slow = api.runMatch(input('(a+)+$'));

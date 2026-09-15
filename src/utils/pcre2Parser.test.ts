@@ -34,6 +34,11 @@ describe('PCRE2 visual parser', () => {
     expect(layout.badges.map((t) => t.text)).toContain('1..∞ (possessive)');
   });
   it('handles scoped x/xx, comments, quoted literals, and escaped spaces', () => {
+    expect(
+      nodes('a# ignored\rb', 'x')
+        .filter((n) => n.type === 'literal')
+        .map((n) => n.value),
+    ).toEqual(['a']);
     const all = nodes('(?x:a # ) ignored\n b)(?-x: c )\\ d');
     expect(
       all
@@ -136,7 +141,7 @@ describe('PCRE2 visual parser', () => {
       '\\1234+',
       '(*atomic:a)',
       '(*CR)a#x',
-      '('.repeat(100) + 'a' + ')'.repeat(100),
+      `${'('.repeat(100)}a${')'.repeat(100)}`,
       'a'.repeat(3000),
     ]) {
       expect(parsePcre2(pattern).supported, pattern).toBe(false);

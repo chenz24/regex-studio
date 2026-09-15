@@ -1,4 +1,5 @@
 export interface Pcre2Module {
+  _rs_set_trace(context: number): void;
   HEAPU16: Uint16Array;
   HEAPU32: Uint32Array;
   _malloc(size: number): number;
@@ -24,4 +25,5 @@ export interface Pcre2Module {
 export default function createModule(options?: {
   wasmBinary?: Uint8Array;
   locateFile?: (path: string) => string;
+  onTrace?: (...args: number[]) => void;
 }): Promise<Pcre2Module>;

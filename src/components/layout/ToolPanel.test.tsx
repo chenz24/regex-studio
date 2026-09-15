@@ -53,7 +53,6 @@ function renderPanel(
 
 describe('ToolPanel', () => {
   it.each<ToolPanelTab>([
-    'debugger',
     'explanation',
     'ast',
   ])('identifies unavailable PCRE2 %s instead of showing a JS interpretation', async (tab) => {

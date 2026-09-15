@@ -43,6 +43,7 @@ describe('the real PCRE2 10.47 WASM runtime', () => {
     ['(?>a+)a', 'aaa', 'g', []],
     ['(?<pair>a(?&pair)?b)', 'aabb', 'g', ['aabb']],
     ['a # ignored\n b', 'ab', 'gx', ['ab']],
+    ['a# ignored\rb', 'ab', 'gx', ['a']],
     ['a+', 'aaa', 'gU', ['a', 'a', 'a']],
     ['[a-z]+', 'AbC', 'gi', ['AbC']],
     ['^a.b$', 'x\na\nb\ny', 'gms', ['a\nb']],

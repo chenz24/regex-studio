@@ -274,7 +274,12 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
       return {
         color: 'rose',
         title: node.value === '^' ? t.explain_anchor_start_title() : t.explain_anchor_end_title(),
-        desc: node.value === '^' ? t.explain_anchor_start_desc() : t.explain_anchor_end_desc(),
+        desc:
+          node.dialect === 'pcre2'
+            ? t.pcre2_explain_anchor()
+            : node.value === '^'
+              ? t.explain_anchor_start_desc()
+              : t.explain_anchor_end_desc(),
         openChar: node.value,
         closeChar: '',
       };
@@ -298,7 +303,7 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
       return {
         color: 'orange',
         title: t.explain_dot_title(),
-        desc: t.explain_dot_desc(),
+        desc: node.dialect === 'pcre2' ? t.pcre2_explain_dot() : t.explain_dot_desc(),
         openChar: '.',
         closeChar: '',
       };

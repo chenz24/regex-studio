@@ -93,7 +93,8 @@ class Parser {
         continue;
       }
       if (this.options.x && this.source[this.pos] === '#') {
-        while (this.pos < this.source.length && !/[\r\n]/.test(this.source[this.pos])) this.pos++;
+        // This runtime's default newline convention is LF, including for comments.
+        while (this.pos < this.source.length && this.source[this.pos] !== '\n') this.pos++;
         continue;
       }
       if (this.source.startsWith('(?#', this.pos)) {

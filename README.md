@@ -65,8 +65,16 @@ quantifiers, and the `g/i/m/s/u/x/U/J` controls. `g` enables global iteration.
 - Replacement syntax: `$0`, `$1`, `${name}`, `$$`. An empty replacement deletes matches.
 - Worker execution has a 2-second budget, plus PCRE2 backtracking/memory limits.
   First-time engine loading has a separate 15-second budget; failures can be retried.
-- PCRE2 railroad diagrams, explanations, visual editing and step debugging are
-  not available yet. These panels show an explicit capability notice.
+- PCRE2 has a bounded, independent visual parser: read-only railroad diagrams, explanations
+  and AST views cover common groups, `\K`, possessive quantifiers, inline options,
+  recursion, branch-reset groups and basic conditions. Unsupported visual syntax
+  shows a notice while native matching and tracing continue to work.
+- The debugger records native PCRE2 callouts for the **first match**, in a separate
+  Worker. Checkpoints expose source positions, backtracking flags and captures.
+  Native optimizations remain enabled, so a trace is not an event per character.
+  Recording is capped at 2,000 checkpoints / 50,000 capture slots; matching continues
+  after recording stops, and the final step uses the native result.
+- PCRE2 visual editing and cross-engine compatibility checks are not yet available.
 - The generated runtime is checked in, so `pnpm build` needs no C compiler.
   See [runtime build instructions](src/vendor/pcre2/README.md) and the
   [PCRE2 licence](src/vendor/pcre2/LICENSE.md).

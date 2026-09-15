@@ -15,6 +15,8 @@ import { findNodeById } from '../../lib/ast';
 import { useT } from '@/lib/i18n';
 
 interface DebuggerPanelProps {
+  truncationMessage?: string;
+  result?: DebugResult;
   ast: ASTNode;
   pattern: string;
   testText: string;
@@ -38,7 +40,14 @@ const ACTION_STYLES: Record<string, { color: string; bg: string; icon: string }>
 
 // ─── Component ────────────────────────────────────────────────────────
 
-export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPanelProps) {
+export function DebuggerPanel({
+  ast,
+  pattern,
+  testText,
+  flagString,
+  result,
+  truncationMessage,
+}: DebuggerPanelProps) {
   const t = useT();
   const [currentStep, setCurrentStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -48,6 +57,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
 
   // Run the debugger
   const debugResult: DebugResult = useMemo(() => {
+    if (result) return result;
     if (!pattern) {
       return {
         steps: [],
@@ -59,7 +69,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
       };
     }
     return debugRegex(ast, testText, flagString);
-  }, [ast, testText, flagString, pattern]);
+  }, [ast, testText, flagString, pattern, result]);
 
   const { steps } = debugResult;
   const totalSteps = steps.length;
@@ -129,7 +139,13 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLElement &&
+        (e.target.isContentEditable ||
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement)
+      )
+        return;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         goPrev();
@@ -180,8 +196,8 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
       <StringDisplay text={testText} step={step} />
 
       {/* Controls */}
-      <div className="flex items-center gap-2 px-1">
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <div className="flex shrink-0 items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
           <ControlButton onClick={goFirst} title={t.debugger_first_step()}>
             <SkipBack className="w-3.5 h-3.5" />
           </ControlButton>
@@ -199,7 +215,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
           </ControlButton>
         </div>
 
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex min-w-[120px] items-center gap-2 flex-1">
           <span className="text-xs font-mono text-gray-500 dark:text-gray-400 tabular-nums whitespace-nowrap">
             {currentStep + 1} / {totalSteps}
           </span>
@@ -211,7 +227,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             {t.debugger_speed_label()}
           </span>
@@ -232,7 +248,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
       {debugResult.truncated && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-300">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          {t.debugger_truncated_warning()}
+          {truncationMessage ?? t.debugger_truncated_warning()}
         </div>
       )}
 
@@ -268,7 +284,7 @@ export function DebuggerPanel({ ast, pattern, testText, flagString }: DebuggerPa
                 {style.icon}
               </span>
               <span
-                className={`flex-1 ${isCurrent ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400'}`}
+                className={`min-w-0 flex-1 [overflow-wrap:anywhere] ${isCurrent ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400'}`}
                 style={{ paddingLeft: `${s.depth * 12}px` }}
               >
                 {s.description}
@@ -325,6 +341,8 @@ function PatternDisplay({
   // Find the AST node's source range for highlighting
   const highlightRange = useMemo(() => {
     if (!step) return null;
+    if (step.patternStart !== undefined && step.patternEnd !== undefined)
+      return { start: step.patternStart, end: step.patternEnd };
     const node = findNodeById(ast, step.astNodeId);
     if (!node) return null;
     return { start: node.start, end: node.end };
@@ -417,7 +435,9 @@ function StepInfo({ step }: { step: DebugStep }) {
       <div className="px-3 py-2 flex items-start gap-2">
         <span className={`${style.color} font-bold font-mono text-sm mt-px`}>{style.icon}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-800 dark:text-gray-200 font-medium">{step.description}</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200 font-medium [overflow-wrap:anywhere]">
+            {step.description}
+          </p>
           {groupEntries.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {groupEntries.map(([idx, val]) => (

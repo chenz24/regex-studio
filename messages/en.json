@@ -522,5 +522,17 @@
   "pcre2_possessive": "Possessive: repetitions cannot be given back during backtracking.",
   "pcre2_lazy": "Lazy: prefers fewer repetitions.",
   "pcre2_greedy": "Greedy: prefers more repetitions.",
-  "pcre2_compatibility_unavailable": "Cross-engine compatibility checks for PCRE2 syntax are not available yet."
+  "pcre2_compatibility_unavailable": "Cross-engine compatibility checks for PCRE2 syntax are not available yet.",
+  "pcre2_trace_pending": "Loading PCRE2 trace…",
+  "pcre2_trace_notice": "Native PCRE2 trace for the first match. Each event is a checkpoint before the next item; native optimizations may skip checkpoints. Captures reflect the state at that checkpoint.",
+  "pcre2_trace_before": "Before {item}",
+  "pcre2_trace_backtrack": "Backtracked; before {item}",
+  "pcre2_trace_start": "Start attempt at {position}",
+  "pcre2_trace_end": "pattern end",
+  "pcre2_trace_matched": "PCRE2 matched [{start}, {end})",
+  "pcre2_trace_no_match": "PCRE2: no match",
+  "pcre2_trace_incomplete": "Evaluation stopped; the result is inconclusive",
+  "pcre2_trace_truncated": "Only the first part of the trace was recorded. The final step shows the native match result.",
+  "pcre2_explain_anchor": "Checks a start or end boundary. The m option also allows internal line boundaries; PCRE2 newline conventions apply.",
+  "pcre2_explain_dot": "Matches one character under the active PCRE2 options. The s option includes newline characters."
 }

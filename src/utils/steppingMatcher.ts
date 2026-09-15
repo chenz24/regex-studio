@@ -6,6 +6,9 @@ import { isValidRegex } from './regexMatcher';
 export type StepAction = 'try' | 'match' | 'fail' | 'backtrack' | 'enter-group' | 'exit-group';
 
 export interface DebugStep {
+  /** Native callouts provide source ranges without requiring a visual AST. */
+  patternStart?: number;
+  patternEnd?: number;
   id: number;
   /** The AST node being processed */
   astNodeId: string;

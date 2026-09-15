@@ -4,6 +4,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useT } from '@/lib/i18n';
 import { DebuggerPanel } from '../tools/DebuggerPanel';
 import { EngineCapabilityNotice } from '../EngineCapabilityNotice';
+const Pcre2DebuggerPanel = lazy(() =>
+  import('../tools/Pcre2DebuggerPanel').then((m) => ({ default: m.Pcre2DebuggerPanel })),
+);
 
 // Only the debugger is on screen at startup. Radix unmounts the inactive
 // panels, so the rest cost nothing until their tab is opened — including the
@@ -179,7 +182,14 @@ export function ToolPanel({
         <div className="flex-1 overflow-y-auto custom-scrollbar min-h-[200px]">
           <TabsContent value="debugger" className="p-3 mt-0">
             {executionEngine === 'pcre2' ? (
-              <EngineCapabilityNotice debuggerOnly />
+              <Suspense fallback={<PanelFallback />}>
+                <Pcre2DebuggerPanel
+                  ast={ast}
+                  pattern={pattern}
+                  testText={testText}
+                  flagString={flagString}
+                />
+              </Suspense>
             ) : (
               <DebuggerPanel
                 ast={ast}

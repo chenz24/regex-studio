@@ -1,7 +1,9 @@
 import type { MatchInfo } from '../types/regex';
 import { findMatches, replaceMatches } from './regexMatcher';
+import type { Pcre2Trace } from './pcre2Trace';
 
 export interface MatchRequest {
+  trace?: boolean;
   id: number;
   engine?: 'javascript' | 'pcre2';
   pattern: string;
@@ -12,6 +14,7 @@ export interface MatchRequest {
 }
 
 export interface MatchResponse {
+  trace?: Pcre2Trace;
   id: number;
   matches: MatchInfo[];
   replacedText: string;
@@ -30,6 +33,7 @@ export type WorkerResponse =
 export type MatchInput = Omit<MatchRequest, 'id'>;
 
 export interface MatchOutcome {
+  trace?: Pcre2Trace;
   matches: MatchInfo[];
   replacedText: string;
   testMatchCounts: number[];
@@ -54,6 +58,7 @@ const CACHE_LIMIT = 50;
 export function matchInputKey(input: MatchInput): string {
   return JSON.stringify([
     input.engine ?? 'javascript',
+    input.trace ?? false,
     input.pattern,
     input.flags,
     input.text,
@@ -156,7 +161,8 @@ class EngineQueue {
     clearTimeout(this.timer);
     this.running = null;
     inFlight.delete(entry.key);
-    if (!outcome.timedOut && !outcome.executionError) remember(entry.key, outcome);
+    if (!entry.input.trace && !outcome.timedOut && !outcome.executionError)
+      remember(entry.key, outcome);
     entry.resolve(outcome);
     this.startNext();
   }
@@ -231,6 +237,8 @@ class EngineQueue {
 }
 
 const queues = { javascript: new EngineQueue('javascript'), pcre2: new EngineQueue('pcre2') };
+// Debugging has its own Worker so a trace cannot delay live matching or grading.
+const traceQueue = new EngineQueue('pcre2');
 
 /**
  * Run `input` off the main thread, resolving with a `timedOut` outcome if it
@@ -249,6 +257,9 @@ export function runMatch(input: MatchInput): Promise<MatchOutcome> {
     resolve = done;
   });
   inFlight.set(key, promise);
-  queues[input.engine ?? 'javascript'].enqueue({ id: nextId++, key, input, resolve });
+  (input.engine === 'pcre2' && input.trace
+    ? traceQueue
+    : queues[input.engine ?? 'javascript']
+  ).enqueue({ id: nextId++, key, input, resolve });
   return promise;
 }

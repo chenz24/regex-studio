@@ -1,19 +1,49 @@
 import type { MatchInfo, GroupInfo } from '../types/regex';
 
+/**
+ * Upper bound on matches collected in a single run. A pathological pattern
+ * (or a very large document) can otherwise produce an unbounded list and
+ * take the tab down with it — this runs on the main thread during render.
+ */
+export const MAX_MATCHES = 10_000;
+
+/**
+ * Advance past the character at `index`.
+ *
+ * With the `u`/`v` flags the engine works in code points: bumping
+ * `lastIndex` by one lands *inside* a surrogate pair, and the engine snaps
+ * back to the start of that code point on the next `exec` — the same empty
+ * match is then found forever. Astral characters therefore have to be
+ * stepped over as a whole.
+ */
+function advanceIndex(text: string, index: number, unicode: boolean): number {
+  if (!unicode) return index + 1;
+  const code = text.codePointAt(index);
+  if (code === undefined) return index + 1;
+  return index + (code > 0xffff ? 2 : 1);
+}
+
 export function findMatches(pattern: string, flags: string, text: string): MatchInfo[] {
-  if (!pattern || !text) return [];
+  if (!pattern) return [];
 
   try {
     const regex = new RegExp(pattern, flags);
     const matches: MatchInfo[] = [];
+    const unicode = flags.includes('u') || flags.includes('v');
     let match: RegExpExecArray | null;
 
     if (flags.includes('g')) {
-      while ((match = regex.exec(text)) !== null) {
+      match = regex.exec(text);
+      while (match !== null) {
         matches.push(buildMatchInfo(match, text));
+        if (matches.length >= MAX_MATCHES) break;
+        // A zero-length match leaves lastIndex where it is; step forward
+        // ourselves or `exec` returns the same match indefinitely.
         if (match[0].length === 0) {
-          regex.lastIndex++;
+          regex.lastIndex = advanceIndex(text, regex.lastIndex, unicode);
+          if (regex.lastIndex > text.length) break;
         }
+        match = regex.exec(text);
       }
     } else {
       match = regex.exec(text);

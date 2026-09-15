@@ -281,6 +281,7 @@ function App() {
               onToggleFlag={store.toggleFlag}
               validation={derived.validation}
               matchCount={derived.matches.length}
+              timedOut={derived.timedOut}
               ast={derived.ast}
               hoveredNodeId={store.hoveredNodeId}
               onHoverNode={store.setHoveredNodeId}

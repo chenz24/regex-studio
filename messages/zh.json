@@ -145,6 +145,7 @@
   "regex_input_display_only": "仅显示 — 不影响匹配预览。",
   "regex_input_match_count_one": "{count} 个匹配",
   "regex_input_match_count_other": "{count} 个匹配",
+  "regex_input_timed_out": "该表达式运行时间过长，已被中止。它可能存在灾难性回溯——试着降低某个量词的歧义性。",
   "compat_header_one": "{engine} 存在 {count} 个兼容性问题",
   "compat_header_other": "{engine} 存在 {count} 个兼容性问题",
   "compat_python_lookbehind_feature": "变长 lookbehind",

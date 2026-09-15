@@ -1,10 +1,18 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '../types/regex';
 import type { RegexEngine, CompatibilityWarning } from '../types/engineTypes';
 import { ENGINE_FLAVORS, toJsFlagString } from '../types/engineTypes';
 import { parseRegex } from '../utils/regexParser';
-import { findMatches, isValidRegex, replaceMatches } from '../utils/regexMatcher';
+import { isValidRegex } from '../utils/regexMatcher';
+import {
+  cachedOutcome,
+  matchInputKey,
+  runMatch,
+  runMatchInline,
+  type MatchInput,
+  type MatchOutcome,
+} from '../utils/matchEngine';
 import { checkCompatibility } from '../utils/compatibilityChecker';
 import { layoutAST, type LayoutResult } from '../utils/diagramLayout';
 
@@ -80,13 +88,18 @@ interface RegexDerived {
   replacedText: string;
   testResults: TestCaseResult[];
   testsPassed: number;
+  /** The pattern overran its deadline and was abandoned. */
+  timedOut: boolean;
+  /** Results shown are from the previous input while the current one runs. */
+  pending: boolean;
 }
 
 type RegexStore = RegexState & RegexActions;
 
 // ─── Derived State Selectors ───────────────────────────────────────────
 
-function computeDerived(state: RegexState): RegexDerived {
+/** Everything derivable from the pattern alone — our own code, and bounded. */
+function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) {
   const flagString = state.flags
     .filter((f) => f.enabled)
     .map((f) => f.key)
@@ -95,12 +108,7 @@ function computeDerived(state: RegexState): RegexDerived {
   // Only the JS-safe subset is forwarded to `new RegExp(...)`. Display-only
   // flags (e.g. Python `x`, PCRE `U/J`, .NET `n`) never reach the engine.
   const jsFlagString = toJsFlagString(state.flags);
-
   const validation = isValidRegex(state.pattern, jsFlagString);
-
-  const matches: MatchInfo[] = validation.valid
-    ? findMatches(state.pattern, jsFlagString, state.testText)
-    : [];
 
   const ast: ASTNode = state.pattern
     ? parseRegex(state.pattern)
@@ -111,34 +119,37 @@ function computeDerived(state: RegexState): RegexDerived {
   const compatibilityWarnings: CompatibilityWarning[] =
     state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
 
-  const replacedText =
-    state.replacement && validation.valid
-      ? replaceMatches(state.pattern, jsFlagString, state.testText, state.replacement)
-      : state.testText;
+  return { flagString, jsFlagString, validation, ast, diagram, compatibilityWarnings };
+}
 
-  const testResults: TestCaseResult[] = state.testCases.map((tc) => {
-    if (!validation.valid) {
-      return { id: tc.id, pass: false, matchCount: 0, invalid: true };
-    }
-    const m = findMatches(state.pattern, jsFlagString, tc.input);
-    const hasMatch = m.length > 0;
-    const pass = tc.expect === 'match' ? hasMatch : !hasMatch;
-    return { id: tc.id, pass, matchCount: m.length, invalid: false };
-  });
-  const testsPassed = testResults.filter((r) => r.pass).length;
+/**
+ * Run the pattern off the main thread.
+ *
+ * The first result is computed inline so that the server and the first client
+ * render agree; at that point the pattern is always the built-in default.
+ * Every later input goes to the worker, which can be killed if the pattern
+ * turns out to be one that never finishes. While a run is outstanding the
+ * previous result stays on screen rather than flashing to empty.
+ */
+function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean } {
+  const key = matchInputKey(input);
+  const [entry, setEntry] = useState(() => ({
+    key,
+    outcome: cachedOutcome(key) ?? runMatchInline(input),
+  }));
 
-  return {
-    flagString,
-    jsFlagString,
-    validation,
-    matches,
-    ast,
-    diagram,
-    compatibilityWarnings,
-    replacedText,
-    testResults,
-    testsPassed,
-  };
+  useEffect(() => {
+    let cancelled = false;
+    runMatch(input).then((outcome) => {
+      if (!cancelled) setEntry({ key, outcome });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, input]);
+
+  const settled = entry.key === key ? entry.outcome : cachedOutcome(key);
+  return { ...(settled ?? entry.outcome), pending: settled === undefined };
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────
@@ -271,24 +282,53 @@ export function useRegexDerived(): RegexDerived {
   const flags = useRegexStore((s) => s.flags);
   const testText = useRegexStore((s) => s.testText);
   const replacement = useRegexStore((s) => s.replacement);
-  const showReplace = useRegexStore((s) => s.showReplace);
   const testCases = useRegexStore((s) => s.testCases);
 
-  return useMemo(() => {
-    return computeDerived({
-      engine,
-      pattern,
-      flags,
-      testText,
+  const derived = useMemo(
+    () => computeStatic({ engine, pattern, flags }),
+    [engine, pattern, flags],
+  );
+
+  const matchInput: MatchInput = useMemo(
+    () => ({
+      // An invalid pattern has nothing to run; the error is reported by
+      // `validation` instead.
+      pattern: derived.validation.valid ? pattern : '',
+      flags: derived.jsFlagString,
+      text: testText,
       replacement,
-      showReplace,
-      testCases,
-      selectedMatch: null,
-      hoveredNodeId: null,
-      patternPast: [],
-      patternFuture: [],
+      testInputs: testCases.map((tc) => tc.input),
+    }),
+    [pattern, derived.validation.valid, derived.jsFlagString, testText, replacement, testCases],
+  );
+
+  const outcome = useMatchOutcome(matchInput);
+
+  return useMemo(() => {
+    const testResults: TestCaseResult[] = testCases.map((tc, i) => {
+      if (!derived.validation.valid) {
+        return { id: tc.id, pass: false, matchCount: 0, invalid: true };
+      }
+      const matchCount = outcome.testMatchCounts[i] ?? 0;
+      const hasMatch = matchCount > 0;
+      return {
+        id: tc.id,
+        pass: tc.expect === 'match' ? hasMatch : !hasMatch,
+        matchCount,
+        invalid: false,
+      };
     });
-  }, [engine, pattern, flags, testText, replacement, showReplace, testCases]);
+
+    return {
+      ...derived,
+      matches: outcome.matches,
+      replacedText: outcome.replacedText,
+      testResults,
+      testsPassed: testResults.filter((r) => r.pass).length,
+      timedOut: outcome.timedOut,
+      pending: outcome.pending,
+    };
+  }, [derived, outcome, testCases]);
 }
 
 // Fine-grained selectors for performance

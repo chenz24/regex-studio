@@ -145,6 +145,7 @@
   "regex_input_display_only": "Display only — does not affect match preview.",
   "regex_input_match_count_one": "{count} match",
   "regex_input_match_count_other": "{count} matches",
+  "regex_input_timed_out": "This pattern took too long and was stopped. It may backtrack catastrophically — try making a quantifier less ambiguous.",
   "compat_header_one": "{count} compatibility issue with {engine}",
   "compat_header_other": "{count} compatibility issues with {engine}",
   "compat_python_lookbehind_feature": "Variable-length lookbehind",

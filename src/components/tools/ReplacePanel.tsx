@@ -49,7 +49,9 @@ export function ReplacePanel({
     { token: '$$', insert: '$$', desc: t.replace_help_dollar() },
   ];
 
-  const showResult = replacement.length > 0 && matchCount > 0;
+  // An empty replacement is a real operation — it deletes the matches — so
+  // the preview is shown whenever there is something to replace.
+  const showResult = matchCount > 0;
 
   return (
     <div className="space-y-3">

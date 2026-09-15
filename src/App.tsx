@@ -315,10 +315,11 @@ function App() {
             />
 
             {/* Railroad Banner — full width */}
-            {derived.executionEngine === 'pcre2' ? (
-              <EngineCapabilityNotice />
+            {!derived.visualizationSupported ? (
+              <EngineCapabilityNotice reason={derived.visualizationReason} />
             ) : (
               <RailroadBanner
+                readOnly={derived.executionEngine === 'pcre2'}
                 diagram={derived.diagram}
                 ast={derived.ast}
                 pattern={pattern}
@@ -351,6 +352,8 @@ function App() {
                 <div className="pl-2 h-full">
                   <ToolPanel
                     executionEngine={derived.executionEngine}
+                    visualizationSupported={derived.visualizationSupported}
+                    visualizationReason={derived.visualizationReason}
                     replacementError={derived.replacementError}
                     pending={derived.pending}
                     ast={derived.ast}

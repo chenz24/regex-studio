@@ -31,6 +31,8 @@ import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '../../types/r
 import type { ToolPanelTab } from '@/tutorial/types';
 
 interface ToolPanelProps {
+  visualizationSupported?: boolean;
+  visualizationReason?: string;
   executionEngine: 'javascript' | 'pcre2';
   replacementError?: string;
   pending?: boolean;
@@ -65,6 +67,8 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({
+  visualizationSupported = true,
+  visualizationReason,
   executionEngine,
   replacementError,
   pending,
@@ -198,8 +202,8 @@ export function ToolPanel({
 
           <TabsContent value="explanation" className="p-3 mt-0">
             <Suspense fallback={<PanelFallback />}>
-              {executionEngine === 'pcre2' ? (
-                <EngineCapabilityNotice />
+              {!visualizationSupported ? (
+                <EngineCapabilityNotice reason={visualizationReason} />
               ) : (
                 <ExplanationPanel
                   ast={ast}
@@ -257,8 +261,8 @@ export function ToolPanel({
           </TabsContent>
 
           <TabsContent value="ast" className="p-3 mt-0">
-            {executionEngine === 'pcre2' ? (
-              <EngineCapabilityNotice />
+            {!visualizationSupported ? (
+              <EngineCapabilityNotice reason={visualizationReason} />
             ) : (
               <pre className="text-xs font-mono text-teal-700 dark:text-teal-300 bg-gray-50 dark:bg-gray-800/60 p-4 rounded-lg border border-gray-200 dark:border-gray-700 overflow-auto custom-scrollbar leading-relaxed max-h-[600px]">
                 {JSON.stringify(ast, null, 2)}

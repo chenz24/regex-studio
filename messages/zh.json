@@ -506,7 +506,21 @@
   "engine_execution_failed": "引擎不可用",
   "engine_retry": "重试",
   "pcre2_debugger_unavailable": "PCRE2 暂不支持逐步调试。匹配、替换和测试用例均使用真实的 PCRE2 引擎。",
-  "pcre2_visualization_unavailable": "已支持 PCRE2 匹配。PCRE2 语法的铁路图、解释和可视化编辑尚未开放。",
+  "pcre2_visualization_unavailable": "暂时无法可视化这个 PCRE2 表达式。原生匹配、替换和测试仍然可用。",
   "pcre2_replacement_help": "PCRE2 替换语法：$0 表示整段匹配，$1、$2 表示捕获组，{named} 表示命名捕获组，$$ 表示字面量美元符号。",
-  "pcre2_codegen_notice": "当前匹配结果来自 PCRE2。生成代码使用下方所选语言的语法，请在目标环境中确认标志和替换规则。"
+  "pcre2_codegen_notice": "当前匹配结果来自 PCRE2。生成代码使用下方所选语言的语法，请在目标环境中确认标志和替换规则。",
+  "pcre2_visual_readonly": "PCRE2 · 只读铁路图",
+  "pcre2_explain_reset": "将完整匹配的起点重置到当前位置，不消耗字符，保留之前的捕获。",
+  "pcre2_explain_call": "调用子模式 {target}。R 或 0 表示递归整个表达式，其他目标调用捕获组。",
+  "pcre2_explain_define": "定义供后续调用的子模式，匹配时跳过该组。",
+  "pcre2_explain_condition": "检查条件 {condition}；成立时执行第一分支，否则执行第二分支（省略时为空分支）。",
+  "pcre2_explain_branch_reset": "各个分支从同一个编号开始，复用捕获组编号。组后的编号接在占用编号最多的分支之后。",
+  "pcre2_explain_escape": "PCRE2 字符类、转义或断言，保留原始语法。Unicode 和内联选项可能影响其含义。",
+  "pcre2_explain_verb": "PCRE2 控制动词或模式选项，用于控制匹配或编译，不表示字面文本。",
+  "pcre2_explain_scoped_flags": "在这个非捕获组内应用选项 {flags}。",
+  "pcre2_quantifier": "重复 {min}–{max} 次。",
+  "pcre2_possessive": "占有模式：回溯时不会退还已完成的重复。",
+  "pcre2_lazy": "惰性：优先尝试较少的重复次数。",
+  "pcre2_greedy": "贪婪：优先尝试较多的重复次数。",
+  "pcre2_compatibility_unavailable": "暂不支持对 PCRE2 语法进行跨引擎兼容性检查。"
 }

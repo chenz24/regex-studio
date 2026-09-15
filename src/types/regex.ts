@@ -27,6 +27,12 @@ export type ASTNodeType =
   | 'namedGroup'
   | 'atomicGroup'
   | 'inlineFlags'
+  | 'resetStart'
+  | 'subroutine'
+  | 'conditional'
+  | 'branchReset'
+  | 'pcreEscape'
+  | 'verb'
   | 'alternation'
   | 'quantifier'
   | 'anchor'
@@ -36,6 +42,8 @@ export type ASTNodeType =
   | 'sequence';
 
 export interface ASTNode {
+  dialect?: 'pcre2';
+  flagSpec?: string;
   type: ASTNodeType;
   value: string;
   children?: ASTNode[];
@@ -55,6 +63,7 @@ export interface ASTNode {
 }
 
 export interface QuantifierInfo {
+  possessive?: boolean;
   min: number;
   max: number | null;
   lazy: boolean;

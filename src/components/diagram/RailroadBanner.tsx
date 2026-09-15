@@ -32,6 +32,7 @@ function findNodeAtStart(root: ASTNode, start: number): ASTNode | null {
 }
 
 interface RailroadBannerProps {
+  readOnly?: boolean;
   diagram: LayoutResult;
   ast: ASTNode;
   pattern: string;
@@ -43,6 +44,7 @@ interface RailroadBannerProps {
 }
 
 export function RailroadBanner({
+  readOnly = false,
   diagram,
   ast,
   pattern,
@@ -127,7 +129,7 @@ export function RailroadBanner({
     return () => window.removeEventListener('keydown', handler);
   }, [undoPattern, redoPattern]);
 
-  const isEditing = selectedNodeId !== null;
+  const isEditing = !readOnly && selectedNodeId !== null;
   const maxHeight = expanded || isEditing ? 800 : 160;
 
   return (
@@ -142,7 +144,7 @@ export function RailroadBanner({
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
             <Pencil className="w-3 h-3" />
-            {t.railroad_click_to_edit()}
+            {readOnly ? t.pcre2_visual_readonly() : t.railroad_click_to_edit()}
           </span>
           <div className="flex items-center gap-0.5">
             <button
@@ -195,7 +197,7 @@ export function RailroadBanner({
               hoveredNodeId={hoveredNodeId}
               onHoverNode={onHoverNode}
               selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
+              onSelectNode={readOnly ? undefined : handleSelectNode}
               spotlightNodeIds={spotlightNodeIds}
             />
           </div>

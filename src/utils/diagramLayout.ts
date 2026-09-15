@@ -163,7 +163,7 @@ function measureIR(ir: IR): Measure {
 
     case 'Group': {
       const inner = measureIR(ir.child);
-      const w = inner.w + T.PAD * 2;
+      const w = Math.max(inner.w, ir.caption ? textW(ir.caption) : 0) + T.PAD * 2;
       const h = inner.h + T.PAD * 2 + T.TITLE_H;
       const railY = T.TITLE_H + T.PAD + inner.railY;
       return { w, h, railY };
@@ -965,8 +965,13 @@ function layoutQuantifier(ir: IR & { type: 'Quantifier' }, x: number, railAbsY: 
   };
 }
 
-function quantifierBadge(ir: { min: number; max: number | null; greedy: boolean }): string {
-  const lazy = !ir.greedy ? ' (lazy)' : '';
+function quantifierBadge(ir: {
+  min: number;
+  max: number | null;
+  greedy: boolean;
+  possessive?: boolean;
+}): string {
+  const lazy = ir.possessive ? ' (possessive)' : !ir.greedy ? ' (lazy)' : '';
   if (ir.min === 0 && ir.max === null) return `0..∞${lazy}`;
   if (ir.min === 1 && ir.max === null) return `1..∞${lazy}`;
   if (ir.min === 0 && ir.max === 1) return `0..1${lazy}`;

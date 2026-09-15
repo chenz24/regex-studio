@@ -4,7 +4,7 @@ import { ENGINE_FLAVORS, type RegexEngine } from '@/types/engineTypes';
 import { checkCompatibility } from '@/utils/compatibilityChecker';
 import { useRegexStore, useRegexDerived } from '@/stores/regexStore';
 import { MarkdownLite } from './MarkdownLite';
-import { EngineCapabilityNotice } from '../EngineCapabilityNotice';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   flavors: RegexEngine[];
@@ -18,6 +18,7 @@ interface Props {
  * the regex store, so warnings always reflect what the user is editing.
  */
 export function FlavorCompareBlock({ flavors, commentary }: Props) {
+  const t = useT();
   const ast = useRegexDerived().ast;
   const validation = useRegexDerived().validation;
   const currentEngine = useRegexStore((s) => s.engine);
@@ -74,7 +75,7 @@ export function FlavorCompareBlock({ flavors, commentary }: Props) {
       {/* Body */}
       <div className="p-3 space-y-2 text-xs">
         {currentEngine === 'pcre2' ? (
-          <EngineCapabilityNotice />
+          <p>{t.pcre2_compatibility_unavailable()}</p>
         ) : !validation.valid ? (
           <div className="text-rose-600 dark:text-rose-400">
             当前 pattern 语法无效，无法做兼容性检查。

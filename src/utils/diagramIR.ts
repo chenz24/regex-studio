@@ -34,7 +34,15 @@ export type IR =
       id: string;
       assertionType?: 'lookahead' | 'negativeLookahead' | 'lookbehind' | 'negativeLookbehind';
     }
-  | { type: 'Quantifier'; min: number; max: number | null; greedy: boolean; child: IR; id: string }
+  | {
+      type: 'Quantifier';
+      min: number;
+      max: number | null;
+      greedy: boolean;
+      possessive?: boolean;
+      child: IR;
+      id: string;
+    }
   | { type: 'Backref'; ref: string; id: string };
 
 const ESCAPE_CLASS_MAP: Record<string, { kind: string; label: string }> = {
@@ -150,6 +158,7 @@ function astToIR(node: ASTNode): IR {
         min: q.min,
         max: q.max,
         greedy: !q.lazy,
+        possessive: q.possessive,
         child: astToIR(child),
         id: node.id,
       };
@@ -168,6 +177,7 @@ function astToIR(node: ASTNode): IR {
       return {
         type: 'Group',
         capturing: false,
+        caption: node.flagSpec ? `Flags ${node.flagSpec}` : undefined,
         child: wrapChildren(node),
         id: node.id,
       };
@@ -182,6 +192,46 @@ function astToIR(node: ASTNode): IR {
     case 'inlineFlags':
       // Not a matcher — an instruction to the engine. Shown as a plain token.
       return { type: 'Token', kind: 'special', label: `flags ${node.value}`, id: node.id };
+    case 'resetStart':
+      return { type: 'Token', kind: 'special', label: '\\K · Reset match start', id: node.id };
+    case 'subroutine':
+      return { type: 'Token', kind: 'special', label: `Call ${node.value}`, id: node.id };
+    case 'verb':
+    case 'pcreEscape':
+      return { type: 'Token', kind: 'special', label: node.raw, id: node.id };
+    case 'branchReset':
+      return {
+        type: 'Group',
+        capturing: false,
+        caption: 'Branch reset',
+        child: wrapChildren(node),
+        id: node.id,
+      };
+    case 'conditional':
+      return {
+        type: 'Group',
+        capturing: false,
+        caption: node.value === 'DEFINE' ? 'Definitions (not executed)' : `If ${node.value}`,
+        id: node.id,
+        child:
+          node.value === 'DEFINE'
+            ? wrapChildren(node)
+            : {
+                type: 'Choice',
+                id: `${node.id}_branches`,
+                alts: [0, 1].map(
+                  (i): IR => ({
+                    type: 'Group',
+                    capturing: false,
+                    caption: i === 0 ? 'Then' : 'Else',
+                    id: `${node.id}_${i}`,
+                    child: node.children?.[i]
+                      ? astToIR(node.children[i])
+                      : { type: 'Sequence', children: [], id: `${node.id}_empty` },
+                  }),
+                ),
+              },
+      };
     case 'lookahead':
     case 'negativeLookahead':
     case 'lookbehind':
@@ -196,15 +246,15 @@ function astToIR(node: ASTNode): IR {
     case 'characterClass':
     case 'negatedCharacterClass': {
       const items = mergeCharClassLiterals((node.children || []).map(mapCharItem));
-      if (items.length === 1 && items[0].kind === 'token') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'token') {
         const t = items[0] as { kind: 'token'; token: string; label: string };
         return { type: 'Token', kind: t.token, label: t.label, id: node.id };
       }
-      if (items.length === 1 && items[0].kind === 'range') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'range') {
         const r = items[0] as { kind: 'range'; from: string; to: string };
         return { type: 'Token', kind: 'range', label: `${r.from}\u2013${r.to}`, id: node.id };
       }
-      if (items.length === 1 && items[0].kind === 'literal') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'literal') {
         const litText = (items[0] as { kind: 'literal'; text: string }).text;
         if (litText.length === 1) {
           return { type: 'Literal', text: litText, id: node.id };

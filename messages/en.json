@@ -506,7 +506,21 @@
   "engine_execution_failed": "Engine unavailable",
   "engine_retry": "Retry",
   "pcre2_debugger_unavailable": "Step debugging is not available for PCRE2 yet. The Matches, Replace and Tests panels use the real PCRE2 engine.",
-  "pcre2_visualization_unavailable": "PCRE2 matching is available. Railroad diagrams, explanations and visual editing for PCRE2 syntax are not available yet.",
+  "pcre2_visualization_unavailable": "This PCRE2 pattern cannot be visualized yet. Native matching, replacement and tests remain available.",
   "pcre2_replacement_help": "PCRE2 replacement syntax: $0 is the whole match, $1 and $2 are capture groups, {named} is a named group, and $$ is a literal dollar sign.",
-  "pcre2_codegen_notice": "The current results use PCRE2. Generated code uses the selected target language; verify its flags and replacement syntax in that runtime."
+  "pcre2_codegen_notice": "The current results use PCRE2. Generated code uses the selected target language; verify its flags and replacement syntax in that runtime.",
+  "pcre2_visual_readonly": "PCRE2 · read-only diagram",
+  "pcre2_explain_reset": "Resets the reported start of the full match at this position. Consumes no characters and preserves earlier captures.",
+  "pcre2_explain_call": "Calls subpattern {target}. R or 0 recurses into the whole pattern; other targets call a capture group.",
+  "pcre2_explain_define": "Defines subpatterns for later calls. This group is skipped during matching.",
+  "pcre2_explain_condition": "Tests condition {condition}. Takes the first branch if true, otherwise the second branch (or an empty branch if omitted).",
+  "pcre2_explain_branch_reset": "Alternatives reuse capture numbers, starting from the same number in every branch. Numbering after the group continues after the largest branch.",
+  "pcre2_explain_escape": "A PCRE2 character class, escape or assertion. The original syntax is preserved; Unicode and inline options can affect its meaning.",
+  "pcre2_explain_verb": "A PCRE2 control verb or pattern option. It controls matching or compilation and does not represent literal text.",
+  "pcre2_explain_scoped_flags": "Applies options {flags} within this non-capturing group.",
+  "pcre2_quantifier": "Repeats {min}–{max} times.",
+  "pcre2_possessive": "Possessive: repetitions cannot be given back during backtracking.",
+  "pcre2_lazy": "Lazy: prefers fewer repetitions.",
+  "pcre2_greedy": "Greedy: prefers more repetitions.",
+  "pcre2_compatibility_unavailable": "Cross-engine compatibility checks for PCRE2 syntax are not available yet."
 }

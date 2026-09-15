@@ -5,6 +5,7 @@ import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '..
 import type { RegexEngine, CompatibilityWarning } from '../types/engineTypes';
 import { ENGINE_FLAVORS, toJsFlagString } from '../types/engineTypes';
 import { parseRegex } from '../utils/regexParser';
+import { parsePcre2 } from '../utils/pcre2Parser';
 import { isValidRegex } from '../utils/regexMatcher';
 import {
   cachedOutcome,
@@ -77,6 +78,8 @@ interface RegexActions {
 }
 
 interface RegexDerived {
+  visualizationSupported: boolean;
+  visualizationReason?: string;
   executionEngine: 'javascript' | 'pcre2';
   /** Flags as displayed in `/pattern/flags` (target-engine view). */
   flagString: string;
@@ -117,11 +120,12 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
   const validation =
     executionEngine === 'pcre2' ? { valid: true } : isValidRegex(state.pattern, jsFlagString);
 
-  // PCRE2 execution must not depend on the JavaScript-oriented visual parser.
+  const visual = executionEngine === 'pcre2' ? parsePcre2(state.pattern, flagString) : undefined;
   const ast: ASTNode =
-    state.pattern && executionEngine !== 'pcre2'
+    visual?.ast ??
+    (state.pattern
       ? parseRegex(state.pattern, jsFlagString)
-      : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 };
+      : { type: 'sequence', value: '', children: [], raw: '', id: 'empty', start: 0, end: 0 });
 
   const diagram = layoutAST(ast);
 
@@ -129,6 +133,8 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
     state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
 
   return {
+    visualizationSupported: visual?.supported ?? true,
+    visualizationReason: visual?.reason,
     flagString,
     jsFlagString,
     executionEngine,

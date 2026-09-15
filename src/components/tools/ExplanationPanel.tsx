@@ -127,6 +127,57 @@ function getQuantifierDesc(t: Messages, raw: string): string {
 
 function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
   switch (node.type) {
+    case 'resetStart':
+      return {
+        color: 'cyan',
+        title: '\\K',
+        desc: t.pcre2_explain_reset(),
+        openChar: node.raw,
+        closeChar: '',
+      };
+    case 'subroutine':
+      return {
+        color: 'blue',
+        title: node.raw,
+        desc: t.pcre2_explain_call({ target: node.value }),
+        openChar: node.raw,
+        closeChar: '',
+      };
+    case 'conditional':
+      return {
+        color: 'blue',
+        title: node.raw.slice(0, node.openLen),
+        desc:
+          node.value === 'DEFINE'
+            ? t.pcre2_explain_define()
+            : t.pcre2_explain_condition({ condition: node.value }),
+        openChar: node.raw.slice(0, node.openLen),
+        closeChar: ')',
+      };
+    case 'branchReset':
+      return {
+        color: 'green',
+        title: '(?|...)',
+        desc: t.pcre2_explain_branch_reset(),
+        openChar: '(?|',
+        closeChar: ')',
+      };
+    case 'pcreEscape':
+      return {
+        color: 'orange',
+        title: node.raw,
+        desc: t.pcre2_explain_escape(),
+        openChar: node.raw,
+        closeChar: '',
+      };
+    case 'verb':
+      return {
+        color: 'cyan',
+        title: node.raw,
+        desc: t.pcre2_explain_verb(),
+        openChar: node.raw,
+        closeChar: '',
+      };
     case 'group':
       return {
         color: 'green',
@@ -138,9 +189,13 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
     case 'nonCapturingGroup':
       return {
         color: 'green',
-        title: t.explain_noncap_group_title(),
-        desc: t.explain_noncap_group_desc(),
-        openChar: '(?:',
+        title: node.flagSpec
+          ? t.explain_inline_flags_title({ flags: node.flagSpec })
+          : t.explain_noncap_group_title(),
+        desc: node.flagSpec
+          ? t.pcre2_explain_scoped_flags({ flags: node.flagSpec })
+          : t.explain_noncap_group_desc(),
+        openChar: node.raw.slice(0, node.openLen ?? 3),
         closeChar: ')',
       };
     case 'atomicGroup':
@@ -334,7 +389,21 @@ function ExplainNode({
                   {t.explain_quantifier_title()}.{' '}
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
-                  {getQuantifierDesc(t, qRaw)}
+                  {node.dialect === 'pcre2' && node.quantifier ? (
+                    <>
+                      {t.pcre2_quantifier({
+                        min: String(node.quantifier.min),
+                        max: node.quantifier.max === null ? '∞' : String(node.quantifier.max),
+                      })}{' '}
+                      {node.quantifier.possessive
+                        ? t.pcre2_possessive()
+                        : node.quantifier.lazy
+                          ? t.pcre2_lazy()
+                          : t.pcre2_greedy()}
+                    </>
+                  ) : (
+                    getQuantifierDesc(t, qRaw)
+                  )}
                 </span>
               </div>
             </div>

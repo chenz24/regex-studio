@@ -79,7 +79,7 @@ Worker 与 WASM 按需加载；默认 JavaScript 模式不会下载它们。
   PHP 使用 8 位版本。这里的 `u` 同时启用 UTF 与 Unicode 属性。
 - 替换语法：`$0`、`$1`、`${name}`、`$$`；空替换字符串会删除匹配内容。
 - 执行有 2 秒时间预算及 PCRE2 回溯/内存限制；首次加载独立限时 15 秒，失败可重试。
-- PCRE2 的铁路图、语法解释、可视化编辑和逐步调试暂未开放，界面会明确提示。
+- PCRE2 使用独立解析器，为已支持的语法提供只读铁路图、解释和 AST。不支持的结构会明确提示，不影响原生匹配。可视化编辑和逐步调试暂未开放。
 - Python、Java、Go、.NET、Rust 仍是兼容性目标，实际匹配使用 JavaScript。
 - WASM 产物已包含在仓库中，常规构建不需要 C 编译器。
   参见[构建说明](src/vendor/pcre2/README.md)及 [PCRE2 许可证](src/vendor/pcre2/LICENSE.md)。

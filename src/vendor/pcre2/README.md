@@ -21,5 +21,5 @@ Both notices are also shipped in `public/licenses/` with the deployed assets.
 This is PCRE2 in 16-bit mode, not a PHP runtime. Without `u`, characters are
 UTF-16 code units; PHP's 8-bit PCRE2 instead operates on bytes. `u` enables UTF
 and Unicode character properties in RegexStudio. Replacement syntax is PCRE2's
-native `$0`, `$1`, `${name}`, `$$` syntax. Visual parsing and step debugging for
-PCRE2 are not yet implemented; the UI explicitly identifies that limitation.
+native `$0`, `$1`, `${name}`, `$$` syntax. A separate bounded visual parser supports common PCRE2 constructs; unsupported
+syntax remains executable. Visual editing and step debugging are not yet implemented.

@@ -38,12 +38,15 @@ describe('generated JavaScript', () => {
     return true;
   };
 
-  it.each<CodeGenOperation>(['test', 'match', 'matchAll', 'replace', 'split'])(
-    'is valid syntax for operation %s',
-    (operation) => {
-      expect(compiles(gen({ language: 'javascript', operation, replaceText: '$2 $1' }))).toBe(true);
-    },
-  );
+  it.each<CodeGenOperation>([
+    'test',
+    'match',
+    'matchAll',
+    'replace',
+    'split',
+  ])('is valid syntax for operation %s', (operation) => {
+    expect(compiles(gen({ language: 'javascript', operation, replaceText: '$2 $1' }))).toBe(true);
+  });
 
   it('is valid syntax for a pattern containing escaped slashes', () => {
     const code = gen({ language: 'javascript', pattern: 'https:\\/\\/(\\w+)' });

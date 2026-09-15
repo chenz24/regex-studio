@@ -23,6 +23,9 @@ export const MAX_MATCHES = 10_000;
  */
 const SUPPORTS_INDICES = (() => {
   try {
+    // Must be the constructor: a literal with an unsupported flag is a parse
+    // error, which would take the whole module down instead of being caught.
+    // biome-ignore lint/complexity/useRegexLiterals: runtime feature detection
     new RegExp('', 'd');
     return true;
   } catch {

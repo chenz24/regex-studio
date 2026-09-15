@@ -4,9 +4,7 @@ import { parseRegex } from './regexParser';
 
 /** Flatten the tree into `type(raw)` strings, depth-first. */
 function shape(node: ASTNode): string {
-  const children = node.children?.length
-    ? `[${node.children.map(shape).join(' ')}]`
-    : '';
+  const children = node.children?.length ? `[${node.children.map(shape).join(' ')}]` : '';
   return `${node.type}(${node.raw})${children}`;
 }
 

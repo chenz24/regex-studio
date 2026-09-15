@@ -235,8 +235,12 @@ function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
     case 'backreference':
       return {
         color: 'blue',
-        title: t.explain_backreference_title({ n: node.value }),
-        desc: t.explain_backreference_desc({ n: node.value }),
+        title: node.groupName
+          ? t.explain_named_backreference_title({ name: node.groupName })
+          : t.explain_backreference_title({ n: node.value }),
+        desc: node.groupName
+          ? t.explain_named_backreference_desc({ name: node.groupName })
+          : t.explain_backreference_desc({ n: node.value }),
         openChar: node.raw,
         closeChar: '',
       };

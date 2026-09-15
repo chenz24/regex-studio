@@ -100,6 +100,64 @@ function parseSequence(): ASTNode {
   };
 }
 
+const HEX_DIGIT = /[0-9a-fA-F]/;
+const CONTROL_LETTER = /[a-zA-Z]/;
+
+/** Consume `count` hex digits, but only if that many are actually there. */
+function consumeHexDigits(count: number): void {
+  for (let i = 0; i < count; i++) {
+    if (pos + i >= source.length || !HEX_DIGIT.test(source[pos + i])) return;
+  }
+  pos += count;
+}
+
+/** Consume a `{...}` payload, e.g. the `{L}` of `\p{L}`. */
+function consumeBraced(): void {
+  const close = source.indexOf('}', pos + 1);
+  if (close !== -1) pos = close + 1;
+}
+
+/**
+ * Consume one complete escape sequence starting at the current backslash and
+ * return its raw text.
+ *
+ * Escapes are not uniformly two characters: `\x41`, `\u0041`, `\u{1F600}`,
+ * `\cJ` and `\p{L}` all carry a payload. Stopping after the first character
+ * leaves the rest to be parsed as literals, so `\x41+` came out as `\x`, `4`
+ * and `1+` — with the quantifier bound to the wrong atom.
+ */
+function consumeEscapeSequence(): string {
+  const start = pos;
+  pos++; // the backslash
+  if (pos >= source.length) return source.slice(start, pos);
+
+  const ch = source[pos];
+  pos++;
+
+  switch (ch) {
+    case 'x':
+      consumeHexDigits(2);
+      break;
+    case 'u':
+      if (source[pos] === '{') consumeBraced();
+      else consumeHexDigits(4);
+      break;
+    case 'c':
+      if (pos < source.length && CONTROL_LETTER.test(source[pos])) pos++;
+      break;
+    case 'p':
+    case 'P':
+      if (source[pos] === '{') consumeBraced();
+      break;
+    case '0':
+      // `\0` is NUL; legacy octal escapes carry up to two more digits.
+      while (pos < source.length && source[pos] >= '0' && source[pos] <= '7') pos++;
+      break;
+  }
+
+  return source.slice(start, pos);
+}
+
 function parseAtom(): ASTNode | null {
   if (pos >= source.length) return null;
 
@@ -212,14 +270,12 @@ function parseCharacterClass(): ASTNode {
   while (pos < source.length && source[pos] !== ']') {
     if (source[pos] === '\\' && pos + 1 < source.length) {
       const escStart = pos;
-      pos++;
-      const escaped = source[pos];
-      pos++;
+      const escRaw = consumeEscapeSequence();
 
       const escNode: ASTNode = {
         type: 'escape',
-        value: `\\${escaped}`,
-        raw: source.slice(escStart, pos),
+        value: escRaw,
+        raw: escRaw,
         id: nextNodeId(),
         start: escStart,
         end: pos,
@@ -301,17 +357,8 @@ function parseCharacterClass(): ASTNode {
 function parseClassAtom(): ASTNode {
   if (source[pos] === '\\' && pos + 1 < source.length) {
     const start = pos;
-    pos++;
-    const ch = source[pos];
-    pos++;
-    return {
-      type: 'escape',
-      value: `\\${ch}`,
-      raw: source.slice(start, pos),
-      id: nextNodeId(),
-      start,
-      end: pos,
-    };
+    const raw = consumeEscapeSequence();
+    return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
   }
   const s = pos;
   const ch = source[pos];
@@ -321,18 +368,24 @@ function parseClassAtom(): ASTNode {
 
 function parseEscape(): ASTNode {
   const start = pos;
-  pos++;
-  if (pos >= source.length) {
+  if (pos + 1 >= source.length) {
+    pos++;
     return { type: 'literal', value: '\\', raw: '\\', id: nextNodeId(), start, end: pos };
   }
 
-  const ch = source[pos];
-  pos++;
+  const ch = source[pos + 1];
 
+  // Numbered backreference — `\10` is group 10, not group 1 followed by `0`.
   if (ch >= '1' && ch <= '9') {
+    pos += 2;
+    let digits = ch;
+    while (pos < source.length && source[pos] >= '0' && source[pos] <= '9') {
+      digits += source[pos];
+      pos++;
+    }
     return {
       type: 'backreference',
-      value: ch,
+      value: digits,
       raw: source.slice(start, pos),
       id: nextNodeId(),
       start,
@@ -340,14 +393,26 @@ function parseEscape(): ASTNode {
     };
   }
 
-  return {
-    type: 'escape',
-    value: `\\${ch}`,
-    raw: source.slice(start, pos),
-    id: nextNodeId(),
-    start,
-    end: pos,
-  };
+  // Named backreference `\k<name>`.
+  if (ch === 'k' && source[pos + 2] === '<') {
+    const close = source.indexOf('>', pos + 3);
+    if (close !== -1) {
+      const name = source.slice(pos + 3, close);
+      pos = close + 1;
+      return {
+        type: 'backreference',
+        value: name,
+        groupName: name,
+        raw: source.slice(start, pos),
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
+    }
+  }
+
+  const raw = consumeEscapeSequence();
+  return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
 }
 
 function tryParseQuantifier(node: ASTNode): ASTNode {

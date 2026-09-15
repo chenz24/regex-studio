@@ -1,65 +1,52 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-
   "site_title": "RegexStudio — Visual Regex Playground",
   "site_description": "A modern, visual regular expression playground with live testing, railroad diagrams, and shareable links.",
-
   "language_switch_label": "Switch language",
   "language_english": "English",
   "language_chinese": "简体中文",
-
   "theme_to_dark": "Switch to dark",
   "theme_to_light": "Switch to light",
-
   "not_found_eyebrow": "404",
   "not_found_title": "Page not found",
   "not_found_description": "The page you are looking for does not exist or has been moved.",
   "not_found_back_home": "Back to RegexStudio",
-
   "header_tagline": "Visualize, Test & Debug Regular Expressions",
   "header_patterns": "Patterns",
   "header_reference": "Reference",
-
   "share_title": "Copy a shareable link to this regex, test string, and test cases",
   "share_label": "Share",
   "share_copied": "Copied",
-
   "footer_about_heading": "About RegexStudio — Online Regular Expression Tester & Visualizer",
   "footer_about_p1": "RegexStudio is a free, browser-based regex tester, debugger and visualizer that helps developers build, understand and optimize regular expressions. Write a pattern and instantly see real-time matches, capture groups, an interactive railroad diagram, an AST tree view, replacement previews and detailed explanations — all running locally in your browser with zero data sent to any server.",
   "footer_about_p2_prefix": "Whether you are learning regex syntax, debugging a tricky pattern, or validating emails, URLs, phone numbers, dates, IP addresses or log lines, RegexStudio supports JavaScript (ECMAScript), PCRE and Python flavors with flags such as ",
   "footer_about_p2_suffix": ".",
-
   "footer_col_features": "Features",
   "footer_feature_realtime": "Real-time regex matching",
   "footer_feature_railroad": "Railroad diagram visualizer",
   "footer_feature_ast": "AST syntax tree explorer",
   "footer_feature_capture": "Capture group inspector",
   "footer_feature_replace": "Replace & substitution preview",
-
   "footer_col_use_cases": "Use Cases",
   "footer_use_case_validation": "Email & URL validation",
   "footer_use_case_logs": "Log parsing & extraction",
   "footer_use_case_form": "Form input validation",
   "footer_use_case_refactor": "Code refactoring with regex",
   "footer_use_case_learn": "Learning regex syntax",
-
   "footer_col_resources": "Resources",
   "footer_resource_mdn": "MDN Regex Guide",
   "footer_resource_rei": "Regular-Expressions.info",
   "footer_resource_pcre": "PCRE Documentation",
   "footer_resource_python_prefix": "Python ",
   "footer_resource_python_suffix": " Module",
-
   "footer_col_project": "Project",
   "footer_project_github": "GitHub",
   "footer_project_client_side": "100% client-side",
   "footer_project_no_tracking": "No tracking, no ads",
   "footer_project_oss": "Free & open source",
-
   "footer_copyright": "© {year} RegexStudio. All rights reserved.",
   "footer_built_with_prefix": "Built with",
   "footer_built_with_suffix": "for developers who love regular expressions.",
-
   "flavor_target_compatibility_label": "Target compatibility",
   "flavor_target_compatibility_desc": "Matching is always tested with the JavaScript engine. Switching the target only changes which features are flagged as incompatible.",
   "engine_notes_javascript": "Native browser engine. Full support for all modern JavaScript regex features.",
@@ -69,7 +56,6 @@
   "engine_notes_go": "Go uses RE2, which guarantees linear-time matching but does not support lookaround or backreferences.",
   "engine_notes_dotnet": ".NET regex engine. Supports variable-length lookbehind, balancing groups, and named captures with (?<name>...) / (?'name'...).",
   "engine_notes_rust": "Rust regex crate guarantees linear-time matching. For lookaround/backreferences, use fancy-regex.",
-
   "railroad_title": "Railroad Diagram",
   "railroad_click_to_edit": "Click nodes to edit",
   "railroad_undo": "Undo (⌘Z / Ctrl+Z)",
@@ -77,7 +63,6 @@
   "railroad_collapse": "Collapse",
   "railroad_expand": "Expand",
   "railroad_empty_hint": "Type a regex pattern above to see the railroad diagram",
-
   "node_editor_title": "Edit Node",
   "node_editor_close_hint": "Close editor (keep pattern)",
   "node_editor_delete_hint": "Delete this node from the pattern",
@@ -103,7 +88,6 @@
   "node_editor_wrap_noncap_hint": "Non-capturing group — group without taking a backreference slot",
   "node_editor_quantifier": "Quantifier",
   "node_editor_position": "Position: {start}..{end}",
-
   "quant_none_label": "None",
   "quant_none_hint": "Remove quantifier — match exactly once",
   "quant_optional_label": "? (0 or 1)",
@@ -118,7 +102,6 @@
   "quant_plus_lazy_hint": "1 or more, lazy — match as few as possible",
   "quant_optional_lazy_label": "?? (lazy)",
   "quant_optional_lazy_hint": "0 or 1, lazy — prefer skipping",
-
   "insert_char_label": "Character",
   "insert_char_hint": "A literal character",
   "insert_dot_label": "Any (.)",
@@ -133,7 +116,6 @@
   "insert_group_hint": "Empty capturing group",
   "insert_set_label": "Set []",
   "insert_set_hint": "Empty character class",
-
   "node_desc_literal": "Character \"{char}\"",
   "node_desc_dot": "Any character (.)",
   "node_desc_escape_d": "Digit",
@@ -159,15 +141,12 @@
   "node_desc_alternation": "Alternation (|)",
   "node_desc_quantifier": "Quantifier: {raw}",
   "node_desc_backreference": "Backreference #{n}",
-
   "regex_input_placeholder": "Enter your regex pattern...",
   "regex_input_display_only": "Display only — does not affect match preview.",
   "regex_input_match_count_one": "{count} match",
   "regex_input_match_count_other": "{count} matches",
-
   "compat_header_one": "{count} compatibility issue with {engine}",
   "compat_header_other": "{count} compatibility issues with {engine}",
-
   "compat_python_lookbehind_feature": "Variable-length lookbehind",
   "compat_python_lookbehind_message": "Python `re` requires fixed-width lookbehind. Alternations or quantifiers inside `(?<=...)` / `(?<!...)` are rejected. Use the third-party `regex` module if you need variable-length lookbehind.",
   "compat_java_lookbehind_feature": "Bounded lookbehind",
@@ -184,7 +163,6 @@
   "compat_rust_lookbehind_message": "Rust's regex crate does not support lookbehind assertions. Consider using the `fancy-regex` crate instead.",
   "compat_rust_backreference_feature": "Backreference",
   "compat_rust_backreference_message": "Rust's regex crate does not support backreferences. Consider using the `fancy-regex` crate instead.",
-
   "testarea_title": "Test String",
   "testarea_placeholder": "Enter test string...",
   "testarea_show_whitespace": "Show whitespace",
@@ -194,7 +172,6 @@
   "testarea_tooltip_match_label": "match",
   "testarea_tooltip_range_label": "range",
   "testarea_tooltip_group_label": "group",
-
   "tab_debugger": "Debugger",
   "tab_matches": "Matches",
   "tab_explanation": "Explanation",
@@ -202,14 +179,12 @@
   "tab_replace": "Replace",
   "tab_codegen": "Code Gen",
   "tab_ast": "AST",
-
   "match_details_no_matches": "No matches found",
   "match_details_match_label": "Match #{n}",
   "match_details_idx": "idx: {start}",
   "match_details_full_match": "Full Match",
   "match_details_empty": "empty",
   "match_details_group_unnamed": "Group {idx}",
-
   "replace_intro": "Rewrite every match in the test text with the string below.",
   "replace_help_button": "How does it work?",
   "replace_help_popover_title": "What is Replace?",
@@ -235,7 +210,6 @@
   "replace_result_label_other": "Result ({count} replacements)",
   "replace_copy_result": "Copy result",
   "replace_copied": "Copied",
-
   "codegen_empty_pattern_comment": "// Enter a regex pattern to generate code",
   "codegen_copy": "Copy",
   "codegen_copied": "Copied!",
@@ -252,7 +226,6 @@
   "codegen_op_replace_desc": "Replace matches with replacement text",
   "codegen_op_split_label": "Split",
   "codegen_op_split_desc": "Split the string by the pattern",
-
   "debugger_enter_pattern_hint": "Enter a pattern and test text to start debugging",
   "debugger_no_steps": "No steps to display",
   "debugger_first_step": "First step",
@@ -266,7 +239,6 @@
   "debugger_pattern_label": "Pattern",
   "debugger_test_string_label": "Test String",
   "debugger_pos": "pos={pos}",
-
   "explain_empty": "Enter a pattern to see its breakdown",
   "explain_quantifier_title": "Quantifier",
   "explain_quant_brace_min_or_more": "Match {min} or more of the preceding token.",
@@ -318,9 +290,10 @@
   "explain_dot_desc": "Matches any single character except line terminators (unless dotall flag).",
   "explain_backreference_title": "Backreference #{n}",
   "explain_backreference_desc": "Matches the same text as previously matched by group #{n}.",
+  "explain_named_backreference_title": "Backreference to \"{name}\"",
+  "explain_named_backreference_desc": "Matches the same text as previously matched by the group named \"{name}\".",
   "explain_default_title": "Character",
   "explain_default_desc": "Matches the \"{char}\" character literally.",
-
   "testcases_intro": "Pin test strings with an expected outcome. They re-evaluate as you edit the pattern.",
   "testcases_snapshot_btn": "Snapshot",
   "testcases_snapshot_hint": "Snapshot the current test string as a new case",
@@ -340,7 +313,6 @@
   "testcases_use_as_test_string": "Use as test string",
   "testcases_use_as_test_string_hint": "Load this input into the test string editor",
   "testcases_delete_hint": "Delete test case",
-
   "qref_section_char_classes": "Character Classes",
   "qref_section_anchors": "Anchors",
   "qref_section_quantifiers": "Quantifiers",
@@ -386,7 +358,6 @@
   "qref_fl_m": "Multiline mode",
   "qref_fl_s": "Dotall (. matches \\n)",
   "qref_fl_u": "Unicode mode",
-
   "plib_cat_common": "Common",
   "plib_cat_network": "Network",
   "plib_cat_datetime": "Date & Time",
@@ -425,7 +396,6 @@
   "plib_ws_trim_desc": "Matches leading and trailing whitespace",
   "plib_dup_words_name": "Duplicate Words",
   "plib_dup_words_desc": "Finds consecutive duplicate words",
-
   "tut_drawer_aria": "Interactive tutorial",
   "tut_drawer_close": "Close tutorial",
   "tut_drawer_header": "Learn Regex",
@@ -455,7 +425,6 @@
   "tut_hint_show_solution": "Show solution",
   "tut_hint_solution_shown": "Solution shown",
   "tut_hint_solution_locked": "Solution unlocks after a few attempts",
-
   "chal_drawer_aria": "Regex challenges",
   "chal_drawer_close": "Close challenges",
   "chal_drawer_header": "Challenges · Practice",
@@ -486,7 +455,6 @@
   "chal_runner_copy_link": "Copy challenge link",
   "chal_runner_link_copied": "Copied",
   "chal_runner_next_challenge": "Next challenge",
-
   "flag_desc_js_g": "Global - find all matches",
   "flag_desc_js_i": "Case insensitive",
   "flag_desc_js_m": "Multiline - ^ and $ match line boundaries",

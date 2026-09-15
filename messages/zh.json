@@ -1,65 +1,52 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-
   "site_title": "RegexStudio — 可视化正则表达式实验场",
   "site_description": "现代化的可视化正则表达式工具,支持实时测试、铁路图和可分享链接。",
-
   "language_switch_label": "切换语言",
   "language_english": "English",
   "language_chinese": "简体中文",
-
   "theme_to_dark": "切换到深色",
   "theme_to_light": "切换到浅色",
-
   "not_found_eyebrow": "404",
   "not_found_title": "页面不存在",
   "not_found_description": "您访问的页面不存在或已被移动。",
   "not_found_back_home": "返回 RegexStudio",
-
   "header_tagline": "可视化、测试与调试正则表达式",
   "header_patterns": "示例",
   "header_reference": "速查",
-
   "share_title": "复制可分享的链接,包含正则、测试字符串和测试用例",
   "share_label": "分享",
   "share_copied": "已复制",
-
   "footer_about_heading": "关于 RegexStudio — 在线正则表达式测试与可视化工具",
   "footer_about_p1": "RegexStudio 是一款免费的、运行在浏览器中的正则表达式测试、调试与可视化工具,帮助开发者构建、理解并优化正则表达式。输入模式即可实时查看匹配结果、捕获组、交互式铁路图、AST 语法树、替换预览及详细解释——一切都在你的浏览器本地运行,不向任何服务器发送数据。",
   "footer_about_p2_prefix": "无论是学习正则语法、调试棘手的模式,还是校验邮箱、URL、电话号码、日期、IP 地址或日志行,RegexStudio 都支持 JavaScript(ECMAScript)、PCRE 和 Python 三种风格,以及 ",
   "footer_about_p2_suffix": " 等标志位。",
-
   "footer_col_features": "功能",
   "footer_feature_realtime": "实时正则匹配",
   "footer_feature_railroad": "铁路图可视化",
   "footer_feature_ast": "AST 语法树浏览",
   "footer_feature_capture": "捕获组查看器",
   "footer_feature_replace": "替换与替代预览",
-
   "footer_col_use_cases": "使用场景",
   "footer_use_case_validation": "邮箱与 URL 校验",
   "footer_use_case_logs": "日志解析与提取",
   "footer_use_case_form": "表单输入校验",
   "footer_use_case_refactor": "正则代码重构",
   "footer_use_case_learn": "学习正则语法",
-
   "footer_col_resources": "资源",
   "footer_resource_mdn": "MDN 正则指南",
   "footer_resource_rei": "Regular-Expressions.info",
   "footer_resource_pcre": "PCRE 文档",
   "footer_resource_python_prefix": "Python ",
   "footer_resource_python_suffix": " 模块",
-
   "footer_col_project": "项目",
   "footer_project_github": "GitHub",
   "footer_project_client_side": "100% 浏览器端",
   "footer_project_no_tracking": "无追踪、无广告",
   "footer_project_oss": "免费开源",
-
   "footer_copyright": "© {year} RegexStudio。保留所有权利。",
   "footer_built_with_prefix": "用",
   "footer_built_with_suffix": "为热爱正则表达式的开发者打造。",
-
   "flavor_target_compatibility_label": "目标兼容性",
   "flavor_target_compatibility_desc": "匹配始终用 JavaScript 引擎进行测试。切换目标只会改变哪些特性被标记为不兼容。",
   "engine_notes_javascript": "浏览器原生引擎。完整支持所有现代 JavaScript 正则特性。",
@@ -69,7 +56,6 @@
   "engine_notes_go": "Go 使用 RE2,保证线性时间匹配,但不支持 lookaround 与反向引用。",
   "engine_notes_dotnet": ".NET 正则引擎。支持变长 lookbehind、平衡组,以及 (?<name>...) / (?'name'...) 命名捕获。",
   "engine_notes_rust": "Rust regex crate 保证线性时间匹配。需要 lookaround/反向引用时请用 fancy-regex。",
-
   "railroad_title": "铁路图",
   "railroad_click_to_edit": "点击节点编辑",
   "railroad_undo": "撤销 (⌘Z / Ctrl+Z)",
@@ -77,7 +63,6 @@
   "railroad_collapse": "收起",
   "railroad_expand": "展开",
   "railroad_empty_hint": "在上方输入正则表达式以查看铁路图",
-
   "node_editor_title": "编辑节点",
   "node_editor_close_hint": "关闭编辑器(保留模式)",
   "node_editor_delete_hint": "从模式中删除该节点",
@@ -103,7 +88,6 @@
   "node_editor_wrap_noncap_hint": "非捕获分组 — 分组但不占用反向引用编号",
   "node_editor_quantifier": "量词",
   "node_editor_position": "位置: {start}..{end}",
-
   "quant_none_label": "无",
   "quant_none_hint": "移除量词 — 仅匹配一次",
   "quant_optional_label": "? (0 或 1)",
@@ -118,7 +102,6 @@
   "quant_plus_lazy_hint": "1 次或多次,惰性 — 尽可能少匹配",
   "quant_optional_lazy_label": "?? (惰性)",
   "quant_optional_lazy_hint": "0 或 1,惰性 — 优先跳过",
-
   "insert_char_label": "字符",
   "insert_char_hint": "一个字面字符",
   "insert_dot_label": "任意 (.)",
@@ -133,7 +116,6 @@
   "insert_group_hint": "空捕获分组",
   "insert_set_label": "字符类 []",
   "insert_set_hint": "空字符类",
-
   "node_desc_literal": "字符 \"{char}\"",
   "node_desc_dot": "任意字符 (.)",
   "node_desc_escape_d": "数字",
@@ -159,15 +141,12 @@
   "node_desc_alternation": "选择 (|)",
   "node_desc_quantifier": "量词:{raw}",
   "node_desc_backreference": "反向引用 #{n}",
-
   "regex_input_placeholder": "输入正则表达式...",
   "regex_input_display_only": "仅显示 — 不影响匹配预览。",
   "regex_input_match_count_one": "{count} 个匹配",
   "regex_input_match_count_other": "{count} 个匹配",
-
   "compat_header_one": "{engine} 存在 {count} 个兼容性问题",
   "compat_header_other": "{engine} 存在 {count} 个兼容性问题",
-
   "compat_python_lookbehind_feature": "变长 lookbehind",
   "compat_python_lookbehind_message": "Python `re` 要求 lookbehind 必须是固定宽度。`(?<=...)` / `(?<!...)` 内部的选择或量词会被拒绝。如需变长 lookbehind,请使用第三方的 `regex` 模块。",
   "compat_java_lookbehind_feature": "有界 lookbehind",
@@ -184,7 +163,6 @@
   "compat_rust_lookbehind_message": "Rust 的 regex crate 不支持 lookbehind 断言。请改用 `fancy-regex` crate。",
   "compat_rust_backreference_feature": "反向引用",
   "compat_rust_backreference_message": "Rust 的 regex crate 不支持反向引用。请改用 `fancy-regex` crate。",
-
   "testarea_title": "测试字符串",
   "testarea_placeholder": "输入测试字符串...",
   "testarea_show_whitespace": "显示空白符",
@@ -194,7 +172,6 @@
   "testarea_tooltip_match_label": "匹配",
   "testarea_tooltip_range_label": "范围",
   "testarea_tooltip_group_label": "分组",
-
   "tab_debugger": "调试",
   "tab_matches": "匹配",
   "tab_explanation": "解释",
@@ -202,14 +179,12 @@
   "tab_replace": "替换",
   "tab_codegen": "生成代码",
   "tab_ast": "AST",
-
   "match_details_no_matches": "没有找到匹配",
   "match_details_match_label": "匹配 #{n}",
   "match_details_idx": "起始: {start}",
   "match_details_full_match": "完整匹配",
   "match_details_empty": "(空)",
   "match_details_group_unnamed": "分组 {idx}",
-
   "replace_intro": "把测试文本里所有匹配,改写成下面这个字符串。",
   "replace_help_button": "怎么用?",
   "replace_help_popover_title": "替换功能是什么?",
@@ -235,7 +210,6 @@
   "replace_result_label_other": "结果({count} 处替换)",
   "replace_copy_result": "复制结果",
   "replace_copied": "已复制",
-
   "codegen_empty_pattern_comment": "// 输入正则表达式以生成代码",
   "codegen_copy": "复制",
   "codegen_copied": "已复制!",
@@ -252,7 +226,6 @@
   "codegen_op_replace_desc": "用替换文本替换匹配",
   "codegen_op_split_label": "拆分",
   "codegen_op_split_desc": "按该模式拆分字符串",
-
   "debugger_enter_pattern_hint": "输入正则与测试文本以开始调试",
   "debugger_no_steps": "无可显示步骤",
   "debugger_first_step": "第一步",
@@ -266,7 +239,6 @@
   "debugger_pattern_label": "模式",
   "debugger_test_string_label": "测试字符串",
   "debugger_pos": "位置={pos}",
-
   "explain_empty": "输入正则以查看分解说明",
   "explain_quantifier_title": "量词",
   "explain_quant_brace_min_or_more": "匹配前一 token {min} 次或更多。",
@@ -318,9 +290,10 @@
   "explain_dot_desc": "匹配除行终止符外的任意单个字符(除非启用 dotall 标志)。",
   "explain_backreference_title": "反向引用 #{n}",
   "explain_backreference_desc": "匹配与分组 #{n} 之前所匹配的相同文本。",
+  "explain_named_backreference_title": "反向引用 \"{name}\"",
+  "explain_named_backreference_desc": "匹配与名为 \"{name}\" 的分组之前所匹配的相同文本。",
   "explain_default_title": "字符",
   "explain_default_desc": "字面匹配 \"{char}\" 字符。",
-
   "testcases_intro": "把测试字符串和预期结果一起钉住,模式改动时会重新评估。",
   "testcases_snapshot_btn": "快照",
   "testcases_snapshot_hint": "把当前测试字符串保存为新用例",
@@ -340,7 +313,6 @@
   "testcases_use_as_test_string": "用作测试字符串",
   "testcases_use_as_test_string_hint": "把该输入加载到测试字符串编辑器",
   "testcases_delete_hint": "删除测试用例",
-
   "qref_section_char_classes": "字符类",
   "qref_section_anchors": "锚点",
   "qref_section_quantifiers": "量词",
@@ -386,7 +358,6 @@
   "qref_fl_m": "多行模式",
   "qref_fl_s": "Dotall(. 匹配 \\n)",
   "qref_fl_u": "Unicode 模式",
-
   "plib_cat_common": "常用",
   "plib_cat_network": "网络",
   "plib_cat_datetime": "日期与时间",
@@ -425,7 +396,6 @@
   "plib_ws_trim_desc": "匹配开头和结尾的空白",
   "plib_dup_words_name": "重复单词",
   "plib_dup_words_desc": "查找连续重复的单词",
-
   "tut_drawer_aria": "交互式教程",
   "tut_drawer_close": "关闭教程",
   "tut_drawer_header": "Learn Regex",
@@ -455,7 +425,6 @@
   "tut_hint_show_solution": "展示答案",
   "tut_hint_solution_shown": "已展示答案",
   "tut_hint_solution_locked": "多试几次后会解锁答案",
-
   "chal_drawer_aria": "正则挑战",
   "chal_drawer_close": "关闭挑战",
   "chal_drawer_header": "Challenges · 实战题",
@@ -486,7 +455,6 @@
   "chal_runner_copy_link": "复制挑战链接",
   "chal_runner_link_copied": "已复制",
   "chal_runner_next_challenge": "下一题",
-
   "flag_desc_js_g": "Global — 查找所有匹配",
   "flag_desc_js_i": "忽略大小写",
   "flag_desc_js_m": "多行 — ^ 和 $ 匹配行边界",

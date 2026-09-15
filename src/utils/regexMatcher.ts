@@ -16,6 +16,20 @@ export const MAX_MATCHES = 10_000;
  * match is then found forever. Astral characters therefore have to be
  * stepped over as a whole.
  */
+/**
+ * Whether this engine accepts the `d` (hasIndices) flag — ES2022, so every
+ * current browser, but compiling with an unknown flag throws and would take
+ * matching down entirely on an older one.
+ */
+const SUPPORTS_INDICES = (() => {
+  try {
+    new RegExp('', 'd');
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
 function advanceIndex(text: string, index: number, unicode: boolean): number {
   if (!unicode) return index + 1;
   const code = text.codePointAt(index);
@@ -27,7 +41,10 @@ export function findMatches(pattern: string, flags: string, text: string): Match
   if (!pattern) return [];
 
   try {
-    const regex = new RegExp(pattern, flags);
+    // `d` makes the engine report exact group offsets in `match.indices`.
+    const execFlags = SUPPORTS_INDICES && !flags.includes('d') ? `${flags}d` : flags;
+    const regex = new RegExp(pattern, execFlags);
+    const groupNames = collectGroupNames(pattern);
     const matches: MatchInfo[] = [];
     const unicode = flags.includes('u') || flags.includes('v');
     let match: RegExpExecArray | null;
@@ -35,7 +52,7 @@ export function findMatches(pattern: string, flags: string, text: string): Match
     if (flags.includes('g')) {
       match = regex.exec(text);
       while (match !== null) {
-        matches.push(buildMatchInfo(match, text));
+        matches.push(buildMatchInfo(match, groupNames));
         if (matches.length >= MAX_MATCHES) break;
         // A zero-length match leaves lastIndex where it is; step forward
         // ourselves or `exec` returns the same match indefinitely.
@@ -48,7 +65,7 @@ export function findMatches(pattern: string, flags: string, text: string): Match
     } else {
       match = regex.exec(text);
       if (match) {
-        matches.push(buildMatchInfo(match, text));
+        matches.push(buildMatchInfo(match, groupNames));
       }
     }
 
@@ -58,29 +75,63 @@ export function findMatches(pattern: string, flags: string, text: string): Match
   }
 }
 
-function buildMatchInfo(match: RegExpExecArray, _text: string): MatchInfo {
+/**
+ * Names of the capturing groups in `pattern`, indexed by group number − 1.
+ *
+ * Group names cannot be recovered from a match result: `match.groups` is
+ * keyed by name, and looking a name up by comparing captured *values*
+ * mislabels every group that captured the same text. Reading the names off
+ * the pattern in source order is exact.
+ */
+function collectGroupNames(pattern: string): Array<string | null> {
+  const names: Array<string | null> = [];
+  let inClass = false;
+
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      i++; // skip the escaped character
+      continue;
+    }
+    if (inClass) {
+      if (ch === ']') inClass = false;
+      continue;
+    }
+    if (ch === '[') {
+      inClass = true;
+      continue;
+    }
+    if (ch !== '(') continue;
+
+    if (pattern[i + 1] !== '?') {
+      names.push(null); // plain capturing group
+      continue;
+    }
+    // `(?<name>` is a named group; `(?<=` / `(?<!` are lookbehinds, and
+    // every other `(?…` form is non-capturing.
+    if (pattern[i + 2] !== '<' || pattern[i + 3] === '=' || pattern[i + 3] === '!') continue;
+    const close = pattern.indexOf('>', i + 3);
+    if (close === -1) continue;
+    names.push(pattern.slice(i + 3, close));
+  }
+
+  return names;
+}
+
+function buildMatchInfo(match: RegExpExecArray, groupNames: Array<string | null>): MatchInfo {
   const groups: GroupInfo[] = [];
+  // Present whenever the regex was compiled with the `d` flag, which
+  // `findMatches` always adds.
+  const indices = match.indices;
 
   for (let i = 1; i < match.length; i++) {
-    let groupStart = -1;
-    let groupEnd = -1;
-
-    if (match[i] !== undefined && match.index !== undefined) {
-      const before = match[0].indexOf(match[i]);
-      if (before >= 0) {
-        groupStart = match.index + before;
-        groupEnd = groupStart + match[i].length;
-      }
-    }
-
+    const span = indices?.[i];
     groups.push({
-      name: match.groups
-        ? Object.keys(match.groups).find((key) => match.groups![key] === match[i]) || null
-        : null,
+      name: groupNames[i - 1] ?? null,
       index: i,
       value: match[i],
-      start: groupStart,
-      end: groupEnd,
+      start: span ? span[0] : -1,
+      end: span ? span[1] : -1,
     });
   }
 

@@ -201,6 +201,13 @@ export class SteppingMatcher {
         return this.matchCapturingGroup(node, pos, cont);
       case 'nonCapturingGroup':
         return this.matchNonCapturingGroup(node, pos, cont);
+      case 'atomicGroup':
+        return this.matchAtomicGroup(node, pos, cont);
+      case 'inlineFlags':
+        // An instruction to the engine, not something to match. JavaScript
+        // rejects the syntax outright, so this is only ever reached for
+        // another flavour's pattern.
+        return cont(pos);
       case 'lookahead':
         return this.matchLookahead(node, pos, cont, false);
       case 'negativeLookahead':
@@ -500,6 +507,24 @@ export class SteppingMatcher {
   }
 
   // ── Lookaround ──────────────────────────────────────────────────────
+
+  private matchAtomicGroup(node: ASTNode, pos: number, cont: Continuation): number | null {
+    if (!this.record(node.id, pos, pos, 'enter-group', 'Enter atomic group')) return null;
+
+    this.depth++;
+    // Atomic: the body is matched on its own and its first result is final —
+    // the continuation can never make it give characters back.
+    const end = this.matchChildren(node.children || [], 0, pos, (e) => e);
+    this.depth--;
+
+    if (end === null) {
+      this.record(node.id, pos, pos, 'fail', '✗ Atomic group failed');
+      return null;
+    }
+
+    this.record(node.id, pos, end, 'exit-group', 'Exit atomic group (no backtracking into it)');
+    return cont(end);
+  }
 
   private matchLookahead(
     node: ASTNode,

@@ -26,6 +26,8 @@ export type IR =
   | {
       type: 'Group';
       capturing: boolean;
+      /** Overrides the derived caption, e.g. "Atomic". */
+      caption?: string;
       name?: string;
       index?: number;
       child: IR;
@@ -169,6 +171,17 @@ function astToIR(node: ASTNode): IR {
         child: wrapChildren(node),
         id: node.id,
       };
+    case 'atomicGroup':
+      return {
+        type: 'Group',
+        capturing: false,
+        caption: 'Atomic',
+        child: wrapChildren(node),
+        id: node.id,
+      };
+    case 'inlineFlags':
+      // Not a matcher — an instruction to the engine. Shown as a plain token.
+      return { type: 'Token', kind: 'special', label: `flags ${node.value}`, id: node.id };
     case 'lookahead':
     case 'negativeLookahead':
     case 'lookbehind':

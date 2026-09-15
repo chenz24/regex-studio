@@ -9,6 +9,10 @@ function nextNodeId(): string {
   return `ast_${nodeIdCounter++}`;
 }
 
+function isEmptySequence(node: ASTNode): boolean {
+  return node.type === 'sequence' && (node.children?.length ?? 0) === 0;
+}
+
 export function parseRegex(pattern: string): ASTNode {
   pos = 0;
   source = pattern;
@@ -28,8 +32,39 @@ export function parseRegex(pattern: string): ASTNode {
   }
 
   try {
-    const node = parseAlternation();
-    return node;
+    const parts: ASTNode[] = [];
+
+    // `parseAlternation` stops at a `)` it cannot consume. Rather than
+    // dropping the rest of an unbalanced pattern on the floor — `a)b` used to
+    // parse as just `a` — keep the stray delimiter as a literal and carry on,
+    // so the diagram still shows everything the user typed.
+    while (true) {
+      const node = parseAlternation();
+      if (!isEmptySequence(node)) parts.push(node);
+      if (pos >= source.length) break;
+      const strayStart = pos;
+      const ch = source[pos];
+      pos++;
+      parts.push({
+        type: 'literal',
+        value: ch,
+        raw: ch,
+        id: nextNodeId(),
+        start: strayStart,
+        end: pos,
+      });
+    }
+
+    if (parts.length === 1) return parts[0];
+    return {
+      type: 'sequence',
+      value: '',
+      children: parts,
+      raw: source.slice(0, pos),
+      id: nextNodeId(),
+      start: 0,
+      end: pos,
+    };
   } catch {
     return {
       type: 'literal',
@@ -101,6 +136,10 @@ function parseSequence(): ASTNode {
 }
 
 const HEX_DIGIT = /[0-9a-fA-F]/;
+/** Characters that can appear in an inline flag group such as `(?im-sx)`. */
+const INLINE_FLAG_CHAR = /[a-zA-Z-]/;
+/** Escapes that stand for a set of characters and so cannot bound a range. */
+const CLASS_ESCAPE = /^\\[dDwWsSpP]/;
 const CONTROL_LETTER = /[a-zA-Z]/;
 
 /** Consume `count` hex digits, but only if that many are actually there. */
@@ -197,42 +236,87 @@ function parseGroup(): ASTNode {
 
   if (pos < source.length && source[pos] === '?') {
     pos++;
-    if (pos < source.length) {
-      if (source[pos] === ':') {
-        type = 'nonCapturingGroup';
-        pos++;
-      } else if (source[pos] === '=') {
-        type = 'lookahead';
+    const marker = source[pos];
+
+    if (marker === ':') {
+      type = 'nonCapturingGroup';
+      pos++;
+    } else if (marker === '=') {
+      type = 'lookahead';
+      pos++;
+    } else if (marker === '!') {
+      type = 'negativeLookahead';
+      pos++;
+    } else if (marker === '>') {
+      // Atomic group (PCRE, Java, Ruby): matches once and never gives back.
+      type = 'atomicGroup';
+      pos++;
+    } else if (marker === '<') {
+      pos++;
+      if (source[pos] === '=') {
+        type = 'lookbehind';
         pos++;
       } else if (source[pos] === '!') {
-        type = 'negativeLookahead';
+        type = 'negativeLookbehind';
         pos++;
-      } else if (source[pos] === '<') {
+      } else {
+        type = 'namedGroup';
+        groupName = readGroupName();
+        groupCounter++;
+        groupIndex = groupCounter;
+      }
+    } else if (marker === 'P' && source[pos + 1] === '<') {
+      // Python's spelling of a named group.
+      pos += 2;
+      type = 'namedGroup';
+      groupName = readGroupName();
+      groupCounter++;
+      groupIndex = groupCounter;
+    } else if (marker === 'P' && source[pos + 1] === '=') {
+      // Python's spelling of a named backreference — a whole construct, not
+      // a group.
+      pos += 2;
+      let name = '';
+      while (pos < source.length && source[pos] !== ')') {
+        name += source[pos];
         pos++;
-        if (pos < source.length && source[pos] === '=') {
-          type = 'lookbehind';
-          pos++;
-        } else if (pos < source.length && source[pos] === '!') {
-          type = 'negativeLookbehind';
-          pos++;
-        } else {
-          type = 'namedGroup';
-          let name = '';
-          while (pos < source.length && source[pos] !== '>') {
-            name += source[pos];
-            pos++;
-          }
-          if (pos < source.length) pos++;
-          groupName = name;
-          groupCounter++;
-          groupIndex = groupCounter;
-        }
+      }
+      if (pos < source.length) pos++;
+      return {
+        type: 'backreference',
+        value: name,
+        groupName: name,
+        raw: source.slice(start, pos),
+        id: nextNodeId(),
+        start,
+        end: pos,
+      };
+    } else if (marker !== undefined && INLINE_FLAG_CHAR.test(marker)) {
+      // `(?i)` switches flags on from here; `(?i:…)` scopes them to a group.
+      const flagsStart = pos;
+      while (pos < source.length && INLINE_FLAG_CHAR.test(source[pos])) pos++;
+      const flags = source.slice(flagsStart, pos);
+      if (source[pos] === ':') {
+        pos++;
+        type = 'nonCapturingGroup';
+      } else {
+        if (source[pos] === ')') pos++;
+        return {
+          type: 'inlineFlags',
+          value: flags,
+          raw: source.slice(start, pos),
+          id: nextNodeId(),
+          start,
+          end: pos,
+        };
       }
     }
   } else {
     groupCounter++;
     groupIndex = groupCounter;
   }
+
+  const openLen = pos - start;
 
   const content = parseAlternation();
 
@@ -248,11 +332,23 @@ function parseGroup(): ASTNode {
     children: content.type === 'sequence' && content.children ? content.children : [content],
     groupName,
     groupIndex,
+    openLen,
     raw,
     id: nextNodeId(),
     start,
     end: pos,
   };
+}
+
+/** Read a group name up to and including the closing `>`. */
+function readGroupName(): string {
+  let name = '';
+  while (pos < source.length && source[pos] !== '>') {
+    name += source[pos];
+    pos++;
+  }
+  if (pos < source.length) pos++;
+  return name;
 }
 
 function parseCharacterClass(): ASTNode {
@@ -281,11 +377,14 @@ function parseCharacterClass(): ASTNode {
         end: pos,
       };
 
+      // `[\d-z]` is not a range: a shorthand class has no single code point
+      // to count from, so the `-` is a literal.
       if (
         pos < source.length &&
         source[pos] === '-' &&
         pos + 1 < source.length &&
-        source[pos + 1] !== ']'
+        source[pos + 1] !== ']' &&
+        !CLASS_ESCAPE.test(escNode.value)
       ) {
         const rangeStart = escStart;
         pos++;
@@ -320,7 +419,8 @@ function parseCharacterClass(): ASTNode {
         pos < source.length &&
         source[pos] === '-' &&
         pos + 1 < source.length &&
-        source[pos + 1] !== ']'
+        source[pos + 1] !== ']' &&
+        !CLASS_ESCAPE.test(source.slice(pos + 1, pos + 3))
       ) {
         pos++;
         const rangeEnd = parseClassAtom();

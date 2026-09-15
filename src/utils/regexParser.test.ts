@@ -19,6 +19,13 @@ describe('parseRegex', () => {
       '(?<year>\\d{4})-(?<month>\\d{2})',
       'a(?=b)c',
       '[\\]]',
+      '(?i)abc',
+      '(?i:ab)',
+      '(?>ab)',
+      '(?P<n>a)(?P=n)',
+      'a)b',
+      '(abc',
+      '[a-\\d]',
     ]) {
       expect(parseRegex(pattern).raw).toBe(pattern);
     }
@@ -75,6 +82,86 @@ describe('parseRegex', () => {
         groupName: 'name',
         raw: '\\k<name>',
       });
+    });
+  });
+
+  describe('syntax from other flavours', () => {
+    it('reads inline flags as their own node, not a capturing group', () => {
+      const ast = parseRegex('(?i)abc');
+      expect(ast.children?.[0]).toMatchObject({
+        type: 'inlineFlags',
+        value: 'i',
+        raw: '(?i)',
+      });
+    });
+
+    it('reads a flag set with a negation', () => {
+      expect(parseRegex('(?im-sx)a').children?.[0]).toMatchObject({
+        type: 'inlineFlags',
+        value: 'im-sx',
+      });
+    });
+
+    it('treats scoped flags as a non-capturing group', () => {
+      const ast = parseRegex('(?i:ab)');
+      expect(ast).toMatchObject({ type: 'nonCapturingGroup', openLen: 4 });
+      expect(ast.children?.map((c) => c.raw)).toEqual(['a', 'b']);
+    });
+
+    it('reads an atomic group', () => {
+      const ast = parseRegex('(?>ab)');
+      expect(ast).toMatchObject({ type: 'atomicGroup', openLen: 3 });
+      expect(ast.children?.map((c) => c.raw)).toEqual(['a', 'b']);
+    });
+
+    it("reads Python's named group and backreference", () => {
+      const group = parseRegex('(?P<n>a)');
+      expect(group).toMatchObject({
+        type: 'namedGroup',
+        groupName: 'n',
+        groupIndex: 1,
+        openLen: 6,
+      });
+
+      const backref = parseRegex('(?P=n)');
+      expect(backref).toMatchObject({ type: 'backreference', groupName: 'n', value: 'n' });
+    });
+  });
+
+  describe('unbalanced input', () => {
+    it('keeps a stray closing parenthesis and everything after it', () => {
+      // The trailing `b` used to be dropped, so the diagram quietly showed
+      // less than the user had typed.
+      const ast = parseRegex('a)b');
+      expect(ast.children?.map((c) => c.raw)).toEqual(['a', ')', 'b']);
+      expect(ast.raw).toBe('a)b');
+    });
+
+    it('tolerates a group that is never closed', () => {
+      const ast = parseRegex('(abc');
+      expect(ast).toMatchObject({ type: 'group', raw: '(abc' });
+      expect(ast.children?.map((c) => c.raw)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('parses a lone closing parenthesis', () => {
+      expect(parseRegex(')')).toMatchObject({ type: 'literal', raw: ')' });
+    });
+  });
+
+  describe('character classes', () => {
+    it('does not build a range out of a shorthand class', () => {
+      // `[a-\d]` is a, a literal dash, and \d — `\d` has no code point to
+      // count to.
+      const ast = parseRegex('[a-\\d]');
+      expect(ast.children?.map((c) => `${c.type}:${c.raw}`)).toEqual([
+        'literal:a',
+        'literal:-',
+        'escape:\\d',
+      ]);
+    });
+
+    it('still builds ordinary ranges', () => {
+      expect(parseRegex('[a-z]').children?.[0]).toMatchObject({ type: 'range', raw: 'a-z' });
     });
   });
 

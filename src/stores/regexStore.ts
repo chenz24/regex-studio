@@ -150,7 +150,12 @@ function useMatchOutcome(input: MatchInput): MatchOutcome & { pending: boolean }
   }, [key, input]);
 
   const settled = entry.key === key ? entry.outcome : cachedOutcome(key);
-  return { ...(settled ?? entry.outcome), pending: settled === undefined };
+  // Must be memoised: consumers key effects off the derived object, and a
+  // fresh identity on every render turns those into an update loop.
+  return useMemo(
+    () => ({ ...(settled ?? entry.outcome), pending: settled === undefined }),
+    [settled, entry.outcome],
+  );
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────

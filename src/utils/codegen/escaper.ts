@@ -1,6 +1,51 @@
 import type { CodeGenLanguage } from './types';
 
 /**
+ * Escape the delimiters of a `/.../` regex literal.
+ *
+ * Only *unescaped* slashes may be touched: a blanket replace turns the
+ * already-valid `https:\/\/` into `https:\\/\\/`, which ends the literal
+ * early and makes the generated code a syntax error.
+ */
+function escapeLiteralSlashes(pattern: string): string {
+  let out = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      // Copy the escape sequence through untouched.
+      out += ch + (pattern[i + 1] ?? '');
+      i++;
+      continue;
+    }
+    out += ch === '/' ? '\\/' : ch;
+  }
+  return out;
+}
+
+/**
+ * Python string literal for `value`.
+ *
+ * Prefers a raw string — idiomatic for patterns, and required for
+ * replacements, where `'\1'` would be read as the control character U+0001
+ * instead of a group reference. Falls back to a normal escaped string for
+ * the values a raw string cannot express: those containing both quote
+ * styles or a newline, or ending in an odd run of backslashes.
+ */
+export function pythonStringLiteral(value: string): string {
+  const unrawable = /[\n\r]/.test(value) || /(?:^|[^\\])(?:\\\\)*\\$/.test(value);
+  if (!unrawable) {
+    if (!value.includes("'")) return `r'${value}'`;
+    if (!value.includes('"')) return `r"${value}"`;
+  }
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+  return `'${escaped}'`;
+}
+
+/**
  * Escape a regex pattern for use in different languages
  */
 export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
@@ -8,11 +53,11 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
     case 'javascript':
     case 'typescript':
       // For regex literal /.../, escape forward slashes
-      return pattern.replace(/\//g, '\\/');
+      return escapeLiteralSlashes(pattern);
 
     case 'python':
-      // For raw string r'...', escape single quotes
-      return pattern.replace(/'/g, "\\'");
+      // Callers wrap the result with pythonStringLiteral().
+      return pattern;
 
     case 'java':
     case 'kotlin':
@@ -44,7 +89,7 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
 
     case 'ruby':
       // For regex literal /.../, escape forward slashes
-      return pattern.replace(/\//g, '\\/');
+      return escapeLiteralSlashes(pattern);
 
     case 'swift':
       // For string "...", escape backslashes and quotes
@@ -151,7 +196,9 @@ export function escapeReplacement(replacement: string, lang: CodeGenLanguage): s
         .replace(/\$(\d+)/g, '\\$1')
         .replace(/\$<(\w+)>/g, '\\g<$1>')
         .replace(/\$&/g, '\\g<0>');
-      return `'${pyRepl.replace(/'/g, "\\'")}'`;
+      // Must be a raw string: in a normal literal `'\1'` is U+0001, not a
+      // group reference.
+      return pythonStringLiteral(pyRepl);
     }
 
     case 'java':

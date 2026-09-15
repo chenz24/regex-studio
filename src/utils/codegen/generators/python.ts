@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
+import { escapePattern, escapeTestString, escapeReplacement, pythonStringLiteral } from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generatePython(ctx: CodeGenContext): CodeGenResult {
@@ -11,7 +11,7 @@ export function generatePython(ctx: CodeGenContext): CodeGenResult {
     warnings.push(`Flags not supported in Python: ${flagMapping.unsupportedFlags.join(', ')}`);
   }
 
-  const escapedPattern = escapePattern(pattern, 'python');
+  const patternLiteral = pythonStringLiteral(escapePattern(pattern, 'python'));
   const testStr = escapeTestString(testText, 'python');
   const replaceStr = escapeReplacement(replaceText, 'python');
 
@@ -22,7 +22,7 @@ export function generatePython(ctx: CodeGenContext): CodeGenResult {
 
   switch (operation) {
     case 'test':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 
 is_match = bool(pattern.search(text))
@@ -30,7 +30,7 @@ print(f"Match: {is_match}")`;
       break;
 
     case 'match':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 
 match = pattern.search(text)
@@ -45,7 +45,7 @@ else:
       break;
 
     case 'matchAll':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 
 matches = list(pattern.finditer(text))
@@ -55,7 +55,7 @@ for i, match in enumerate(matches):
       break;
 
     case 'capture':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 
 matches = list(pattern.finditer(text))
@@ -70,7 +70,7 @@ for i, match in enumerate(matches):
       break;
 
     case 'replace':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 replacement = ${replaceStr}
 
@@ -79,7 +79,7 @@ print(f"Result: {result}")`;
       break;
 
     case 'split':
-      code += `pattern = re.compile(r'${escapedPattern}'${flagsArg})
+      code += `pattern = re.compile(${patternLiteral}${flagsArg})
 text = ${testStr}
 
 parts = pattern.split(text)

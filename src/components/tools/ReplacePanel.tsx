@@ -12,6 +12,7 @@ interface ReplacePanelProps {
   onReplacementChange: (value: string) => void;
   replacedText: string;
   matchCount: number;
+  matchesTruncated?: boolean;
 }
 
 export function ReplacePanel({
@@ -22,6 +23,7 @@ export function ReplacePanel({
   onReplacementChange,
   replacedText,
   matchCount,
+  matchesTruncated,
 }: ReplacePanelProps) {
   const t = useT();
   const [copied, setCopied] = useState(false);
@@ -198,9 +200,11 @@ export function ReplacePanel({
         <div className="relative">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {matchCount === 1
-                ? t.replace_result_label_one({ count: String(matchCount) })
-                : t.replace_result_label_other({ count: String(matchCount) })}
+              {matchesTruncated
+                ? t.replace_result_all_matches()
+                : matchCount === 1
+                  ? t.replace_result_label_one({ count: String(matchCount) })
+                  : t.replace_result_label_other({ count: String(matchCount) })}
             </span>
             <button
               onClick={handleCopy}
@@ -210,7 +214,10 @@ export function ReplacePanel({
               {copied ? t.replace_copied() : t.replace_copy_result()}
             </button>
           </div>
-          <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 font-mono text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto custom-scrollbar">
+          <div
+            data-testid="replacement-result"
+            className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 font-mono text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto custom-scrollbar"
+          >
             {replacedText}
           </div>
         </div>

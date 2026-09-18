@@ -45,12 +45,12 @@ Beyond the basics like live matching and capture-group inspection, RegexStudio o
 ### Debugging & Testing
 
 - � **Step-by-step debugger** — Walk through the matching process step by step, with backtracking visualization and capture-group snapshots
-- ✅ **Test-case panel** — Manage multiple test strings with expected match / no-match outcomes and one-click batch run
+- ✅ **Test-case panel** — Assert match / no-match, exact counts, texts, ranges, captures and replacement output; save expectations and compare failures
 - ⚠️ **Compatibility warnings** — Static checks that flag features unsupported by your target engine
 
 ### Multi-flavor & Code Generation
 
-- 🌐 **Execution engines** — Native JavaScript and PCRE2 10.47 (WebAssembly); Python, Java, Go, .NET and Rust remain compatibility targets using JavaScript execution
+- 🌐 **Execution engines** — Native JavaScript and PCRE2 10.47 (WebAssembly); Python, Java, Go, .NET and Rust are independent static compatibility targets and do not change execution
 - 🛠️ **Code generator** — One-click snippets for **10 languages**: JavaScript / TypeScript, Python, Java, Go, Rust, C# (.NET), PHP, Ruby, Swift, Kotlin
 
 ### PCRE2 execution
@@ -79,9 +79,54 @@ quantifiers, and the `g/i/m/s/u/x/U/J` controls. `g` enables global iteration.
   being applied. Literal input is escaped automatically; repetition applies to
   the entire selected text. Other constructs can be changed in the main editor.
 - PCRE2 cross-engine compatibility checks are not yet available.
+- Execution engines and compatibility targets are selected independently. Checks
+  cover only some syntax; changing a target never changes matching or execution flags.
+- Old v1/v2 share links migrate to v3 with their actual execution flags preserved.
+  Previously display-only language options remain informational.
 - The generated runtime is checked in, so `pnpm build` needs no C compiler.
   See [runtime build instructions](src/vendor/pcre2/README.md) and the
   [PCRE2 licence](src/vendor/pcre2/LICENSE.md).
+
+### Test-case expectations
+
+Open **Tests → Expectations & results** to enable assertions or **Set current result as expected**.
+The latter saves counts, texts, UTF-16 ranges and captures; enable **Replacement output** first
+if you also want to save the current substitution result. Editing an expected value creates a
+draft: click **Save expectation** to apply it. All enabled expectations must pass.
+
+- Match texts, ranges and capture lists are ordered JSON arrays, one item per match.
+  Ranges are `[start, end)` in UTF-16 units. Capture objects contain `index`, `name`,
+  `value`, `start`, `end`; `null` with `-1/-1` denotes an unmatched group, while `""`
+  denotes a participating empty group. Captures may precede a full match after `\K`.
+- Pending, timed-out, invalid, failed or incomplete executions cannot become passing
+  expectations. At most 10,000 matches are counted; an extra match marks the count
+  incomplete. Details retain up to 100 matches per case within a shared batch budget.
+  Complete counts can still be checked when only details are capped.
+- Filter failed or inconclusive cases, or compare results with a baseline kept while the
+  panel stays open. A failing case can be loaded into the main text editor.
+- **Export JSON / Import JSON** moves test cases and expectations. Imports append cases
+  with new IDs and use the current workspace settings, up to 1,000 total cases.
+  Large exported inputs and assertions can be imported without a separate file-size limit.
+  Use **Share** for the complete engine/pattern/flags/replacement workspace.
+  New v3 links preserve assertions; v1/v2 links keep their original match/no-match behavior.
+
+### Linked result inspection
+
+Select a match or capture in **Matches** to highlight its native text range and source.
+Captures also highlight their railroad group; a full match highlights the whole expression.
+Click highlighted test text to open its match, or select source text / click a railroad node
+to locate the corresponding syntax. **Show source / Show test text** brings that editor into view.
+
+- Offsets use UTF-16 `[start, end)`. Empty matches and captures have position markers;
+  unmatched groups stay visible. Lookbehind and `\K` captures retain their actual ranges.
+- Branch-reset groups can have multiple source definitions: all candidates are highlighted
+  with an explanation. If visual parsing is unavailable, capture-to-source navigation is
+  disabled; native matching and text ranges still work.
+- In **Debugger**, enable **Follow steps in editors** or use the location buttons for a
+  single step. PCRE2 uses native callout source offsets, including positions at the end
+  of the expression, even when the railroad parser cannot represent the syntax.
+- Editing the expression, flags, engine or test text clears stale selections. Narrow screens
+  stack the editors and tools, with section navigation that does not focus the text editor.
 
 ### Learning
 
@@ -165,8 +210,21 @@ pnpm preview    # preview the production bundle locally
 | `pnpm verify:content` | Check every challenge and lesson reference solution |
 | `pnpm verify:codegen` | Compile and run the generated snippets (needs the toolchains) |
 | `pnpm verify:debugger` | Compare debugger results and captures with native RegExp (fixed seed; override with `REGEX_FUZZ_SEED`) |
+| `pnpm test:e2e` | Build and run five real-browser regression projects |
+| `pnpm test:e2e:built` | Run browser tests against an existing build |
 | `pnpm test:watch` | Run the unit tests in watch mode |
 | `pnpm check` | Run typecheck + lint + tests together |
+
+### Browser regression tests
+
+Install browsers with `pnpm exec playwright install chromium firefox webkit`
+(add `--with-deps` on Linux CI). `pnpm test:e2e` starts an isolated production
+preview on port 4187 and runs Chromium, Firefox, WebKit, mobile Chrome and mobile
+WebKit emulation. Matching uses real Workers and WASM; resource request routing
+exercises loading delays and network failures. Mobile emulation does not replace
+real-device checks for the software keyboard and text selection.
+Failure screenshots and traces are saved in `test-results/`. GitHub Actions runs
+checks for pull requests, pushes to main, and manual dispatches.
 
 ### Project Structure
 

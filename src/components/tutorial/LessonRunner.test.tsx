@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as matchEngine from '@/utils/matchEngine';
 import { useRegexStore } from '@/stores/regexStore';
@@ -30,6 +30,36 @@ async function startLesson(stepIndex = 0) {
 }
 
 describe('LessonRunner', () => {
+  it('resets revealed hints between steps and lessons with the same step ID', async () => {
+    await startLesson();
+    const { getByRole, queryByText } = render(<LessonRunner />);
+    fireEvent.click(getByRole('button', { name: 'Need a hint? (1/1)' }));
+    expect(
+      queryByText('Characters with no special meaning match themselves. Just type `cat`.'),
+    ).not.toBeNull();
+    await act(async () => useTutorialStore.getState().goTo(2));
+    expect(getByRole('button', { name: 'Need a hint? (1/2)' })).toBeTruthy();
+    expect(queryByText('You need some notion of "word boundary".')).toBeNull();
+    await act(async () => useTutorialStore.getState().goTo(0));
+    fireEvent.click(getByRole('button', { name: 'Need a hint? (1/1)' }));
+    await act(async () => useTutorialStore.getState().startLesson('basics-dot-and-escapes'));
+    expect(getByRole('button', { name: 'Need a hint? (1/1)' })).toBeTruthy();
+  });
+
+  it('does not reveal or unlock another step’s solution after showing one', async () => {
+    await startLesson(2);
+    const { getByRole, queryByRole } = render(<LessonRunner />);
+    await waitFor(() => expect(useTutorialStore.getState().lastResult).not.toBeNull());
+    await act(async () => useTutorialStore.setState({ failCount: 4 }));
+    fireEvent.click(getByRole('button', { name: 'Show solution' }));
+    expect(getByRole('button', { name: 'Solution shown' })).toBeTruthy();
+    await act(async () => useTutorialStore.getState().startLesson('basics-dot-and-escapes', 1));
+    expect(queryByRole('button', { name: 'Solution shown' })).toBeNull();
+    expect((getByRole('button', { name: 'Show solution' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
   it('withholds validation while matching is pending or timed out', async () => {
     await startLesson();
     const { getByRole } = render(<LessonRunner />);

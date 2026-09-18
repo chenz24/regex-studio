@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapeTestString, escapeReplacement } from '../escaper';
+import { contextReplacement, escapeTestString, escapeReplacement } from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generateRust(ctx: CodeGenContext): CodeGenResult {
@@ -22,6 +22,12 @@ export function generateRust(ctx: CodeGenContext): CodeGenResult {
 
   const testStr = escapeTestString(testText, 'rust');
   const replaceStr = escapeReplacement(replaceText, 'rust', pattern);
+
+  const contextual = contextReplacement(replaceText, 'rust', pattern, {
+    capture: (index) => `caps.get(${index}).map_or("", |m| m.as_str())`,
+    prefix: '&text[..caps.get(0).unwrap().start()]',
+    suffix: '&text[caps.get(0).unwrap().end()..]',
+  });
 
   let code = `use regex::Regex;
 
@@ -52,7 +58,7 @@ fn main() {
     let matches: Vec<_> = pattern.find_iter(text).collect();
     println!("Found {} matches:", matches.len());
     for (i, m) in matches.iter().enumerate() {
-        println!("[{}] \\"{}" at index {}", i, m.as_str(), m.start());
+        println!("[{}] \\"{}\\" at index {}", i, m.as_str(), m.start());
     }`;
       break;
 
@@ -71,7 +77,7 @@ fn main() {
     case 'replace':
       code += `
     let replacement = ${replaceStr};
-    let result = pattern.replace_all(text, replacement);
+    let result = ${contextual ? `pattern.replacen(text, ${flags.includes('g') ? 0 : 1}, |caps: &regex::Captures<'_>| ${contextual})` : `pattern.${flags.includes('g') ? 'replace_all' : 'replace'}(text, replacement)`};
     println!("Result: {}", result);`;
       break;
 

@@ -126,6 +126,15 @@ function getQuantifierDesc(t: Messages, raw: string): string {
 }
 
 function getNodeMeta(t: Messages, node: ASTNode): NodeMeta {
+  if (node.unicodeSet) {
+    return {
+      color: 'yellow',
+      title: t.explain_unicode_set_title(),
+      desc: t.explain_unicode_set_desc(),
+      openChar: node.type === 'negatedCharacterClass' ? '[^' : '[',
+      closeChar: ']',
+    };
+  }
   switch (node.type) {
     case 'resetStart':
       return {
@@ -481,15 +490,17 @@ function ExplainNode({
         </div>
       </div>
 
-      {isCharClass && node.children && node.children.length > 0 && (
+      {isCharClass && (node.unicodeSet || (node.children && node.children.length > 0)) && (
         <div className="mx-4 mb-2 pl-3 border-l-2 border-gray-300/40 dark:border-gray-600/40 bg-gray-100/60 dark:bg-gray-800/40 py-2 px-3 rounded-r-md">
           <span className="font-mono text-gray-700 dark:text-gray-300 text-xs">
-            {node.children
-              .map((c) => {
-                if (c.type === 'range') return c.value;
-                return c.raw || c.value;
-              })
-              .join(', ')}
+            {node.unicodeSet
+              ? node.raw
+              : node
+                  .children!.map((c) => {
+                    if (c.type === 'range') return c.value;
+                    return c.raw || c.value;
+                  })
+                  .join(', ')}
           </span>
         </div>
       )}

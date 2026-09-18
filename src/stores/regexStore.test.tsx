@@ -14,6 +14,8 @@ beforeEach(() => {
       replacement: '',
       testCases: [],
       engine: 'javascript',
+      compatibilityTarget: null,
+      legacyTargetFlags: '',
       flags: initial.flags,
     });
   });
@@ -27,6 +29,24 @@ async function renderDerived() {
 }
 
 describe('useRegexDerived', () => {
+  it('changes compatibility warnings without changing execution, flags or results', async () => {
+    act(() => {
+      useRegexStore.getState().loadPattern('a(?=b)', 'g');
+      useRegexStore.getState().setTestText('ab ab');
+    });
+    const { result } = await renderDerived();
+    const matches = result.current.matches;
+    const flags = useRegexStore.getState().flags;
+    await act(async () => useRegexStore.getState().setCompatibilityTarget('go'));
+    expect(result.current.executionEngine).toBe('javascript');
+    expect(result.current.matches).toBe(matches);
+    expect(result.current.matches).toHaveLength(2);
+    expect(useRegexStore.getState().flags).toBe(flags);
+    expect(result.current.compatibilityWarnings).toHaveLength(1);
+    await act(async () => useRegexStore.getState().setCompatibilityTarget(null));
+    expect(result.current.compatibilityWarnings).toEqual([]);
+    expect(result.current.matches).toBe(matches);
+  });
   it('computes matches for the current pattern', async () => {
     const { result } = await renderDerived();
     expect(result.current.validation.valid).toBe(true);

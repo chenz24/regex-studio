@@ -15,6 +15,8 @@ import { findNodeById } from '../../lib/ast';
 import { useT } from '@/lib/i18n';
 
 interface DebuggerPanelProps {
+  onInspectStep?: (step: DebugStep | null) => void;
+  onReveal?: (target: 'pattern' | 'text') => void;
   truncationMessage?: string;
   result?: DebugResult;
   ast: ASTNode;
@@ -41,6 +43,8 @@ const ACTION_STYLES: Record<string, { color: string; bg: string; icon: string }>
 // ─── Component ────────────────────────────────────────────────────────
 
 export function DebuggerPanel({
+  onInspectStep,
+  onReveal,
   ast,
   pattern,
   testText,
@@ -49,7 +53,9 @@ export function DebuggerPanel({
   truncationMessage,
 }: DebuggerPanelProps) {
   const t = useT();
-  const [currentStep, setCurrentStep] = useState(0);
+  const [stepCursor, setCurrentStep] = useState(0);
+  const [followStep, setFollowStep] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(300);
   const stepListRef = useRef<HTMLDivElement>(null);
@@ -71,18 +77,25 @@ export function DebuggerPanel({
     return debugRegex(ast, testText, flagString);
   }, [ast, testText, flagString, pattern, result]);
 
+  const activeResultRef = useRef(debugResult);
+  const currentStep = activeResultRef.current === debugResult ? stepCursor : 0;
   const { steps } = debugResult;
   const totalSteps = steps.length;
   const step: DebugStep | null = totalSteps > 0 ? (steps[currentStep] ?? null) : null;
 
   // Reset when the inputs change — otherwise the cursor keeps pointing into
   // the step list of the previous pattern.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the recomputed result
   useEffect(() => {
+    activeResultRef.current = debugResult;
     setCurrentStep(0);
     setPlaying(false);
     playingRef.current = false;
   }, [debugResult]);
+
+  useEffect(() => {
+    onInspectStep?.(followStep && !debugResult.error ? step : null);
+  }, [followStep, step, debugResult.error, onInspectStep]);
+  useEffect(() => () => onInspectStep?.(null), [onInspectStep]);
 
   // Auto-play
   useEffect(() => {
@@ -110,7 +123,9 @@ export function DebuggerPanel({
     const container = stepListRef.current;
     const activeEl = container.querySelector(`[data-step="${currentStep}"]`);
     if (activeEl) {
-      activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      const offset = activeEl.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      if (offset < 0 || offset + activeEl.clientHeight > container.clientHeight)
+        container.scrollTop += offset;
     }
   }, [currentStep]);
 
@@ -140,10 +155,18 @@ export function DebuggerPanel({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (
+        e.defaultPrevented ||
+        !(e.target instanceof HTMLElement) ||
+        !panelRef.current?.contains(e.target)
+      )
+        return;
+      if (e.key === ' ' && e.target.closest('button')) return;
+      if (
         e.target instanceof HTMLElement &&
         (e.target.isContentEditable ||
           e.target instanceof HTMLInputElement ||
-          e.target instanceof HTMLTextAreaElement)
+          e.target instanceof HTMLTextAreaElement ||
+          e.target instanceof HTMLSelectElement)
       )
         return;
       if (e.key === 'ArrowLeft') {
@@ -188,7 +211,42 @@ export function DebuggerPanel({
   }
 
   return (
-    <div className="flex flex-col gap-3 max-w-3xl mx-auto">
+    <div
+      ref={panelRef}
+      role="region"
+      aria-label={t.tab_debugger()}
+      className="flex flex-col gap-3 max-w-3xl mx-auto outline-none"
+    >
+      {onInspectStep && (
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={followStep}
+              onChange={(event) => setFollowStep(event.target.checked)}
+            />
+            {t.inspection_follow_steps()}
+          </label>
+          <button
+            className="underline text-violet-700 dark:text-violet-300"
+            onClick={() => {
+              onInspectStep(step);
+              onReveal?.('pattern');
+            }}
+          >
+            {t.inspection_show_source()}
+          </button>
+          <button
+            className="underline text-violet-700 dark:text-violet-300"
+            onClick={() => {
+              onInspectStep(step);
+              onReveal?.('text');
+            }}
+          >
+            {t.inspection_show_text()}
+          </button>
+        </div>
+      )}
       {/* Pattern Display */}
       <PatternDisplay pattern={pattern} step={step} ast={ast} />
 
@@ -268,6 +326,7 @@ export function DebuggerPanel({
             <button
               key={s.id}
               data-step={idx}
+              aria-current={isCurrent ? 'step' : undefined}
               onClick={() => {
                 setCurrentStep(idx);
                 setPlaying(false);
@@ -430,6 +489,7 @@ function StepInfo({ step }: { step: DebugStep }) {
 
   return (
     <div
+      data-testid="debugger-current-step"
       className={`rounded-lg border border-gray-200 dark:border-gray-700/80 ${style.bg} overflow-hidden`}
     >
       <div className="px-3 py-2 flex items-start gap-2">

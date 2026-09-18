@@ -15,14 +15,18 @@ vi.mock('../utils/matchEngine', async (original) => ({
   runMatch: vi.fn(),
 }));
 
-let requests: Array<{ input: MatchInput; resolve: (outcome: MatchOutcome) => void }>;
+let requests: Array<{
+  input: MatchInput;
+  signal?: AbortSignal;
+  resolve: (outcome: MatchOutcome) => void;
+}>;
 afterEach(cleanup);
 beforeEach(() => {
   requests = [];
   vi.mocked(runMatch).mockImplementation(
-    (input) =>
+    (input, signal) =>
       new Promise((resolve) => {
-        requests.push({ input, resolve });
+        requests.push({ input, signal, resolve });
       }),
   );
   act(() => {
@@ -37,6 +41,15 @@ beforeEach(() => {
 });
 
 describe('asynchronous matching results', () => {
+  it('releases obsolete work on edit and unmount', () => {
+    const { unmount } = renderHook(() => useRegexDerived());
+    expect(requests[0].signal?.aborted).toBe(false);
+    act(() => useRegexStore.getState().setPattern('new'));
+    expect(requests[0].signal?.aborted).toBe(true);
+    expect(requests[1].signal?.aborted).toBe(false);
+    unmount();
+    expect(requests[1].signal?.aborted).toBe(true);
+  });
   it('does not evaluate arbitrary input inline when another consumer mounts', () => {
     const { result } = renderHook(() => useRegexDerived());
     expect(result.current.pending).toBe(true);
@@ -65,6 +78,20 @@ describe('asynchronous matching results', () => {
     expect(result.current.timedOut).toBe(true);
     expect(result.current.testsPassed).toBe(0);
     expect(result.current.testResults.every((r) => r.timedOut && !r.pass)).toBe(true);
+  });
+
+  it('regrades saved expectations without rerunning even an uncached timeout', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () => requests[0].resolve(timedOutOutcome(requests[0].input)));
+    act(() => useRegexStore.getState().updateTestCase('positive', { assertions: { count: 2 } }));
+    expect(requests).toHaveLength(1);
+    expect(result.current.testResults[0].status).toBe('inconclusive');
+    act(() => result.current.retry());
+    await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
+    expect(result.current.testResults[0].status).toBe('fail');
+    act(() => useRegexStore.getState().updateTestCase('positive', { assertions: { count: 1 } }));
+    expect(requests).toHaveLength(2);
+    expect(result.current.testResults[0].status).toBe('pass');
   });
 
   it('ignores a response belonging to an earlier input', async () => {

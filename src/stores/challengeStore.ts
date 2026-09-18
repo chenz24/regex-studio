@@ -4,6 +4,7 @@ import { challengeCaseId } from '@/challenges/evaluator';
 import type { ChallengeProgress, PersistedChallengeProgress } from '@/challenges/types';
 import { useRegexStore } from './regexStore';
 import type { TestCase } from '@/types/regex';
+import type { ExecutionEngine, CompatibilityTarget } from '@/types/engineTypes';
 
 const STORAGE_KEY = 'regex-studio:challenges-progress';
 const STORAGE_VERSION = 1;
@@ -14,8 +15,12 @@ interface SnapshotBeforeChallenge {
   pattern: string;
   flagString: string;
   testText: string;
+  replacement: string;
+  showReplace: boolean;
   testCases: TestCase[];
-  engine: string;
+  engine: ExecutionEngine;
+  compatibilityTarget: CompatibilityTarget | null;
+  legacyTargetFlags: string;
 }
 
 interface State {
@@ -80,8 +85,12 @@ function snapshotRegex(): SnapshotBeforeChallenge {
       .map((f) => f.key)
       .join(''),
     testText: r.testText,
+    replacement: r.replacement,
+    showReplace: r.showReplace,
     testCases: r.testCases,
     engine: r.engine,
+    compatibilityTarget: r.compatibilityTarget,
+    legacyTargetFlags: r.legacyTargetFlags,
   };
 }
 
@@ -98,9 +107,13 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     const { snapshotBeforeChallenge } = get();
     if (snapshotBeforeChallenge) {
       const r = useRegexStore.getState();
-      r.setEngine(snapshotBeforeChallenge.engine as Parameters<typeof r.setEngine>[0]);
+      r.setEngine(snapshotBeforeChallenge.engine);
+      r.setCompatibilityTarget(snapshotBeforeChallenge.compatibilityTarget);
+      r.setLegacyTargetFlags(snapshotBeforeChallenge.legacyTargetFlags);
       r.loadPattern(snapshotBeforeChallenge.pattern, snapshotBeforeChallenge.flagString);
       r.setTestText(snapshotBeforeChallenge.testText);
+      r.setReplacement(snapshotBeforeChallenge.replacement);
+      r.setShowReplace(snapshotBeforeChallenge.showReplace);
       r.setTestCases(snapshotBeforeChallenge.testCases);
     }
     set({ view: 'closed', currentChallengeId: null, snapshotBeforeChallenge: null });
@@ -146,9 +159,13 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
     const { snapshotBeforeChallenge } = get();
     if (restore && snapshotBeforeChallenge) {
       const r = useRegexStore.getState();
-      r.setEngine(snapshotBeforeChallenge.engine as Parameters<typeof r.setEngine>[0]);
+      r.setEngine(snapshotBeforeChallenge.engine);
+      r.setCompatibilityTarget(snapshotBeforeChallenge.compatibilityTarget);
+      r.setLegacyTargetFlags(snapshotBeforeChallenge.legacyTargetFlags);
       r.loadPattern(snapshotBeforeChallenge.pattern, snapshotBeforeChallenge.flagString);
       r.setTestText(snapshotBeforeChallenge.testText);
+      r.setReplacement(snapshotBeforeChallenge.replacement);
+      r.setShowReplace(snapshotBeforeChallenge.showReplace);
       r.setTestCases(snapshotBeforeChallenge.testCases);
     }
     set({ view: 'catalog', currentChallengeId: null, snapshotBeforeChallenge: null });

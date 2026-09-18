@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { RegexFlag, MatchInfo, ASTNode, TestCase, TestCaseResult } from '../types/regex';
-import type { RegexEngine, CompatibilityWarning } from '../types/engineTypes';
+import type {
+  ExecutionEngine,
+  CompatibilityTarget,
+  CompatibilityWarning,
+} from '../types/engineTypes';
 import { ENGINE_FLAVORS, toJsFlagString } from '../types/engineTypes';
 import { parseRegex } from '../utils/regexParser';
 import { parsePcre2 } from '../utils/pcre2Parser';
@@ -15,12 +19,14 @@ import {
   type MatchInput,
   type MatchOutcome,
 } from '../utils/matchEngine';
+import { MAX_TEST_CASES } from '../lib/testCases';
+import { gradeTestCase } from '../utils/testCaseGrader';
 import { checkCompatibility } from '../utils/compatibilityChecker';
 import { layoutAST, type LayoutResult } from '../utils/diagramLayout';
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
-function getDefaultFlags(engine: RegexEngine): RegexFlag[] {
+function getDefaultFlags(engine: ExecutionEngine): RegexFlag[] {
   return ENGINE_FLAVORS[engine].flags.map((f) => ({ ...f }));
 }
 
@@ -34,7 +40,10 @@ foo bar baz 123 456`;
 
 interface RegexState {
   // Core state
-  engine: RegexEngine;
+  engine: ExecutionEngine;
+  compatibilityTarget: CompatibilityTarget | null;
+  /** Informational options recovered from a legacy share; never executed. */
+  legacyTargetFlags: string;
   pattern: string;
   flags: RegexFlag[];
   testText: string;
@@ -45,7 +54,6 @@ interface RegexState {
   testCases: TestCase[];
 
   // UI state
-  selectedMatch: number | null;
   hoveredNodeId: string | null;
 
   // History for pattern undo/redo
@@ -54,7 +62,9 @@ interface RegexState {
 }
 
 interface RegexActions {
-  setEngine: (engine: RegexEngine) => void;
+  setEngine: (engine: ExecutionEngine) => void;
+  setCompatibilityTarget: (target: CompatibilityTarget | null) => void;
+  setLegacyTargetFlags: (flags: string) => void;
   setPattern: (pattern: string) => void;
   toggleFlag: (key: string) => void;
   setTestText: (text: string) => void;
@@ -67,13 +77,13 @@ interface RegexActions {
   updateTestCase: (id: string, patch: Partial<Omit<TestCase, 'id'>>) => void;
   removeTestCase: (id: string) => void;
   setTestCases: (cases: TestCase[]) => void;
+  importTestCases: (cases: TestCase[]) => void;
 
   // History actions
   undoPattern: () => void;
   redoPattern: () => void;
 
   // UI actions
-  setSelectedMatch: (index: number | null) => void;
   setHoveredNodeId: (id: string | null) => void;
 }
 
@@ -81,12 +91,13 @@ interface RegexDerived {
   visualizationSupported: boolean;
   visualizationReason?: string;
   executionEngine: 'javascript' | 'pcre2';
-  /** Flags as displayed in `/pattern/flags` (target-engine view). */
+  /** Flags as displayed in `/pattern/flags` for the execution engine. */
   flagString: string;
   /** Flags actually forwarded to `new RegExp(...)`. JS-safe subset only. */
   jsFlagString: string;
   validation: { valid: boolean; error?: string };
   matches: MatchInfo[];
+  matchesTruncated: boolean;
   ast: ASTNode;
   diagram: LayoutResult;
   compatibilityWarnings: CompatibilityWarning[];
@@ -107,16 +118,18 @@ type RegexStore = RegexState & RegexActions;
 // ─── Derived State Selectors ───────────────────────────────────────────
 
 /** Everything derivable from the pattern alone — our own code, and bounded. */
-function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) {
+function computeStatic(
+  state: Pick<RegexState, 'engine' | 'pattern' | 'flags' | 'compatibilityTarget'>,
+) {
   const flagString = state.flags
     .filter((f) => f.enabled)
     .map((f) => f.key)
     .join('');
 
-  // Compatibility targets use only the JS-safe subset. PCRE2 receives its
-  // complete flagString separately, including x/U/J.
+  // PCRE2 receives its complete flagString, including x/U/J. Compatibility
+  // checks never participate in execution flag selection.
   const jsFlagString = toJsFlagString(state.flags);
-  const executionEngine: 'javascript' | 'pcre2' = state.engine === 'pcre2' ? 'pcre2' : 'javascript';
+  const executionEngine = state.engine;
   const validation =
     executionEngine === 'pcre2' ? { valid: true } : isValidRegex(state.pattern, jsFlagString);
 
@@ -130,7 +143,12 @@ function computeStatic(state: Pick<RegexState, 'engine' | 'pattern' | 'flags'>) 
   const diagram = layoutAST(ast);
 
   const compatibilityWarnings: CompatibilityWarning[] =
-    state.pattern && validation.valid ? checkCompatibility(ast, state.engine) : [];
+    state.pattern &&
+    validation.valid &&
+    executionEngine === 'javascript' &&
+    state.compatibilityTarget
+      ? checkCompatibility(ast, state.compatibilityTarget)
+      : [];
 
   return {
     visualizationSupported: visual?.supported ?? true,
@@ -186,11 +204,13 @@ function useMatchOutcome(
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt deliberately retries identical input.
   useEffect(() => {
     let cancelled = false;
-    runMatch(input).then((outcome) => {
+    const controller = new AbortController();
+    runMatch(input, controller.signal).then((outcome) => {
       if (!cancelled) setEntry({ key, engine: input.engine, outcome });
     });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [key, input, attempt]);
 
@@ -215,22 +235,30 @@ function useMatchOutcome(
 // ─── Store ─────────────────────────────────────────────────────────────
 
 const HISTORY_LIMIT = 100;
+const testCaseId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 export const useRegexStore = create<RegexStore>((set) => ({
   // Initial state
   engine: 'javascript',
+  compatibilityTarget: null,
+  legacyTargetFlags: '',
   pattern: DEFAULT_PATTERN,
   flags: getDefaultFlags('javascript'),
   testText: DEFAULT_TEXT,
   replacement: '',
   showReplace: false,
   testCases: [],
-  selectedMatch: null,
   hoveredNodeId: null,
   patternPast: [],
   patternFuture: [],
 
   // Actions
+  setCompatibilityTarget: (compatibilityTarget) =>
+    set({ compatibilityTarget, legacyTargetFlags: '' }),
+  setLegacyTargetFlags: (legacyTargetFlags) => set({ legacyTargetFlags }),
   setEngine: (engine) =>
     set((state) => {
       // Carry the user's choice across for flags the new engine also has —
@@ -303,21 +331,18 @@ export const useRegexStore = create<RegexStore>((set) => ({
       };
     }),
 
-  setSelectedMatch: (selectedMatch) => set({ selectedMatch }),
-
   setHoveredNodeId: (hoveredNodeId) => set({ hoveredNodeId }),
 
   addTestCase: (init) =>
     set((state) => {
-      const id =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      if (state.testCases.length >= MAX_TEST_CASES) return state;
+      const id = testCaseId();
       const newCase: TestCase = {
         id,
         label: init?.label ?? `Test ${state.testCases.length + 1}`,
         input: init?.input ?? '',
         expect: init?.expect ?? 'match',
+        assertions: init?.assertions,
       };
       return { testCases: [...state.testCases, newCase] };
     }),
@@ -333,12 +358,21 @@ export const useRegexStore = create<RegexStore>((set) => ({
     })),
 
   setTestCases: (testCases) => set({ testCases }),
+  importTestCases: (cases) =>
+    set((state) => {
+      if (state.testCases.length + cases.length > MAX_TEST_CASES)
+        throw new Error('Too many test cases');
+      return {
+        testCases: [...state.testCases, ...cases.map((test) => ({ ...test, id: testCaseId() }))],
+      };
+    }),
 }));
 
 // ─── Selector Hooks ────────────────────────────────────────────────────
 
 export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
   const engine = useRegexStore((s) => s.engine);
+  const compatibilityTarget = useRegexStore((s) => s.compatibilityTarget);
   const pattern = useRegexStore((s) => s.pattern);
   const flags = useRegexStore((s) => s.flags);
   const testText = useRegexStore((s) => s.testText);
@@ -347,10 +381,18 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
   const testCases = fixedTestCases ?? storedTestCases;
 
   const derived = useMemo(
-    () => computeStatic({ engine, pattern, flags }),
-    [engine, pattern, flags],
+    () => computeStatic({ engine, pattern, flags, compatibilityTarget }),
+    [engine, pattern, flags, compatibilityTarget],
   );
 
+  // Expectations and labels do not affect execution, including after a timeout.
+  const testInputKey = JSON.stringify(
+    testCases.map((tc) => [tc.input, tc.assertions?.replacement !== undefined]),
+  );
+  const testRequests = useMemo(
+    () => JSON.parse(testInputKey) as [string, boolean][],
+    [testInputKey],
+  );
   const matchInput: MatchInput = useMemo(
     () => ({
       engine: derived.executionEngine,
@@ -360,7 +402,8 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
       flags: derived.executionEngine === 'pcre2' ? derived.flagString : derived.jsFlagString,
       text: testText,
       replacement,
-      testInputs: testCases.map((tc) => tc.input),
+      testInputs: testRequests.map(([text]) => text),
+      testReplacements: testRequests.map(([, replace]) => replace),
     }),
     [
       pattern,
@@ -370,7 +413,7 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
       derived.jsFlagString,
       testText,
       replacement,
-      testCases,
+      testRequests,
     ],
   );
 
@@ -382,43 +425,20 @@ export function useRegexDerived(fixedTestCases?: TestCase[]): RegexDerived {
         ? (outcome.validation ?? derived.validation)
         : derived.validation;
     const executionError = outcome.pending ? undefined : outcome.executionError;
-    const testResults: TestCaseResult[] = testCases.map((tc, i) => {
-      if (!validation.valid) {
-        return { id: tc.id, pass: false, matchCount: 0, invalid: true };
-      }
-      if (outcome.pending || outcome.timedOut) {
-        return {
-          id: tc.id,
-          pass: false,
-          matchCount: 0,
-          invalid: false,
-          pending: outcome.pending,
-          timedOut: outcome.timedOut && !outcome.pending,
-        };
-      }
-      const matchCount = outcome.testMatchCounts[i];
-      if (executionError || matchCount === undefined) {
-        return {
-          id: tc.id,
-          pass: false,
-          matchCount: 0,
-          invalid: false,
-          executionError: executionError ?? 'Match result unavailable',
-        };
-      }
-      const hasMatch = matchCount > 0;
-      return {
-        id: tc.id,
-        pass: tc.expect === 'match' ? hasMatch : !hasMatch,
-        matchCount,
-        invalid: false,
-      };
-    });
+    const testResults: TestCaseResult[] = testCases.map((tc, i) =>
+      gradeTestCase(tc, outcome.testExecutions?.[i], {
+        invalid: !validation.valid,
+        pending: outcome.pending,
+        timedOut: outcome.timedOut,
+        executionError,
+      }),
+    );
 
     return {
       ...derived,
       validation,
       matches: outcome.matches,
+      matchesTruncated: !!outcome.matchesTruncated,
       replacedText: outcome.replacedText,
       testResults,
       testsPassed: testResults.filter((r) => r.pass).length,
@@ -437,7 +457,6 @@ export const useTestText = () => useRegexStore((s) => s.testText);
 export const useEngine = () => useRegexStore((s) => s.engine);
 export const useFlags = () => useRegexStore((s) => s.flags);
 export const useReplacement = () => useRegexStore((s) => s.replacement);
-export const useSelectedMatch = () => useRegexStore((s) => s.selectedMatch);
 export const useHoveredNodeId = () => useRegexStore((s) => s.hoveredNodeId);
 
 /**
@@ -449,17 +468,19 @@ export const useRegexActions = () =>
   useRegexStore(
     useShallow((s) => ({
       setEngine: s.setEngine,
+      setCompatibilityTarget: s.setCompatibilityTarget,
+      setLegacyTargetFlags: s.setLegacyTargetFlags,
       setPattern: s.setPattern,
       toggleFlag: s.toggleFlag,
       setTestText: s.setTestText,
       setReplacement: s.setReplacement,
       setShowReplace: s.setShowReplace,
       loadPattern: s.loadPattern,
-      setSelectedMatch: s.setSelectedMatch,
       setHoveredNodeId: s.setHoveredNodeId,
       addTestCase: s.addTestCase,
       updateTestCase: s.updateTestCase,
       removeTestCase: s.removeTestCase,
       setTestCases: s.setTestCases,
+      importTestCases: s.importTestCases,
     })),
   );

@@ -57,7 +57,14 @@ export function ChallengeRunner() {
     if (!challenge) return null;
     const counts = new Map(
       testResults
-        .filter((r) => !r.pending && !r.timedOut && !r.executionError)
+        .filter(
+          (r) =>
+            r.status !== 'inconclusive' &&
+            !r.invalid &&
+            !r.pending &&
+            !r.timedOut &&
+            !r.executionError,
+        )
         .map((r) => [r.id, r.matchCount]),
     );
     return evaluateChallengeFromResults(challenge, pattern, validation, counts);

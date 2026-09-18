@@ -94,7 +94,12 @@ export function LessonRunner() {
   // Run validation whenever the context changes.
   useEffect(() => {
     if (!step || !ctx) return;
-    if (derived.pending || derived.timedOut || derived.executionError) {
+    if (
+      derived.pending ||
+      derived.timedOut ||
+      derived.executionError ||
+      derived.testResults.some((result) => result.status === 'inconclusive')
+    ) {
       reportValidation(null);
       return;
     }
@@ -109,6 +114,7 @@ export function LessonRunner() {
     derived.pending,
     derived.timedOut,
     derived.executionError,
+    derived.testResults,
     reportValidation,
     markStepDone,
   ]);
@@ -209,7 +215,12 @@ export function LessonRunner() {
           executionError={derived.executionError}
         />
 
-        <HintList step={step} failCount={failCount} onRevealSolution={revealSolution} />
+        <HintList
+          key={`${lesson.id}:${step.id}`}
+          step={step}
+          failCount={failCount}
+          onRevealSolution={revealSolution}
+        />
 
         {allDone && isLast && (
           <div className="rounded-lg bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/30 dark:to-cyan-900/30 border border-teal-200 dark:border-teal-800 p-3 space-y-2">

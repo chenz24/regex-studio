@@ -13,14 +13,26 @@ import {
 import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
 import { defaultKeymap } from '@codemirror/commands';
 import type { MatchInfo } from '../../types/regex';
+import {
+  inspectionField,
+  inspectionTheme,
+  rangeDecorations,
+  setInspectionDecorations,
+} from '../../lib/inspectionDecorations';
+import type { SourceRange } from '../../utils/resultInspection';
 import { useT } from '@/lib/i18n';
+import { useRevealRange } from '../../hooks/useRevealRange';
 
 // ─── Props ────────────────────────────────────────────────────────────
 
 interface TestAreaProps {
+  revealRequest?: object;
+  inspectionRange?: SourceRange | null;
+  resultsReady?: boolean;
   text: string;
   onTextChange: (value: string) => void;
   matches: MatchInfo[];
+  matchesTruncated?: boolean;
   selectedMatch: number | null;
   onSelectMatch: (index: number | null) => void;
 }
@@ -172,9 +184,13 @@ const matchField = StateField.define<DecorationSet>({
 // ─── Component ────────────────────────────────────────────────────────
 
 export function TestArea({
+  revealRequest,
+  inspectionRange,
+  resultsReady = true,
   text,
   onTextChange,
   matches,
+  matchesTruncated,
   selectedMatch,
   onSelectMatch,
 }: TestAreaProps) {
@@ -186,6 +202,8 @@ export function TestArea({
   const isExternalUpdate = useRef(false);
   const onChangeRef = useRef(onTextChange);
   const matchesRef = useRef(matches);
+  const readyRef = useRef(resultsReady);
+  readyRef.current = resultsReady;
   const selectedMatchRef = useRef(selectedMatch);
   const onSelectMatchRef = useRef(onSelectMatch);
   const [copied, setCopied] = useState(false);
@@ -211,7 +229,7 @@ export function TestArea({
       hoverTooltip(
         (_view, pos) => {
           const currentMatches = matchesRef.current;
-          if (!currentMatches.length) return null;
+          if (!readyRef.current || !currentMatches.length) return null;
 
           // Find which match the cursor is hovering
           for (let i = 0; i < currentMatches.length; i++) {
@@ -280,6 +298,29 @@ export function TestArea({
         keymap.of(defaultKeymap),
         cmPlaceholder(t.testarea_placeholder()),
         matchField,
+        inspectionField,
+        inspectionTheme,
+        EditorView.domEventHandlers({
+          click(event, view) {
+            if (!readyRef.current) return false;
+            const marker =
+              event.target instanceof Element ? event.target.closest('.cm-empty-match') : null;
+            const pos = marker
+              ? Number((marker as HTMLElement).dataset.position)
+              : view.posAtCoords({ x: event.clientX, y: event.clientY });
+            if (pos === null) return false;
+            // PCRE2 can return both an empty and a nonempty match at the same
+            // start. A character click selects the nonempty result; its marker
+            // selects the empty result.
+            const index = matchesRef.current.findIndex((match) =>
+              marker
+                ? match.start === pos && match.end === pos
+                : pos >= match.start && pos < match.end,
+            );
+            if (index >= 0) onSelectMatchRef.current(index);
+            return false;
+          },
+        }),
         matchTooltip,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update: ViewUpdate) => {
@@ -334,7 +375,7 @@ export function TestArea({
       if (from >= to) return;
 
       const colorIdx = i % MATCH_COLORS.length;
-      const isSelected = selectedMatch === i;
+      const isSelected = resultsReady && selectedMatch === i;
       const className = isSelected ? `cm-match-${colorIdx}-selected` : `cm-match-${colorIdx}`;
 
       decorations.push({
@@ -347,12 +388,39 @@ export function TestArea({
     // Sort by from position (required by CodeMirror)
     decorations.sort((a, b) => a.from - b.from || a.to - b.to);
 
-    const decoSet = Decoration.set(decorations.map((d) => d.decoration.range(d.from, d.to)));
+    const ranges = decorations.map((d) => d.decoration.range(d.from, d.to));
+    // Zero-width matches have no characters to paint, so give them a visible marker.
+    if (resultsReady)
+      rangeDecorations(
+        matches.filter((m) => m.start === m.end),
+        docLen,
+        'cm-empty-match',
+      ).between(0, docLen, (from, to, value) => {
+        ranges.push(value.range(from, to));
+      });
+    const decoSet = Decoration.set(ranges, true);
 
     view.dispatch({
       effects: setMatchDecorations.of(decoSet),
     });
-  }, [matches, selectedMatch]);
+  }, [matches, selectedMatch, resultsReady]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    if (view.state.doc.toString() !== text) return;
+    view.dispatch({
+      effects: setInspectionDecorations.of(
+        rangeDecorations(
+          inspectionRange ? [inspectionRange] : [],
+          view.state.doc.length,
+          'cm-subject-inspection',
+        ),
+      ),
+    });
+  }, [inspectionRange, text]);
+
+  useRevealRange(viewRef, inspectionRange, revealRequest);
 
   // Sync theme
   useEffect(() => {
@@ -389,7 +457,7 @@ export function TestArea({
   }, [text]);
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700/80 bg-white dark:bg-gray-900/60 overflow-hidden shadow-sm h-full flex flex-col">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700/80 bg-white dark:bg-gray-900/60 overflow-hidden shadow-sm md:h-full flex flex-col">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700/80">
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
@@ -409,9 +477,11 @@ export function TestArea({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md">
-            {matches.length === 1
-              ? t.testarea_match_count_one({ count: String(matches.length) })
-              : t.testarea_match_count_other({ count: String(matches.length) })}
+            {matchesTruncated
+              ? t.matches_truncated({ count: String(matches.length) })
+              : matches.length === 1
+                ? t.testarea_match_count_one({ count: String(matches.length) })
+                : t.testarea_match_count_other({ count: String(matches.length) })}
           </span>
           <button
             onClick={handleCopy}
@@ -422,7 +492,12 @@ export function TestArea({
         </div>
       </div>
 
-      <div ref={editorRef} className="flex-1 min-h-[200px] p-3 overflow-auto custom-scrollbar" />
+      <div
+        role="group"
+        aria-label={t.testarea_title()}
+        ref={editorRef}
+        className="flex-1 min-h-[200px] p-3 overflow-auto custom-scrollbar"
+      />
     </div>
   );
 }

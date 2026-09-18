@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ASTNode } from '../types/regex';
 import { parseRegex } from './regexParser';
+import { buildIR } from './diagramIR';
 
 /** Flatten the tree into `type(raw)` strings, depth-first. */
 function shape(node: ASTNode): string {
@@ -9,6 +10,32 @@ function shape(node: ASTNode): string {
 }
 
 describe('parseRegex', () => {
+  it.each(['u', 'v'])('keeps Unicode atoms and source spans intact with %s', (flags) => {
+    const ast = parseRegex('😀+', flags);
+    expect(ast).toMatchObject({
+      type: 'quantifier',
+      start: 0,
+      end: 3,
+      children: [{ type: 'literal', value: '😀', raw: '😀', start: 0, end: 2 }],
+    });
+    expect(parseRegex('[😀-🙏]', flags).children?.[0]).toMatchObject({
+      type: 'range',
+      children: [
+        { value: '😀', start: 1, end: 3 },
+        { value: '🙏', start: 4, end: 6 },
+      ],
+    });
+    expect(parseRegex('😀+').children?.[0]).toMatchObject({ start: 0, end: 1 });
+  });
+
+  it('decodes group and reference identifiers while preserving escaped source text', () => {
+    const pattern = String.raw`(?<\u0061>x)\k<\u{61}>`;
+    const ast = parseRegex(pattern);
+    expect(ast.raw).toBe(pattern);
+    expect(ast.children?.map((node) => node.groupName)).toEqual(['a', 'a']);
+    expect(ast.children?.[0].raw).toBe(String.raw`(?<\u0061>x)`);
+  });
+
   it('reconstructs the source from the node spans', () => {
     for (const pattern of [
       'abc',
@@ -45,14 +72,14 @@ describe('parseRegex', () => {
       ['\\d', '\\d'],
       ['\\0', '\\0'],
     ])('keeps %s as a single escape node', (pattern, raw) => {
-      const node = parseRegex(pattern);
+      const node = parseRegex(pattern, 'u');
       expect(node.type).toBe('escape');
       expect(node.raw).toBe(raw);
     });
 
     it('binds a quantifier to the whole escape', () => {
       expect(shape(parseRegex('\\x41+'))).toBe('quantifier(\\x41+)[escape(\\x41)]');
-      expect(shape(parseRegex('\\p{L}*'))).toBe('quantifier(\\p{L}*)[escape(\\p{L})]');
+      expect(shape(parseRegex('\\p{L}*', 'u'))).toBe('quantifier(\\p{L}*)[escape(\\p{L})]');
     });
 
     it('keeps a partial escape intact rather than consuming more', () => {
@@ -129,13 +156,56 @@ describe('parseRegex', () => {
     });
 
     it('recognises a named backreference', () => {
-      const node = parseRegex('\\k<name>');
+      const node = parseRegex('(?<name>a)\\k<name>').children?.[1];
       expect(node).toMatchObject({
         type: 'backreference',
         value: 'name',
         groupName: 'name',
         raw: '\\k<name>',
       });
+    });
+  });
+
+  describe('Unicode sets and legacy identity escapes', () => {
+    it.each([
+      '[a&&[ab]]',
+      '[[a-z]--[aeiou]]',
+      String.raw`[\q{ab|cd}]`,
+      String.raw`[\q{a\]b|c}]`,
+      String.raw`[\p{RGI_Emoji}]`,
+    ])('keeps %s intact in the AST and diagram', (pattern) => {
+      const ast = parseRegex(`${pattern}+x`, 'v');
+      const node = ast.children?.[0].children?.[0];
+      expect(node).toMatchObject({
+        type: 'characterClass',
+        unicodeSet: true,
+        raw: pattern,
+        start: 0,
+        end: pattern.length,
+      });
+      expect(ast.children?.[1]).toMatchObject({ type: 'literal', raw: 'x' });
+      expect(buildIR(node!)).toMatchObject({ type: 'Token', kind: 'unicodeSet', label: pattern });
+    });
+
+    it.each(['u', 'p', 'P'])('binds legacy \\%s{2} to the identity escape', (letter) => {
+      const node = parseRegex(`\\${letter}{2}`);
+      expect(node).toMatchObject({
+        type: 'quantifier',
+        quantifier: { min: 2, max: 2 },
+        children: [{ type: 'escape', raw: `\\${letter}` }],
+      });
+    });
+
+    it('treats \\k as an identity escape only when named groups are absent', () => {
+      expect(parseRegex(String.raw`\k<a>`).children?.[0]).toMatchObject({
+        type: 'escape',
+        raw: String.raw`\k`,
+      });
+      expect(parseRegex(String.raw`\k<a>(?<a>x)`).children?.[0]).toMatchObject({
+        type: 'backreference',
+        groupName: 'a',
+      });
+      expect(parseRegex(String.raw`\k<a>[(?<a>)]`).children?.[0]).toMatchObject({ type: 'escape' });
     });
   });
 

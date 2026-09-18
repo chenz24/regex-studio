@@ -118,17 +118,17 @@ function mergeAdjacentLiterals(nodes: IR[]): IR[] {
     const node = nodes[i];
     if (node.type === 'Literal') {
       let merged = node.text;
-      let lastId = node.id;
+      const sourceIds = [node.id];
       while (i + 1 < nodes.length && nodes[i + 1].type === 'Literal') {
         i++;
         const next = nodes[i] as IR & { type: 'Literal' };
         merged += next.text;
-        lastId = next.id;
+        sourceIds.push(next.id);
       }
       result.push({
         type: 'Literal',
         text: merged,
-        id: merged.length > node.text.length ? `${node.id}_${lastId}` : node.id,
+        id: sourceIds.length > 1 ? `merged:${sourceIds.join(',')}` : node.id,
       });
     } else {
       result.push(node);
@@ -259,6 +259,9 @@ function astToIR(node: ASTNode): IR {
       };
     case 'characterClass':
     case 'negatedCharacterClass': {
+      if (node.unicodeSet) {
+        return { type: 'Token', kind: 'unicodeSet', label: node.raw, id: node.id };
+      }
       const items = mergeCharClassLiterals((node.children || []).map(mapCharItem));
       if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'token') {
         const t = items[0] as { kind: 'token'; token: string; label: string };

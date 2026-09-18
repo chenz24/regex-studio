@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
+import { contextReplacement, escapePattern, escapeTestString, escapeReplacement } from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generateJava(ctx: CodeGenContext): CodeGenResult {
@@ -17,6 +17,12 @@ export function generateJava(ctx: CodeGenContext): CodeGenResult {
 
   const flagsArg =
     flagMapping.compileFlags.length > 0 ? `, ${flagMapping.compileFlags.join(' | ')}` : '';
+
+  const contextual = contextReplacement(replaceText, 'java', pattern, {
+    capture: (index) => `java.util.Objects.toString(match.group(${index}), "")`,
+    prefix: 'text.substring(0, match.start())',
+    suffix: 'text.substring(match.end())',
+  });
 
   let code = `import java.util.regex.*;
 
@@ -74,16 +80,33 @@ public class RegexDemo {
       code += `
         String replacement = ${replaceStr};
         Matcher matcher = pattern.matcher(text);
-        String result = matcher.replaceAll(replacement);
+        String result = matcher.${flags.includes('g') ? 'replaceAll' : 'replaceFirst'}(${contextual ? `match -> Matcher.quoteReplacement(${contextual})` : 'replacement'});
         System.out.println("Result: " + result);`;
       break;
 
     case 'split':
       code += `
-        String[] parts = pattern.split(text);
-        System.out.println("Split into " + parts.length + " parts:");
-        for (int i = 0; i < parts.length; i++) {
-            System.out.printf("[%d] \\"%s\\"%n", i, parts[i]);
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        Matcher matcher = pattern.matcher(text);
+        int lastEnd = 0;
+        if (text.isEmpty()) {
+            if (!matcher.find()) parts.add("");
+        } else {
+            while (matcher.find()) {
+                // Ignore empty matches at the previous split or end of input.
+                if (matcher.start() == text.length()) break;
+                if (matcher.end() == lastEnd) continue;
+                parts.add(text.substring(lastEnd, matcher.start()));
+                for (int group = 1; group <= matcher.groupCount(); group++) {
+                    parts.add(matcher.group(group));
+                }
+                lastEnd = matcher.end();
+            }
+            parts.add(text.substring(lastEnd));
+        }
+        System.out.println("Split into " + parts.size() + " parts:");
+        for (int i = 0; i < parts.size(); i++) {
+            System.out.printf("[%d] \\"%s\\"%n", i, parts.get(i) == null ? "undefined" : parts.get(i));
         }`;
       break;
   }

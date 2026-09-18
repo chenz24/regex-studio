@@ -14,12 +14,23 @@ import { HighlightStyle, syntaxHighlighting, StreamLanguage } from '@codemirror/
 import { tags } from '@lezer/highlight';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FlavorSelector } from './FlavorSelector';
-import { CompatibilityWarnings } from './CompatibilityWarnings';
+import { CompatibilityCheck } from './CompatibilityCheck';
 import type { RegexFlag, ASTNode } from '../../types/regex';
-import type { RegexEngine, CompatibilityWarning } from '../../types/engineTypes';
-import { ENGINE_FLAVORS } from '../../types/engineTypes';
+import type {
+  ExecutionEngine,
+  CompatibilityTarget,
+  CompatibilityWarning,
+} from '../../types/engineTypes';
 import { findNodeById, findNodeAtPosition } from '../../lib/ast';
+import {
+  inspectionField,
+  inspectionTheme,
+  rangeDecorations,
+  setInspectionDecorations,
+} from '../../lib/inspectionDecorations';
+import type { SourceRange } from '../../utils/resultInspection';
 import { useT, type Messages } from '@/lib/i18n';
+import { useRevealRange } from '../../hooks/useRevealRange';
 
 function resolveDesc(t: Messages, key: string | undefined, fallback: string): string {
   if (!key) return fallback;
@@ -29,6 +40,9 @@ function resolveDesc(t: Messages, key: string | undefined, fallback: string): st
 }
 
 interface RegexInputProps {
+  revealRequest?: object;
+  inspectionRanges?: SourceRange[];
+  onInspectSource?: (range: SourceRange) => void;
   pattern: string;
   onPatternChange: (value: string) => void;
   flags: RegexFlag[];
@@ -36,6 +50,7 @@ interface RegexInputProps {
   onToggleFlag: (key: string) => void;
   validation: { valid: boolean; error?: string };
   matchCount: number;
+  matchesTruncated?: boolean;
   /** The pattern overran its deadline and was abandoned. */
   timedOut?: boolean;
   pending?: boolean;
@@ -44,8 +59,11 @@ interface RegexInputProps {
   ast: ASTNode;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
-  engine: RegexEngine;
-  onEngineChange: (engine: RegexEngine) => void;
+  engine: ExecutionEngine;
+  onEngineChange: (engine: ExecutionEngine) => void;
+  compatibilityTarget: CompatibilityTarget | null;
+  onCompatibilityTargetChange: (target: CompatibilityTarget | null) => void;
+  legacyTargetFlags: string;
   compatibilityWarnings: CompatibilityWarning[];
 }
 
@@ -162,6 +180,9 @@ const highlightField = StateField.define<DecorationSet>({
 const hoverMark = Decoration.mark({ class: 'cm-hover-highlight' });
 
 export function RegexInput({
+  revealRequest,
+  inspectionRanges,
+  onInspectSource,
   pattern,
   onPatternChange,
   flags,
@@ -169,6 +190,7 @@ export function RegexInput({
   onToggleFlag,
   validation,
   matchCount,
+  matchesTruncated,
   timedOut,
   pending,
   executionError,
@@ -178,6 +200,9 @@ export function RegexInput({
   onHoverNode,
   engine,
   onEngineChange,
+  compatibilityTarget,
+  onCompatibilityTargetChange,
+  legacyTargetFlags,
   compatibilityWarnings,
 }: RegexInputProps) {
   const t = useT();
@@ -187,6 +212,8 @@ export function RegexInput({
   const isExternalUpdate = useRef(false);
   const onChangeRef = useRef(onPatternChange);
   const onHoverRef = useRef(onHoverNode);
+  const onInspectRef = useRef(onInspectSource);
+  onInspectRef.current = onInspectSource;
   const astRef = useRef(ast);
   const themeCompartment = useRef(new Compartment());
   const highlightCompartment = useRef(new Compartment());
@@ -208,6 +235,9 @@ export function RegexInput({
       if (isExternalUpdate.current) return;
       if (update.docChanged) {
         onChangeRef.current(update.state.doc.toString());
+      } else if (update.selectionSet && update.view.hasFocus) {
+        const { from, to } = update.state.selection.main;
+        onInspectRef.current?.({ start: from, end: to });
       }
     });
 
@@ -240,6 +270,8 @@ export function RegexInput({
         singleLine,
         EditorView.lineWrapping,
         highlightField,
+        inspectionField,
+        inspectionTheme,
       ],
     });
 
@@ -359,6 +391,19 @@ export function RegexInput({
     view.dispatch({ effects: setHighlightEffect.of(decos) });
   }, [hoveredNodeId, ast]);
 
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    if (view.state.doc.toString() !== pattern) return;
+    view.dispatch({
+      effects: setInspectionDecorations.of(
+        rangeDecorations(inspectionRanges ?? [], view.state.doc.length, 'cm-source-inspection'),
+      ),
+    });
+  }, [inspectionRanges, pattern]);
+
+  useRevealRange(viewRef, inspectionRanges?.[0], revealRequest);
+
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(`/${pattern}/${flagString}`);
     setCopied(true);
@@ -367,12 +412,17 @@ export function RegexInput({
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FlavorSelector
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <FlavorSelector engine={engine} onEngineChange={onEngineChange} />
+          <CompatibilityCheck
             engine={engine}
-            onEngineChange={onEngineChange}
-            warningCount={compatibilityWarnings.length}
+            target={compatibilityTarget}
+            onTargetChange={onCompatibilityTargetChange}
+            warnings={compatibilityWarnings}
+            valid={validation.valid}
+            hasPattern={!!pattern}
+            legacyTargetFlags={legacyTargetFlags}
           />
         </div>
 
@@ -382,6 +432,8 @@ export function RegexInput({
               <Tooltip key={flag.key}>
                 <TooltipTrigger asChild>
                   <button
+                    aria-pressed={flag.enabled}
+                    aria-label={t.execution_flag_label({ flag: flag.key })}
                     onClick={() => onToggleFlag(flag.key)}
                     className={`w-7 h-7 flex items-center justify-center rounded-md font-mono text-sm font-bold transition-all ${
                       flag.enabled
@@ -409,13 +461,19 @@ export function RegexInput({
         </TooltipProvider>
       </div>
 
-      <div className="px-1 text-xs text-gray-500 dark:text-gray-400">
+      <div
+        data-testid="execution-summary"
+        className="px-1 text-xs text-gray-500 dark:text-gray-400"
+      >
         {t.execution_engine_label({
-          engine: engine === 'pcre2' ? 'PCRE2 10.47 (16-bit)' : 'JavaScript',
+          engine:
+            engine === 'pcre2'
+              ? 'PCRE2 10.47 (16-bit)'
+              : `JavaScript (${t.engine_browser_native()})`,
         })}
       </div>
 
-      <div className="relative group">
+      <div role="group" aria-label={t.regex_pattern_input_label()} className="relative group">
         <div
           className={`flex items-center rounded-xl border-2 transition-all bg-white dark:bg-gray-800/80 shadow-sm ${
             !pattern
@@ -456,7 +514,7 @@ export function RegexInput({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
+      <div data-testid="match-status" className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
           {pending && (
             <span role="status" className="text-sm text-gray-500">
@@ -471,9 +529,11 @@ export function RegexInput({
           {pattern && validation.valid && !timedOut && !pending && !executionError && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
               <Check className="w-3.5 h-3.5" />
-              {matchCount === 1
-                ? t.regex_input_match_count_one({ count: String(matchCount) })
-                : t.regex_input_match_count_other({ count: String(matchCount) })}
+              {matchesTruncated
+                ? t.matches_truncated({ count: String(matchCount) })
+                : matchCount === 1
+                  ? t.regex_input_match_count_one({ count: String(matchCount) })
+                  : t.regex_input_match_count_other({ count: String(matchCount) })}
             </span>
           )}
           {pattern && validation.valid && timedOut && !pending && (
@@ -495,11 +555,6 @@ export function RegexInput({
           )}
         </div>
       </div>
-
-      <CompatibilityWarnings
-        warnings={compatibilityWarnings}
-        engineName={ENGINE_FLAVORS[engine].name}
-      />
     </div>
   );
 }

@@ -42,6 +42,8 @@ export type ASTNodeType =
   | 'sequence';
 
 export interface ASTNode {
+  /** A Unicode set expression kept intact, including set operators and strings. */
+  unicodeSet?: boolean;
   dialect?: 'pcre2';
   /** Source context for lossless PCRE2 visual edits. */
   quoted?: boolean;
@@ -112,15 +114,55 @@ export interface DiagramNode {
 
 export type TestExpectation = 'match' | 'noMatch';
 
+/** JSON-safe: null denotes a group that did not participate; "" is an empty capture. */
+export interface ExpectedCapture {
+  index: number;
+  name: string | null;
+  value: string | null;
+  start: number;
+  end: number;
+}
+
+export interface TestAssertions {
+  count?: number;
+  texts?: string[];
+  /** Half-open UTF-16 offsets, in match order. */
+  ranges?: [number, number][];
+  captures?: ExpectedCapture[][];
+  /** Expected output using the workspace replacement expression. */
+  replacement?: string;
+}
+
+export interface TestExecution {
+  matchCount: number;
+  matches: MatchInfo[];
+  truncated: boolean;
+  detailsTruncated: boolean;
+  replacedText?: string;
+  replacementError?: string;
+}
+
+export interface AssertionDifference {
+  field: 'expect' | keyof TestAssertions;
+  expected: unknown;
+  actual: unknown;
+}
+
 export interface TestCase {
   id: string;
   label: string;
   input: string;
   expect: TestExpectation;
+  assertions?: TestAssertions;
 }
 
 export interface TestCaseResult {
   id: string;
+  status?: 'pass' | 'fail' | 'inconclusive';
+  actual?: TestExecution;
+  differences?: AssertionDifference[];
+  truncated?: boolean;
+  replacementError?: string;
   pass: boolean;
   matchCount: number;
   /** True when the regex itself is invalid; result is inconclusive. */

@@ -1,5 +1,6 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
 import {
+  contextReplacement,
   escapePattern,
   escapeTestString,
   escapeReplacement,
@@ -22,6 +23,12 @@ export function generatePython(ctx: CodeGenContext): CodeGenResult {
 
   const flagsArg =
     flagMapping.compileFlags.length > 0 ? `, ${flagMapping.compileFlags.join(' | ')}` : '';
+
+  const contextual = contextReplacement(replaceText, 'python', pattern, {
+    capture: (index) => `(match.group(${index}) or '')`,
+    prefix: 'text[:match.start()]',
+    suffix: 'text[match.end():]',
+  });
 
   let code = 'import re\n\n';
 
@@ -79,7 +86,7 @@ for i, match in enumerate(matches):
 text = ${testStr}
 replacement = ${replaceStr}
 
-result = pattern.sub(replacement, text)
+result = pattern.sub(${contextual ? `lambda match: ${contextual}` : 'replacement'}, text${flags.includes('g') ? '' : ', count=1'})
 print(f"Result: {result}")`;
       break;
 

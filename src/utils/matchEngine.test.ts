@@ -52,6 +52,102 @@ afterEach(() => {
 });
 
 describe('worker scheduling and recovery', () => {
+  it('cancels obsolete executions instead of making new input wait for their deadlines', async () => {
+    const api = await import('./matchEngine');
+    for (let i = 0; i < 5; i++) {
+      const controller = new AbortController();
+      const pending = api.runMatch(input(`slow-${i}`), controller.signal);
+      controller.abort();
+      await Promise.resolve();
+      expect((await pending).executionError).toBe('Match request cancelled');
+      expect(ControlledWorker.instances[i].terminated).toBe(true);
+      expect(api.cachedOutcome(api.matchInputKey(input(`slow-${i}`)))).toBeUndefined();
+    }
+    const good = api.runMatch(input('a+'));
+    const worker = ControlledWorker.instances[5];
+    expect(worker.requests[0].pattern).toBe('a+');
+    worker.respond();
+    expect((await good).timedOut).toBe(false);
+  });
+
+  it('removes abandoned queued requests without interrupting another consumer', async () => {
+    const api = await import('./matchEngine');
+    const first = api.runMatch(input('first'));
+    const controller = new AbortController();
+    const obsolete = api.runMatch(input('obsolete'), controller.signal);
+    const last = api.runMatch(input('last'));
+    controller.abort();
+    await obsolete;
+    const worker = ControlledWorker.instances[0];
+    expect(worker.terminated).toBe(false);
+    worker.respond();
+    await first;
+    expect(worker.requests.map((request) => request.pattern)).toEqual(['first', 'last']);
+    worker.respond(1);
+    await last;
+  });
+
+  it('retains shared work until its last consumer aborts and ignores late replies', async () => {
+    const api = await import('./matchEngine');
+    const a = new AbortController(),
+      b = new AbortController();
+    const first = api.runMatch(input('shared'), a.signal);
+    const second = api.runMatch(input('shared'), b.signal);
+    const original = ControlledWorker.instances[0];
+    a.abort();
+    await first;
+    expect(original.terminated).toBe(false);
+    b.abort();
+    await second;
+    expect(original.terminated).toBe(true);
+    const retry = api.runMatch(input('shared'));
+    original.respond();
+    expect(api.cachedOutcome(api.matchInputKey(input('shared')))).toBeUndefined();
+    ControlledWorker.instances[1].respond();
+    expect((await retry).executionError).toBeUndefined();
+  });
+
+  it('retains identical work when a component replaces its subscription in the same commit', async () => {
+    const api = await import('./matchEngine');
+    const controller = new AbortController();
+    const first = api.runMatch(input('shared'), controller.signal);
+    controller.abort();
+    const second = api.runMatch(input('shared'), new AbortController().signal);
+    await first;
+    expect(ControlledWorker.instances).toHaveLength(1);
+    expect(ControlledWorker.instances[0].terminated).toBe(false);
+    ControlledWorker.instances[0].respond();
+    await second;
+  });
+
+  it('reuses an initializing PCRE2 worker for the newest input without extending its load budget', async () => {
+    const api = await import('./matchEngine');
+    const controller = new AbortController();
+    const old = api.runMatch({ ...input('old'), engine: 'pcre2' }, controller.signal);
+    await vi.advanceTimersByTimeAsync(1000);
+    controller.abort();
+    await old;
+    const latest = api.runMatch({ ...input('new'), engine: 'pcre2' });
+    expect(ControlledWorker.instances).toHaveLength(1);
+    expect(ControlledWorker.instances[0].terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(api.ENGINE_LOAD_TIMEOUT_MS - 1000);
+    expect((await latest).executionError).toContain('loading timed out');
+  });
+
+  it('dispatches only the latest input when a reused PCRE2 worker becomes ready', async () => {
+    const api = await import('./matchEngine');
+    const controller = new AbortController();
+    const old = api.runMatch({ ...input('old'), engine: 'pcre2' }, controller.signal);
+    controller.abort();
+    await old;
+    const latest = api.runMatch({ ...input('new'), engine: 'pcre2' });
+    const worker = ControlledWorker.instances[0];
+    worker.ready();
+    expect(worker.requests.map((request) => request.pattern)).toEqual(['new']);
+    worker.respond();
+    expect((await latest).executionError).toBeUndefined();
+  });
+
   it('isolates syntax validation from matches and separates their cache keys', async () => {
     const api = await import('./matchEngine');
     const normal = { ...input('a+'), engine: 'pcre2' as const };

@@ -23,6 +23,8 @@ export function FlavorCompareBlock({ flavors, commentary }: Props) {
   const validation = useRegexDerived().validation;
   const currentEngine = useRegexStore((s) => s.engine);
   const setEngine = useRegexStore((s) => s.setEngine);
+  const target = useRegexStore((s) => s.compatibilityTarget);
+  const setTarget = useRegexStore((s) => s.setCompatibilityTarget);
 
   const [active, setActive] = useState<RegexEngine>(() =>
     flavors.includes(currentEngine) ? currentEngine : flavors[0],
@@ -42,9 +44,11 @@ export function FlavorCompareBlock({ flavors, commentary }: Props) {
     <div className="rounded-lg border border-sky-200 dark:border-sky-800/60 bg-sky-50/40 dark:bg-sky-900/10 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-sky-200/70 dark:border-sky-800/40 bg-white/60 dark:bg-gray-900/30">
         <Wand2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-        <span className="text-xs font-semibold text-sky-900 dark:text-sky-200">Flavor 对比</span>
+        <span className="text-xs font-semibold text-sky-900 dark:text-sky-200">
+          {t.compatibility_compare_title()}
+        </span>
         <span className="text-[10px] text-gray-500 dark:text-gray-400 ml-auto">
-          切换查看不同引擎对当前 pattern 的态度
+          {t.compatibility_compare_hint()}
         </span>
       </div>
 
@@ -74,16 +78,15 @@ export function FlavorCompareBlock({ flavors, commentary }: Props) {
 
       {/* Body */}
       <div className="p-3 space-y-2 text-xs">
+        <p className="text-gray-500">{t.compatibility_partial()}</p>
         {currentEngine === 'pcre2' ? (
           <p>{t.pcre2_compatibility_unavailable()}</p>
         ) : !validation.valid ? (
-          <div className="text-rose-600 dark:text-rose-400">
-            当前 pattern 语法无效，无法做兼容性检查。
-          </div>
+          <div className="text-rose-600 dark:text-rose-400">{t.compatibility_invalid()}</div>
         ) : warnings.length === 0 ? (
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="w-3.5 h-3.5" />在{' '}
-            <strong>{ENGINE_FLAVORS[active].name}</strong> 下没有兼容性问题。
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {t.compatibility_no_known_issues()}
           </div>
         ) : (
           <ul className="space-y-1.5">
@@ -117,13 +120,20 @@ export function FlavorCompareBlock({ flavors, commentary }: Props) {
           </div>
         )}
 
-        {currentEngine !== active && (
+        {(active === 'javascript' || active === 'pcre2'
+          ? currentEngine !== active
+          : target !== active) && (
           <button
             type="button"
-            onClick={() => setEngine(active)}
+            onClick={() =>
+              active === 'javascript' || active === 'pcre2' ? setEngine(active) : setTarget(active)
+            }
             className="text-[11px] text-sky-700 dark:text-sky-300 hover:underline"
           >
-            把主编辑器的 Flavor 切到 {ENGINE_FLAVORS[active].name} →
+            {active === 'javascript' || active === 'pcre2'
+              ? t.compatibility_apply_engine({ engine: ENGINE_FLAVORS[active].name })
+              : t.compatibility_apply_target({ target: ENGINE_FLAVORS[active].name })}{' '}
+            →
           </button>
         )}
       </div>

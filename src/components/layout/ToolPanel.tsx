@@ -31,9 +31,17 @@ function PanelFallback() {
   return <div className="h-32 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800/60" />;
 }
 import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '../../types/regex';
+import type { DebugStep } from '../../utils/steppingMatcher';
 import type { ToolPanelTab } from '@/tutorial/types';
 
 interface ToolPanelProps {
+  resultsReady?: boolean;
+  selectedGroup?: number;
+  sourceAvailable?: boolean;
+  ambiguousSource?: boolean;
+  onSelectGroup?: (matchIndex: number, groupIndex: number) => void;
+  onInspectStep?: (step: DebugStep | null) => void;
+  onReveal?: (target: 'pattern' | 'text') => void;
   visualizationSupported?: boolean;
   visualizationReason?: string;
   executionEngine: 'javascript' | 'pcre2';
@@ -51,6 +59,7 @@ interface ToolPanelProps {
   onReplacementChange: (value: string) => void;
   replacedText: string;
   matchCount: number;
+  matchesTruncated?: boolean;
   matches: MatchInfo[];
   selectedMatch: number | null;
   onSelectMatch: (index: number | null) => void;
@@ -60,6 +69,7 @@ interface ToolPanelProps {
   onAddTestCase: (init?: Partial<Omit<TestCase, 'id'>>) => void;
   onUpdateTestCase: (id: string, patch: Partial<Omit<TestCase, 'id'>>) => void;
   onRemoveTestCase: (id: string) => void;
+  onImportTestCases: (cases: TestCase[]) => void;
   onLoadTestCaseInput: (input: string) => void;
   /** Controlled active tab — used by the tutorial to force-open a panel. */
   activeTab?: ToolPanelTab;
@@ -70,6 +80,13 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({
+  resultsReady,
+  selectedGroup,
+  sourceAvailable,
+  ambiguousSource,
+  onSelectGroup,
+  onInspectStep,
+  onReveal,
   visualizationSupported = true,
   visualizationReason,
   executionEngine,
@@ -86,6 +103,7 @@ export function ToolPanel({
   onReplacementChange,
   replacedText,
   matchCount,
+  matchesTruncated,
   matches,
   selectedMatch,
   onSelectMatch,
@@ -95,6 +113,7 @@ export function ToolPanel({
   onAddTestCase,
   onUpdateTestCase,
   onRemoveTestCase,
+  onImportTestCases,
   onLoadTestCaseInput,
   activeTab,
   onActiveTabChange,
@@ -109,9 +128,9 @@ export function ToolPanel({
     ? { value: activeTab, onValueChange: (v: string) => onActiveTabChange?.(v as ToolPanelTab) }
     : { defaultValue: 'debugger' as const };
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700/80 bg-white dark:bg-gray-900/60 overflow-hidden shadow-sm h-full">
-      <Tabs {...tabsProps} className="h-full gap-0 flex flex-col">
-        <div className="border-b border-gray-200 dark:border-gray-700/80 px-3 p-1.5">
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700/80 bg-white dark:bg-gray-900/60 overflow-hidden shadow-sm md:h-full">
+      <Tabs {...tabsProps} className="md:h-full gap-0 flex flex-col">
+        <div className="border-b border-gray-200 dark:border-gray-700/80 px-3 p-1.5 overflow-x-auto shrink-0">
           <TabsList className="bg-gray-100 dark:bg-gray-800 h-8 rounded-lg">
             <TabsTrigger
               value="debugger"
@@ -128,6 +147,7 @@ export function ToolPanel({
               {t.tab_matches()}
               <span className="px-1.5 py-0 text-[10px] font-medium rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300">
                 {matchCount}
+                {matchesTruncated ? '+' : ''}
               </span>
             </TabsTrigger>
             <TabsTrigger
@@ -184,6 +204,8 @@ export function ToolPanel({
             {executionEngine === 'pcre2' ? (
               <Suspense fallback={<PanelFallback />}>
                 <Pcre2DebuggerPanel
+                  onInspectStep={onInspectStep}
+                  onReveal={onReveal}
                   ast={ast}
                   pattern={pattern}
                   testText={testText}
@@ -192,6 +214,8 @@ export function ToolPanel({
               </Suspense>
             ) : (
               <DebuggerPanel
+                onInspectStep={onInspectStep}
+                onReveal={onReveal}
                 ast={ast}
                 pattern={pattern}
                 testText={testText}
@@ -203,7 +227,14 @@ export function ToolPanel({
           <TabsContent value="matches" className="p-3 mt-0">
             <Suspense fallback={<PanelFallback />}>
               <MatchDetails
+                resultsReady={resultsReady}
+                selectedGroup={selectedGroup}
+                sourceAvailable={sourceAvailable}
+                ambiguous={ambiguousSource}
+                onSelectGroup={onSelectGroup}
+                onReveal={onReveal}
                 matches={matches}
+                matchesTruncated={matchesTruncated}
                 selectedMatch={selectedMatch}
                 onSelectMatch={onSelectMatch}
               />
@@ -235,6 +266,7 @@ export function ToolPanel({
                 onAdd={onAddTestCase}
                 onUpdate={onUpdateTestCase}
                 onRemove={onRemoveTestCase}
+                onImport={onImportTestCases}
                 onLoadIntoEditor={onLoadTestCaseInput}
               />
             </Suspense>
@@ -250,6 +282,7 @@ export function ToolPanel({
                 onReplacementChange={onReplacementChange}
                 replacedText={replacedText}
                 matchCount={matchCount}
+                matchesTruncated={matchesTruncated}
               />
             </Suspense>
           </TabsContent>

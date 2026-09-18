@@ -35,6 +35,8 @@ function findNodeAtStart(root: ASTNode, start: number): ASTNode | null {
 }
 
 interface RailroadBannerProps {
+  inspectedNodeIds?: Set<string>;
+  onInspectNode?: (id: string | null) => void;
   readOnly?: boolean;
   flags?: string;
   diagram: LayoutResult;
@@ -48,6 +50,8 @@ interface RailroadBannerProps {
 }
 
 export function RailroadBanner({
+  inspectedNodeIds,
+  onInspectNode,
   readOnly = false,
   flags = '',
   diagram,
@@ -69,11 +73,15 @@ export function RailroadBanner({
   const canUndo = useRegexStore((s) => s.patternPast.length > 0);
   const canRedo = useRegexStore((s) => s.patternFuture.length > 0);
 
-  const handleSelectNode = useCallback((id: string | null) => {
-    setSelectedNodeId(id);
-    // Auto-expand when a node is selected for editing
-    if (id) setExpanded(true);
-  }, []);
+  const handleSelectNode = useCallback(
+    (id: string | null) => {
+      setSelectedNodeId(id);
+      onInspectNode?.(id);
+      // Auto-expand when a node is selected for editing
+      if (id) setExpanded(true);
+    },
+    [onInspectNode],
+  );
 
   const handleCloseEditor = useCallback(() => {
     setSelectedNodeId(null);
@@ -86,21 +94,33 @@ export function RailroadBanner({
       if (selectedNodeId) {
         const current = findNodeById(ast, selectedNodeId);
         if (current) {
-          pendingAnchorRef.current = { start: current.start, end: current.end };
+          pendingAnchorRef.current = {
+            start: current.start,
+            end: current.end + newPattern.length - pattern.length,
+          };
         }
       }
       onPatternChange(newPattern);
     },
-    [ast, selectedNodeId, onPatternChange],
+    [ast, selectedNodeId, onPatternChange, pattern.length],
   );
 
   useEffect(() => {
     const anchor = pendingAnchorRef.current;
     if (!anchor) {
-      if (pcre2) setSelectedNodeId(null);
+      setSelectedNodeId(null);
       return;
     }
     pendingAnchorRef.current = null;
+    // Prefer the visible node for this span, including a merged literal.
+    const visible = [...diagram.nodes, ...diagram.badges].find((item) => {
+      const node = item.nodeId ? findNodeById(ast, item.nodeId) : null;
+      return node?.start === anchor.start && node.end === anchor.end;
+    });
+    if (visible?.nodeId) {
+      setSelectedNodeId(visible.nodeId);
+      return;
+    }
     const exact = findNodeByRange(ast, anchor.start, anchor.end);
     if (exact) {
       setSelectedNodeId(exact.id);
@@ -112,7 +132,7 @@ export function RailroadBanner({
       return;
     }
     setSelectedNodeId(null);
-  }, [ast, pcre2]);
+  }, [ast, diagram]);
 
   // Global keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z or Ctrl+Y = redo.
   // Skip when focus is in an input/textarea/contenteditable (preserve native undo).
@@ -197,6 +217,7 @@ export function RailroadBanner({
       >
         {/* Diagram area */}
         <div
+          data-railroad-viewport
           className="relative overflow-auto custom-scrollbar flex-1 min-h-[180px]"
           style={{
             backgroundImage: 'radial-gradient(circle, var(--dot-color) 1px, transparent 1px)',
@@ -206,6 +227,7 @@ export function RailroadBanner({
           <div className="p-4">
             <RailroadDiagram
               layout={diagram}
+              inspectedNodeIds={inspectedNodeIds}
               hoveredNodeId={hoveredNodeId}
               onHoverNode={onHoverNode}
               selectedNodeId={selectedNodeId}

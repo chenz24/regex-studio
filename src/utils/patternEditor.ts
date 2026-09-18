@@ -1,13 +1,6 @@
 import type { ASTNode } from '../types/regex';
 
-export function findNodeById(root: ASTNode, targetId: string): ASTNode | null {
-  if (root.id === targetId) return root;
-  for (const child of root.children || []) {
-    const found = findNodeById(child, targetId);
-    if (found) return found;
-  }
-  return null;
-}
+export { findNodeById } from '../lib/ast';
 
 export function deleteNodeFromPattern(pattern: string, node: ASTNode): string {
   return pattern.slice(0, node.start) + pattern.slice(node.end);

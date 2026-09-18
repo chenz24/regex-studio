@@ -22,6 +22,12 @@ const run = (pattern: string, text: string, flags = 'g', replacement = '') =>
   });
 
 describe('the real PCRE2 10.47 WASM runtime', () => {
+  it.each([10000, 10001])('marks only incomplete main-text match counts at length %i', (count) => {
+    const result = run('a', 'a'.repeat(count), 'g', 'X');
+    expect(result.matches).toHaveLength(Math.min(count, 10000));
+    expect(result.matchesTruncated).toBe(count > 10000);
+    expect(result.replacedText).toBe('X'.repeat(count));
+  });
   it('resets the reported match start with \\K, preserving captures outside the match', () => {
     const result = run('(foo)\\Kbar', 'foobar fooKbar');
     expect(result.validation).toEqual({ valid: true });
@@ -142,6 +148,66 @@ describe('the real PCRE2 10.47 WASM runtime', () => {
     expect(result.testMatchCounts).toEqual([1, 0]);
   });
 
+  it('returns complete per-case captures and requested replacements, including captures before \\K', () => {
+    const result = execute({
+      engine: 'pcre2',
+      pattern: '(?<prefix>foo)\\K(?<empty>)(?<missing>z)?bar',
+      flags: 'g',
+      text: '',
+      replacement: `\${prefix}:$0`,
+      testInputs: ['😀foobar', 'none'],
+      testReplacements: [true, false],
+    });
+    expect(result.testExecutions).toEqual([
+      {
+        matchCount: 1,
+        truncated: false,
+        detailsTruncated: false,
+        replacedText: '😀foofoo:bar',
+        matches: [
+          {
+            index: 5,
+            start: 5,
+            end: 8,
+            match: 'bar',
+            groups: [
+              { index: 1, name: 'prefix', value: 'foo', start: 2, end: 5 },
+              { index: 2, name: 'empty', value: '', start: 5, end: 5 },
+              { index: 3, name: 'missing', value: undefined, start: -1, end: -1 },
+            ],
+          },
+        ],
+      },
+      { matchCount: 0, truncated: false, detailsTruncated: false, matches: [] },
+    ]);
+  });
+
+  it('reports per-case replacement errors and count/detail limits without inventing results', () => {
+    const request: MatchInput = {
+      engine: 'pcre2',
+      pattern: '(a)',
+      flags: 'g',
+      text: '',
+      replacement: `\${missing}`,
+      testInputs: ['a'],
+      testReplacements: [true],
+    };
+    expect(execute(request).testExecutions![0]).toMatchObject({
+      matchCount: 1,
+      replacementError: expect.any(String),
+    });
+    const bounded = (count: number) =>
+      execute({ ...request, testInputs: ['a'.repeat(count)], testReplacements: [] })
+        .testExecutions![0];
+    expect(bounded(101)).toMatchObject({
+      matchCount: 101,
+      truncated: false,
+      detailsTruncated: true,
+    });
+    expect(bounded(10_000).truncated).toBe(false);
+    expect(bounded(10_001)).toMatchObject({ matchCount: 10_000, truncated: true });
+  });
+
   it('enforces backtracking limits and recovers for the next request', () => {
     expect(run('(*NO_START_OPT)(a+)+$', `${'a'.repeat(30)}!`).timedOut).toBe(true);
     expect(run('a+', 'aaa').matches[0].match).toBe('aaa');
@@ -170,5 +236,27 @@ describe('the real PCRE2 10.47 WASM runtime', () => {
       );
       expect(actual.replacedText).toBe(replaceMatches(pattern, flags, text, 'X'));
     }
+  });
+  it('bounds retained details and replacements across the complete case batch', () => {
+    const input = {
+      pattern: '(a+)',
+      flags: 'g',
+      text: '',
+      replacement: 'X',
+      testInputs: ['a'.repeat(80_000), 'a'.repeat(80_000), 'a'],
+    };
+    const results = execute(input).testExecutions!;
+    expect(results.map((r) => r.matchCount)).toEqual([1, 1, 1]);
+    expect(results.map((r) => r.detailsTruncated)).toEqual([false, true, false]);
+    const replacements = execute({
+      ...input,
+      pattern: 'a',
+      replacement: 'X'.repeat(1_100_000),
+      testInputs: ['a', 'a'],
+      testReplacements: [true, true],
+    }).testExecutions!;
+    expect(replacements[0].replacedText).toHaveLength(1_100_000);
+    expect(replacements[1].replacedText).toBeUndefined();
+    expect(replacements[1].replacementError).toContain('size limit');
   });
 });

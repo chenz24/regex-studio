@@ -66,6 +66,7 @@ export function CompatibilityWarnings({ warnings, engineName }: CompatibilityWar
       className={`rounded-lg border ${config.border} ${config.bg} overflow-hidden transition-all`}
     >
       <button
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
@@ -94,7 +95,7 @@ export function CompatibilityWarnings({ warnings, engineName }: CompatibilityWar
                   </span>
                   {warning.raw && (
                     <code
-                      className={`ml-1.5 text-[10px] font-mono px-1 py-0.5 rounded ${wConfig.badgeBg} ${wConfig.badgeText}`}
+                      className={`ml-1.5 text-[10px] font-mono break-all px-1 py-0.5 rounded ${wConfig.badgeBg} ${wConfig.badgeText}`}
                     >
                       {warning.raw}
                     </code>

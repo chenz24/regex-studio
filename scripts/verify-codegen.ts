@@ -23,10 +23,30 @@ interface Case {
   text: string;
   flags?: string;
   replace?: string;
+  operation?: CodeGenOperation;
+  languages?: CodeGenLanguage[];
 }
 
 /** Characters that have to survive two layers of escaping to work at all. */
 const MATCH_CASES: Case[] = [
+  { name: 'nul-input', pattern: 'b', text: 'a\0b', languages: ['javascript', 'python'] },
+  { name: 'nul-pattern', pattern: 'a\0b', text: 'a\0b', languages: ['javascript', 'python'] },
+  {
+    name: 'pattern-line-separator',
+    pattern: 'a\u2028b',
+    text: 'a\u2028b',
+    languages: ['javascript'],
+  },
+  {
+    name: 'pattern-paragraph-separator',
+    pattern: 'a\u2029b',
+    text: 'a\u2029b',
+    languages: ['javascript'],
+  },
+  { name: 'long-input', pattern: 'Z$', text: `${'a'.repeat(199)}😀${'b'.repeat(200)}Z` },
+  { name: 'preserved-crlf', pattern: 'a\\r\\nb', text: 'a\r\nb' },
+  { name: 'preserved-cr', pattern: 'a\\rb', text: 'a\rb' },
+  { name: 'multiline-delimiters', pattern: 'Z$', text: `a\nTEXT\n""""#\\\n  Z` },
   { name: 'slash', pattern: 'https://(\\w+)', text: 'visit https://example' },
   { name: 'escaped-slash', pattern: 'https:\\/\\/(\\w+)', text: 'visit https://example' },
   { name: 'double-quote', pattern: '"([^"]*)"', text: 'say "hi"' },
@@ -46,6 +66,75 @@ const MATCH_CASES: Case[] = [
 ];
 
 const REPLACE_CASES: Case[] = [
+  ...['', 'g'].flatMap((flags): Case[] => [
+    { name: `prefix-${flags || 'first'}`, pattern: 'a', text: 'aba', replace: '$`', flags },
+    { name: `suffix-${flags || 'first'}`, pattern: 'a', text: 'aba', replace: "$'", flags },
+    {
+      name: `context-capture-${flags || 'first'}`,
+      pattern: '(a)',
+      text: 'aba',
+      replace: "$`|$&|$1|$'",
+      flags,
+    },
+    {
+      name: `context-named-${flags || 'first'}`,
+      pattern: '(?<x>a)',
+      text: 'aba',
+      replace: "$`<$<x>>$'",
+      flags,
+    },
+    {
+      name: `context-unset-${flags || 'first'}`,
+      pattern: '(a)?b',
+      text: 'bb',
+      replace: "$`<$1>$'",
+      flags,
+    },
+    {
+      name: `context-empty-${flags || 'first'}`,
+      pattern: '(?=a)',
+      text: 'aaa',
+      replace: "$`/$'",
+      flags,
+    },
+    {
+      name: `context-absent-${flags || 'first'}`,
+      pattern: 'z',
+      text: 'aba',
+      replace: "$`/$'",
+      flags,
+    },
+    {
+      name: `context-escape-${flags || 'first'}`,
+      pattern: 'a',
+      text: 'aba',
+      replace: "$$`-$$'-$$$`-$$$'",
+      flags,
+    },
+    {
+      name: `context-backslash-${flags || 'first'}`,
+      pattern: 'a',
+      text: 'aba',
+      replace: "$`\\$'",
+      flags,
+    },
+  ]),
+  ...['', 'g'].flatMap((flags): Case[] => [
+    { name: `scope-${flags || 'first'}`, pattern: 'a', text: 'aaa', replace: 'X', flags },
+    { name: `empty-${flags || 'first'}`, pattern: 'a', text: 'banana', replace: '', flags },
+    { name: `capture-${flags || 'first'}`, pattern: '(a)', text: 'aba', replace: '<$1>', flags },
+    { name: `absent-${flags || 'first'}`, pattern: 'z', text: 'aaa', replace: 'X', flags },
+    { name: `zero-width-${flags || 'first'}`, pattern: '^', text: 'aaa', replace: 'X', flags },
+    {
+      name: `context-${flags || 'first'}`,
+      pattern: '(?<=a)(b)(?=c)',
+      text: 'abcabc',
+      replace: '<$1>',
+      flags,
+    },
+  ]),
+  { name: 'replacement-newlines', pattern: 'b', text: 'a\r\nb', replace: 'X\r\nY\r' },
+  { name: 'long-replacement', pattern: 'a', text: 'aaa', flags: '', replace: 'x'.repeat(240) },
   { name: 'groups', pattern: '(\\w+)@(\\w+)', text: 'bob@host', replace: '$2 at $1' },
   { name: 'delete', pattern: 'a', text: 'banana', replace: '' },
   { name: 'literal-dollar', pattern: '(\\d+)', text: 'cost 42', replace: '$$$1' },
@@ -64,6 +153,39 @@ const REPLACE_CASES: Case[] = [
   { name: 'backslash-then-reference', pattern: '(a)', text: 'a', replace: String.raw`\$1` },
   { name: 'plain-dollar', pattern: 'a', text: 'a', replace: '$price' },
 ];
+
+const SPLIT_CASES: Case[] = [
+  ...[
+    [',', 'a,'],
+    ['(,)', 'a,b,'],
+    ['(,)|(x)', 'a,b'],
+    [',', ',a,,'],
+    [',', ''],
+    ['(?:)', ''],
+    ['(?:)', 'ab'],
+    ['a*', 'aba'],
+    ['(?=b)', 'ab'],
+    ['^', 'abc'],
+    ['$', 'abc'],
+    ['z', 'abc'],
+    ['(a)', 'a'],
+  ].map(
+    ([pattern, text], index): Case => ({
+      name: `split-${index}`,
+      pattern,
+      text,
+      operation: 'split',
+      languages: ['javascript', 'java', 'ruby'],
+    }),
+  ),
+];
+
+const OTHER_CASES: Case[] = ['match', 'matchAll', 'capture'].map((operation) => ({
+  name: `operation-${operation}`,
+  operation: operation as CodeGenOperation,
+  pattern: '(a)',
+  text: 'aba',
+}));
 
 interface Runner {
   language: CodeGenLanguage;
@@ -105,7 +227,9 @@ const RUNNERS: Runner[] = [
     language: 'swift',
     probe: 'swift',
     file: 'main.swift',
-    run: (dir) => exec('swift', ['main.swift'], dir),
+    // Keep compiler output inside this verification run's writable temp tree.
+    run: (dir) =>
+      exec('swift', ['-module-cache-path', join(root, 'swift-modules'), 'main.swift'], dir),
   },
 ];
 
@@ -120,23 +244,25 @@ function available(command: string): boolean {
 
 /** What the generated program prints, as JavaScript would have it. */
 function expected(c: Case): string {
-  const re = new RegExp(c.pattern, c.flags ? `${c.flags}g` : 'g');
+  const re = new RegExp(c.pattern, c.flags ?? 'g');
+  if (c.operation === 'split') return JSON.stringify(c.text.split(re).map(String));
   if (c.replace === undefined) return String(new RegExp(c.pattern, c.flags ?? '').test(c.text));
   return c.text.replace(re, c.replace);
 }
 
-function actual(output: string): string | null {
-  const line = output
-    .split('\n')
-    .find((l) => /^(Match|Result|Replaced):/.test(l))
-    ?.replace(/^\w+:\s*/, '');
-  return line === undefined
-    ? null
-    : line.trim().toLowerCase() === 'true'
-      ? 'true'
-      : line.trim().toLowerCase() === 'false'
-        ? 'false'
-        : line;
+function actual(output: string, c: Case): string | null {
+  if (c.operation === 'split') {
+    return JSON.stringify([...output.matchAll(/^\[\d+\] "(.*)"$/gm)].map((match) => match[1]));
+  }
+  if (c.operation === 'match' || c.operation === 'matchAll' || c.operation === 'capture') {
+    // These smoke cases match; running the whole snippet catches syntax errors
+    // in the operation-specific output templates too.
+    return output.includes('"a"') || output.includes('Found: a') ? 'true' : 'false';
+  }
+  const match = /^(Match|Result|Replaced): ?/m.exec(output);
+  if (!match) return null;
+  const value = output.slice(match.index + match[0].length).replace(/\n$/, '');
+  return match[1] === 'Match' ? value.trim().toLowerCase() : value;
 }
 
 const root = mkdtempSync(join(tmpdir(), 'regexstudio-codegen-'));
@@ -151,11 +277,13 @@ for (const runner of RUNNERS) {
   }
 
   const results: string[] = [];
-  for (const c of [...MATCH_CASES, ...REPLACE_CASES]) {
-    const operation: CodeGenOperation = c.replace === undefined ? 'test' : 'replace';
+  for (const c of [...MATCH_CASES, ...REPLACE_CASES, ...SPLIT_CASES, ...OTHER_CASES]) {
+    if (c.languages && !c.languages.includes(runner.language)) continue;
+    const operation: CodeGenOperation =
+      c.operation ?? (c.replace === undefined ? 'test' : 'replace');
     const { code } = generateCode({
       pattern: c.pattern,
-      flags: c.flags ? `${c.flags}g` : 'g',
+      flags: c.flags ?? 'g',
       testText: c.text,
       replaceText: c.replace ?? '',
       operation,
@@ -170,7 +298,7 @@ for (const runner of RUNNERS) {
     const want = expected(c);
     let got: string | null;
     try {
-      got = actual(runner.run(dir));
+      got = actual(runner.run(dir), c);
     } catch (error) {
       failures++;
       results.push(`  ✗ ${c.name}: did not run — ${String(error).split('\n')[0]}`);

@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
+import { contextReplacement, escapePattern, escapeTestString, escapeReplacement } from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generateSwift(ctx: CodeGenContext): CodeGenResult {
@@ -19,6 +19,13 @@ export function generateSwift(ctx: CodeGenContext): CodeGenResult {
     flagMapping.compileFlags.length > 0
       ? `, options: [${flagMapping.compileFlags.join(', ')}]`
       : '';
+
+  const contextual = contextReplacement(replaceText, 'swift', pattern, {
+    capture: (index) =>
+      `(match.range(at: ${index}).location == NSNotFound ? "" : subject.substring(with: match.range(at: ${index})))`,
+    prefix: 'subject.substring(to: match.range.location)',
+    suffix: 'subject.substring(from: NSMaxRange(match.range))',
+  });
 
   let code = `import Foundation
 
@@ -80,9 +87,32 @@ for (i, match) in matches.enumerated() {
       break;
 
     case 'replace':
+      if (contextual) {
+        code += `
+let subject = text as NSString
+var result = ""
+var lastEnd = 0
+let matches = ${flags.includes('g') ? 'pattern.matches(in: text, range: range)' : '[pattern.firstMatch(in: text, range: range)].compactMap { $0 }'}
+for match in matches {
+    result += subject.substring(with: NSRange(location: lastEnd, length: match.range.location - lastEnd))
+    result += ${contextual}
+    lastEnd = NSMaxRange(match.range)
+}
+result += subject.substring(from: lastEnd)
+print("Result: \\(result)")`;
+        break;
+      }
       code += `
 let replacement = ${replaceStr}
-let result = pattern.stringByReplacingMatches(in: text, range: range, withTemplate: replacement)
+${
+  flags.includes('g')
+    ? 'let result = pattern.stringByReplacingMatches(in: text, range: range, withTemplate: replacement)'
+    : `var result = text
+if let match = pattern.firstMatch(in: text, range: range) {
+    let expanded = pattern.replacementString(for: match, in: text, offset: 0, template: replacement)
+    result = (text as NSString).replacingCharacters(in: match.range, with: expanded)
+}`
+}
 print("Result: \\(result)")`;
       break;
 

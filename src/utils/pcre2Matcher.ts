@@ -1,8 +1,15 @@
+import { retainReplacement, TEST_REPLACEMENT_BUDGET } from './testResultBudget';
 import createModule, { type Pcre2Module } from '../vendor/pcre2/pcre2.js';
 import wasmUrl from '../vendor/pcre2/pcre2.wasm?url';
 import type { MatchInfo } from '../types/regex';
 import type { MatchInput, MatchOutcome } from './matchEngine';
-import { MAX_MATCHES } from './regexMatcher';
+import {
+  MAX_MATCHES,
+  TEST_DETAIL_LIMIT,
+  TEST_DETAIL_BUDGET,
+  retainMatch,
+  type MatchDetailBudget,
+} from './regexMatcher';
 import { createTraceCollector } from './pcre2Trace';
 
 const UNSET = 0xffff_ffff;
@@ -106,7 +113,17 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
     if (input.validateOnly) return outcome;
     // An empty editor is intentionally idle, matching the JavaScript mode.
     if (!input.pattern) {
+      const replacementBudget = { remaining: TEST_REPLACEMENT_BUDGET };
       outcome.testMatchCounts = input.testInputs.map(() => 0);
+      outcome.testExecutions = input.testInputs.map((text, i) => ({
+        matchCount: 0,
+        matches: [],
+        truncated: false,
+        detailsTruncated: false,
+        ...(input.testReplacements?.[i]
+          ? retainReplacement({ replacedText: text }, replacementBudget)
+          : {}),
+      }));
       return outcome;
     }
     data = m._pcre2_match_data_create_from_pattern_16(compiled, 0);
@@ -134,14 +151,16 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
       names.set(group, decode(pointer + 2, length));
     }
     const global = !input.trace && input.flags.includes('g');
-    const find = (text: string, collect: boolean) => {
+    const find = (text: string, detailLimit = MAX_MATCHES, budget?: MatchDetailBudget) => {
       const subject = encode(text);
       const matches: MatchInfo[] = [];
       let count = 0;
+      let truncated = false;
+      let retain = true;
       let start = 0;
       let options = 0;
       try {
-        while (count < MAX_MATCHES) {
+        for (;;) {
           const rc = m._pcre2_match_16(
             compiled,
             subject,
@@ -153,8 +172,12 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
           );
           if (rc < -1) throw Object.assign(new Error(errorMessage(rc)), { code: rc });
           if (rc >= 0) {
+            if (count === MAX_MATCHES) {
+              truncated = true;
+              break;
+            }
             count++;
-            if (collect) {
+            if (retain && matches.length < detailLimit) {
               const vector = m._pcre2_get_ovector_pointer_16(data) >> 2;
               const from = m.HEAPU32[vector];
               const to = m.HEAPU32[vector + 1];
@@ -169,13 +192,15 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
                   value: a === UNSET ? undefined : text.slice(a, b),
                 };
               });
-              matches.push({
+              const match: MatchInfo = {
                 index: from,
                 start: from,
                 end: to,
                 match: text.slice(from, to),
                 groups,
-              });
+              };
+              retain = retainMatch(match, budget);
+              if (retain) matches.push(match);
             }
           }
           if (!global) break;
@@ -184,63 +209,86 @@ function execute(m: Pcre2Module, input: MatchInput): MatchOutcome {
           start = m.HEAPU32[scratch >> 2];
           options = m.HEAPU32[(scratch + 4) >> 2];
         }
-        return { matches, count };
+        return { matches, matchCount: count, truncated, detailsTruncated: matches.length < count };
       } finally {
         free(subject);
       }
     };
-    outcome.matches = find(input.text, true).matches;
+    const main = find(input.text);
+    outcome.matches = main.matches;
+    outcome.matchesTruncated = main.truncated;
     if (input.trace) return outcome;
-    outcome.testMatchCounts = input.testInputs.map((text) => find(text, false).count);
-
-    const subject = encode(input.text);
-    const replacement = encode(input.replacement);
-    let size = Math.min(MAX_OUTPUT_LENGTH, Math.max(1024, input.text.length + 1));
-    let output = allocate(size * 2);
-    try {
-      for (;;) {
-        m.HEAPU32[scratch >> 2] = size;
-        const rc = m._pcre2_substitute_16(
-          compiled,
-          subject,
-          input.text.length,
-          0,
-          0x1000 | 0x400 | (global ? 0x100 : 0),
-          0,
-          context,
-          replacement,
-          input.replacement.length,
-          output,
-          scratch,
-        );
-        const length = m.HEAPU32[scratch >> 2];
-        if (rc >= 0) {
-          outcome.replacedText = decode(output, length);
+    const substitute = (text: string) => {
+      const result: { replacedText: string; replacementError?: string } = { replacedText: text };
+      const subject = encode(text);
+      const replacement = encode(input.replacement);
+      let size = Math.min(MAX_OUTPUT_LENGTH, Math.max(1024, text.length + 1));
+      let output = allocate(size * 2);
+      try {
+        for (;;) {
+          m.HEAPU32[scratch >> 2] = size;
+          const rc = m._pcre2_substitute_16(
+            compiled,
+            subject,
+            text.length,
+            0,
+            0x1000 | 0x400 | (global ? 0x100 : 0),
+            0,
+            context,
+            replacement,
+            input.replacement.length,
+            output,
+            scratch,
+          );
+          const length = m.HEAPU32[scratch >> 2];
+          if (rc >= 0) {
+            result.replacedText = decode(output, length);
+            break;
+          }
+          if (rc === -48 && length > size && length <= MAX_OUTPUT_LENGTH) {
+            free(output);
+            output = 0;
+            size = length;
+            output = allocate(size * 2);
+            continue;
+          }
+          result.replacementError =
+            rc === -48 ? 'PCRE2: replacement output exceeds the size limit' : errorMessage(rc);
           break;
         }
-        if (rc === -48 && length > size && length <= MAX_OUTPUT_LENGTH) {
-          free(output);
-          output = 0;
-          size = length;
-          output = allocate(size * 2);
-          continue;
-        }
-        outcome.replacementError =
-          rc === -48 ? 'PCRE2: replacement output exceeds the size limit' : errorMessage(rc);
-        break;
+      } finally {
+        if (output) free(output);
+        free(subject);
+        free(replacement);
       }
-    } finally {
-      if (output) free(output);
-    }
+      return result;
+    };
+    Object.assign(outcome, substitute(input.text));
+    const budget = { remaining: TEST_DETAIL_BUDGET };
+    const replacementBudget = { remaining: TEST_REPLACEMENT_BUDGET };
+    outcome.testExecutions = input.testInputs.map((text, i) => ({
+      ...find(text, TEST_DETAIL_LIMIT, budget),
+      ...(input.testReplacements?.[i]
+        ? retainReplacement(substitute(text), replacementBudget)
+        : {}),
+    }));
+    outcome.testMatchCounts = outcome.testExecutions.map((result) => result.matchCount);
     return outcome;
   } catch (error) {
     const code = (error as { code?: number }).code;
     if (code === -47 || code === -53 || code === -63) {
-      return { ...outcome, matches: [], testMatchCounts: [], timedOut: true };
+      return {
+        ...outcome,
+        matches: [],
+        matchesTruncated: false,
+        testMatchCounts: [],
+        timedOut: true,
+      };
     }
     return {
       ...outcome,
       matches: [],
+      matchesTruncated: false,
       testMatchCounts: [],
       executionError: error instanceof Error ? error.message : 'PCRE2 execution failed',
     };

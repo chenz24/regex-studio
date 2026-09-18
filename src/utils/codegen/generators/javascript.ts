@@ -1,7 +1,8 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
 import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
 
-export function generateJavaScript(ctx: CodeGenContext): CodeGenResult {
+function generateScript(ctx: CodeGenContext, typed: boolean): CodeGenResult {
+  const declaration = (name: string, type: string) => `const ${name}${typed ? `: ${type}` : ''}`;
   const { pattern, flags, testText, replaceText, operation } = ctx;
   const warnings: string[] = [];
 
@@ -13,18 +14,18 @@ export function generateJavaScript(ctx: CodeGenContext): CodeGenResult {
 
   switch (operation) {
     case 'test':
-      code = `const pattern = /${escapedPattern}/${flags.replace('g', '')};
-const text = ${testStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags.replace('g', '')};
+${declaration('text', 'string')} = ${testStr};
 
-const isMatch = pattern.test(text);
+${declaration('isMatch', 'boolean')} = pattern.test(text);
 console.log('Match:', isMatch);`;
       break;
 
     case 'match':
-      code = `const pattern = /${escapedPattern}/${flags.replace('g', '')};
-const text = ${testStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags.replace('g', '')};
+${declaration('text', 'string')} = ${testStr};
 
-const match = text.match(pattern);
+${declaration('match', 'RegExpMatchArray | null')} = text.match(pattern);
 if (match) {
     console.log('Found:', match[0]);
     console.log('Index:', match.index);
@@ -35,10 +36,10 @@ if (match) {
       break;
 
     case 'matchAll':
-      code = `const pattern = /${escapedPattern}/${flags.includes('g') ? flags : `${flags}g`};
-const text = ${testStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags.includes('g') ? flags : `${flags}g`};
+${declaration('text', 'string')} = ${testStr};
 
-const matches = [...text.matchAll(pattern)];
+${declaration('matches', 'RegExpMatchArray[]')} = [...text.matchAll(pattern)];
 console.log('Found', matches.length, 'matches:');
 matches.forEach((match, i) => {
     console.log(\`[\${i}] "\${match[0]}" at index \${match.index}\`);
@@ -46,10 +47,10 @@ matches.forEach((match, i) => {
       break;
 
     case 'capture':
-      code = `const pattern = /${escapedPattern}/${flags.includes('g') ? flags : `${flags}g`};
-const text = ${testStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags.includes('g') ? flags : `${flags}g`};
+${declaration('text', 'string')} = ${testStr};
 
-const matches = [...text.matchAll(pattern)];
+${declaration('matches', 'RegExpMatchArray[]')} = [...text.matchAll(pattern)];
 matches.forEach((match, i) => {
     console.log(\`Match \${i + 1}: "\${match[0]}"\`);
     // Numbered groups
@@ -66,19 +67,19 @@ matches.forEach((match, i) => {
       break;
 
     case 'replace':
-      code = `const pattern = /${escapedPattern}/${flags};
-const text = ${testStr};
-const replacement = ${replaceStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags};
+${declaration('text', 'string')} = ${testStr};
+${declaration('replacement', 'string')} = ${replaceStr};
 
-const result = text.replace(pattern, replacement);
+${declaration('result', 'string')} = text.replace(pattern, replacement);
 console.log('Result:', result);`;
       break;
 
     case 'split':
-      code = `const pattern = /${escapedPattern}/${flags.replace('g', '')};
-const text = ${testStr};
+      code = `${declaration('pattern', 'RegExp')} = /${escapedPattern}/${flags.replace('g', '')};
+${declaration('text', 'string')} = ${testStr};
 
-const parts = text.split(pattern);
+${declaration('parts', 'string[]')} = text.split(pattern);
 console.log('Split into', parts.length, 'parts:');
 parts.forEach((part, i) => {
     console.log(\`[\${i}] "\${part}"\`);
@@ -86,24 +87,13 @@ parts.forEach((part, i) => {
       break;
   }
 
-  return { code, language: 'javascript', warnings };
+  return { code, language: typed ? 'typescript' : 'javascript', warnings };
+}
+
+export function generateJavaScript(ctx: CodeGenContext): CodeGenResult {
+  return generateScript(ctx, false);
 }
 
 export function generateTypeScript(ctx: CodeGenContext): CodeGenResult {
-  const result = generateJavaScript(ctx);
-
-  // Add type annotations
-  let code = result.code;
-
-  code = code
-    .replace('const pattern =', 'const pattern: RegExp =')
-    .replace('const text =', 'const text: string =')
-    .replace('const replacement =', 'const replacement: string =')
-    .replace('const isMatch =', 'const isMatch: boolean =')
-    .replace('const match =', 'const match: RegExpMatchArray | null =')
-    .replace('const matches =', 'const matches: RegExpMatchArray[] =')
-    .replace('const result =', 'const result: string =')
-    .replace('const parts =', 'const parts: string[] =');
-
-  return { code, language: 'typescript', warnings: result.warnings };
+  return generateScript(ctx, true);
 }

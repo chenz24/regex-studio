@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapeTestString, escapeReplacement } from '../escaper';
+import { contextReplacement, escapeTestString, escapeReplacement } from '../escaper';
 import { mapFlags } from '../flagMapper';
 
 export function generateGo(ctx: CodeGenContext): CodeGenResult {
@@ -22,6 +22,13 @@ export function generateGo(ctx: CodeGenContext): CodeGenResult {
 
   const testStr = escapeTestString(testText, 'go');
   const replaceStr = escapeReplacement(replaceText, 'go', pattern);
+
+  const contextual = contextReplacement(replaceText, 'go', pattern, {
+    capture: (index) =>
+      `func() string { if match[${index * 2}] < 0 { return "" }; return text[match[${index * 2}]:match[${index * 2 + 1}]] }()`,
+    prefix: 'text[:match[0]]',
+    suffix: 'text[match[1]:]',
+  });
 
   let code = `package main
 
@@ -76,9 +83,29 @@ func main() {
       break;
 
     case 'replace':
+      if (contextual) {
+        code += `
+	result := ""
+	lastEnd := 0
+	for _, match := range pattern.FindAllStringSubmatchIndex(text, ${flags.includes('g') ? -1 : 1}) {
+		result += text[lastEnd:match[0]] + ${contextual}
+		lastEnd = match[1]
+	}
+	result += text[lastEnd:]
+	fmt.Println("Result:", result)`;
+        break;
+      }
       code += `
 	replacement := ${replaceStr}
-	result := pattern.ReplaceAllString(text, replacement)
+${
+  flags.includes('g')
+    ? '\tresult := pattern.ReplaceAllString(text, replacement)'
+    : `\tresult := text
+	if match := pattern.FindStringSubmatchIndex(text); match != nil {
+		expanded := pattern.ExpandString(nil, replacement, text, match)
+		result = text[:match[0]] + string(expanded) + text[match[1]:]
+	}`
+}
 	fmt.Println("Result:", result)`;
       break;
 

@@ -1,6 +1,16 @@
 import type { RegexFlag } from './regex';
 
 export type RegexEngine = 'javascript' | 'python' | 'pcre2' | 'java' | 'go' | 'dotnet' | 'rust';
+export type ExecutionEngine = 'javascript' | 'pcre2';
+export type CompatibilityTarget = Exclude<RegexEngine, ExecutionEngine>;
+export const EXECUTION_ENGINES: ExecutionEngine[] = ['javascript', 'pcre2'];
+export const COMPATIBILITY_TARGETS: CompatibilityTarget[] = [
+  'python',
+  'java',
+  'go',
+  'dotnet',
+  'rust',
+];
 
 export interface EngineFlavor {
   id: RegexEngine;
@@ -105,7 +115,7 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
     id: 'javascript',
     name: 'JavaScript',
     shortName: 'JS',
-    version: 'ES2024 (V8)',
+    version: 'Browser native',
     flags: flags([
       {
         key: 'g',
@@ -132,7 +142,8 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
       },
     ]),
     unsupportedFeatures: [],
-    notes: 'Native browser engine. Full support for all modern JavaScript regex features.',
+    notes:
+      'Uses this browser’s native RegExp implementation. Supported syntax depends on the browser version.',
   },
 
   python: {

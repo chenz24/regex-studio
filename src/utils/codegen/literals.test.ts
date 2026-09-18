@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateCode } from './index';
+import { escapeTestString } from './escaper';
 import type { CodeGenLanguage } from './types';
 
 /**
@@ -241,6 +242,24 @@ const PATTERNS: Array<[name: string, pattern: string]> = [
   ['rust raw-string terminator', 'a"#b'],
   ['trailing backslash class', '[\\\\]'],
 ];
+
+describe.each([
+  'go',
+  'rust',
+  'dotnet',
+  'kotlin',
+  'php',
+  'java',
+  'swift',
+  'python',
+] as const)('%s exported input', (language) => {
+  it('preserves long text, line endings, indentation and literal delimiters', () => {
+    const text = `${'a'.repeat(199)}😀\r\n  b\r\nTEXT\n""""#\`'\\\t$word`;
+    const encoded = escapeTestString(text, language);
+    const decoded = readers[language](encoded, 0);
+    expect(decoded).toEqual({ value: text, end: encoded.length });
+  });
+});
 
 describe.each(['go', 'rust', 'dotnet', 'kotlin'] as const)('generated %s', (language) => {
   it.each(PATTERNS)('embeds the pattern unchanged: %s', (_name, pattern) => {

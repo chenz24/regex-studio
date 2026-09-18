@@ -23,6 +23,27 @@ function escapeUnescaped(pattern: string, chars: string): string {
   return out;
 }
 
+/** A constructor accepts line terminators that cannot appear in a /literal/. */
+function escapeJsPattern(pattern: string): string {
+  const breaks: Record<string, string> = {
+    '\n': '\\n',
+    '\r': '\\r',
+    '\u2028': '\\u2028',
+    '\u2029': '\\u2029',
+  };
+  let result = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '\\') {
+      const next = pattern[++i] ?? '';
+      result += breaks[next] ?? `\\${next}`;
+    } else {
+      result += breaks[ch] ?? (ch === '/' ? '\\/' : ch);
+    }
+  }
+  return result;
+}
+
 /** Translate actual named constructs, leaving escaped text and classes intact. */
 function pythonPattern(pattern: string): string {
   let out = '';
@@ -65,7 +86,8 @@ function pythonPattern(pattern: string): string {
  * styles or a newline, or ending in an odd run of backslashes.
  */
 export function pythonStringLiteral(value: string): string {
-  const unrawable = /[\n\r]/.test(value) || /(?:^|[^\\])(?:\\\\)*\\$/.test(value);
+  const unrawable =
+    value.includes('\0') || /[\n\r]/.test(value) || /(?:^|[^\\])(?:\\\\)*\\$/.test(value);
   if (!unrawable) {
     if (!value.includes("'")) return `r'${value}'`;
     if (!value.includes('"')) return `r"${value}"`;
@@ -73,6 +95,8 @@ export function pythonStringLiteral(value: string): string {
   const escaped = value
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
+    .split('\0')
+    .join('\\x00')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r');
   return `'${escaped}'`;
@@ -85,8 +109,7 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
   switch (lang) {
     case 'javascript':
     case 'typescript':
-      // For regex literal /.../, escape forward slashes
-      return escapeUnescaped(pattern, '/');
+      return escapeJsPattern(pattern);
 
     case 'python':
       // Python's `re` only knows Python's spelling of named groups, so
@@ -145,95 +168,43 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
   }
 }
 
-/**
- * Escape a test string for use in different languages
- */
-export function escapeTestString(text: string, lang: CodeGenLanguage): string {
-  // Truncate very long strings
-  const maxLength = 200;
-  const truncated = text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+/** A JavaScript literal that preserves every UTF-16 code unit and line ending. */
+function javascriptStringLiteral(text: string): string {
+  const body = JSON.stringify(text)
+    .slice(1, -1)
+    .replace(/'/g, "\\'")
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+  return `'${body}'`;
+}
 
+/** Escape the complete test string for the target language. */
+export function escapeTestString(text: string, lang: CodeGenLanguage): string {
+  // Never shorten exported data. Raw multiline literals can also normalize
+  // CRLF, strip indentation or collide with a delimiter in the user's input.
+  const quoted = () =>
+    text
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t');
   switch (lang) {
     case 'javascript':
     case 'typescript':
-      // Use template literal for multiline
-      if (truncated.includes('\n')) {
-        return `\`${truncated.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\``;
-      }
-      return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
+      return javascriptStringLiteral(text);
     case 'python':
-      // Use triple quotes for multiline
-      if (truncated.includes('\n')) {
-        return `"""${truncated.replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"')}"""`;
-      }
-      return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
-    case 'java':
-      // Use text blocks for multiline (Java 15+)
-      if (truncated.includes('\n')) {
-        const escaped = truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        return `"""\n${escaped}"""`;
-      }
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
-
+      return pythonStringLiteral(text);
     case 'kotlin':
-      // Always a regular string: Kotlin's `"""` blocks are raw, so they
-      // neither process the escapes above nor allow a literal `$` to be
-      // escaped at all.
-      return `"${truncated
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\$/g, '\\$')
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')}"`;
-
-    case 'go':
-      // Use raw string for multiline
-      if (truncated.includes('\n') && !truncated.includes('`')) {
-        return `\`${truncated}\``;
-      }
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
-
-    case 'dotnet':
-      // Use verbatim string for multiline
-      if (truncated.includes('\n')) {
-        return `@"${truncated.replace(/"/g, '""')}"`;
-      }
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-
-    case 'rust':
-      // Use raw string for complex content
-      if (truncated.includes('\n') && !truncated.includes('"#')) {
-        return `r#"${truncated}"#`;
-      }
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
-
+      return `"${quoted().replace(/\$/g, '\\$')}"`;
+    case 'ruby':
+      return `"${quoted().replace(/#/g, '\\#')}"`;
     case 'pcre2':
     case 'php':
-      // Use heredoc for multiline
-      if (truncated.includes('\n')) {
-        return `<<<'TEXT'\n${truncated}\nTEXT`;
-      }
-      return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
-    case 'ruby':
-      // Quoted terminator: an unquoted heredoc interpolates `#{...}` out of
-      // the test text.
-      if (truncated.includes('\n')) {
-        return `<<~'TEXT'\n${truncated}\nTEXT`;
-      }
-      return `'${truncated.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
-    case 'swift':
-      // Use multiline string
-      if (truncated.includes('\n')) {
-        return `"""\n${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}\n"""`;
-      }
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-
+      // PHP permits newlines inside ordinary single-quoted strings.
+      return `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
     default:
-      return `"${truncated.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+      return `"${quoted()}"`;
   }
 }
 
@@ -244,6 +215,8 @@ type ReplacementToken =
   | { kind: 'text'; value: string }
   | { kind: 'dollar' }
   | { kind: 'match' }
+  | { kind: 'prefix' }
+  | { kind: 'suffix' }
   | { kind: 'group'; index: string }
   | { kind: 'named'; name: string };
 
@@ -279,6 +252,10 @@ function tokenizeReplacement(replacement: string, names: Array<string | null>): 
     } else if (rest.startsWith('&')) {
       flush();
       tokens.push({ kind: 'match' });
+      i++;
+    } else if (rest.startsWith('`') || rest.startsWith("'")) {
+      flush();
+      tokens.push({ kind: rest[0] === '`' ? 'prefix' : 'suffix' });
       i++;
     } else if (hasNamedGroups && /^<[^>]*>/.test(rest)) {
       const name = /^<([^>]*)>/.exec(rest)?.[1] ?? '';
@@ -432,10 +409,37 @@ function renderReplacement(
       if (token.kind === 'text') return dialect.text(token.value);
       if (token.kind === 'dollar') return dialect.dollar;
       if (token.kind === 'match') return dialect.match;
+      if (token.kind === 'prefix' || token.kind === 'suffix') {
+        const symbol = token.kind === 'prefix' ? '`' : "'";
+        return lang === 'ruby' ? `\\${symbol}` : dialect.text(`$${symbol}`);
+      }
       if (token.kind === 'group') return dialect.group(token.index);
       return dialect.named(token.name, names);
     })
     .join('');
+}
+
+/** Emit a callback expression when the template needs the original match context. */
+export function contextReplacement(
+  replacement: string,
+  lang: CodeGenLanguage,
+  pattern: string,
+  context: { capture: (index: number) => string; prefix: string; suffix: string },
+): string | null {
+  const names = collectGroupNames(pattern);
+  const tokens = tokenizeReplacement(replacement, names);
+  if (!tokens.some((token) => token.kind === 'prefix' || token.kind === 'suffix')) return null;
+  const pieces = tokens.map((token) => {
+    if (token.kind === 'prefix') return context.prefix;
+    if (token.kind === 'suffix') return context.suffix;
+    if (token.kind === 'match') return context.capture(0);
+    if (token.kind === 'group') return context.capture(Number(token.index));
+    if (token.kind === 'named') return context.capture(names.indexOf(token.name) + 1);
+    return escapeTestString(token.kind === 'dollar' ? '$' : token.value, lang);
+  });
+  return lang === 'rust'
+    ? `[${pieces.join(', ')}].concat()`
+    : pieces.join(lang === 'php' ? ' . ' : ' + ');
 }
 
 /**
@@ -450,38 +454,6 @@ export function escapeReplacement(
 ): string {
   const template = renderReplacement(replacement, lang, collectGroupNames(pattern));
 
-  switch (lang) {
-    case 'javascript':
-    case 'typescript':
-      return `'${template.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
-    case 'python':
-      // Raw, or `\g<1>` would have to be escaped by hand.
-      return pythonStringLiteral(template);
-
-    case 'java':
-    case 'go':
-    case 'rust':
-    case 'swift':
-      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-
-    case 'kotlin':
-      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`;
-
-    case 'dotnet':
-      // Verbatim, so a backslash in the replacement stays a backslash.
-      return `@"${template.replace(/"/g, '""')}"`;
-
-    case 'pcre2':
-    case 'php':
-      return `'${template.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-
-    case 'ruby':
-      // Double quotes, because `\1` has to survive as an escape — which also
-      // means `#` has to be escaped or it would start an interpolation.
-      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/#/g, '\\#')}"`;
-
-    default:
-      return `"${template.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-  }
+  if (lang === 'dotnet') return `@"${template.replace(/"/g, '""')}"`;
+  return escapeTestString(template, lang);
 }

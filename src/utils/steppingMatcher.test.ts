@@ -1,6 +1,65 @@
 import { describe, expect, it } from 'vitest';
 import { parseRegex } from './regexParser';
-import { debugRegex } from './steppingMatcher';
+import { debugRegex, SteppingMatcher } from './steppingMatcher';
+
+describe('duplicate names in disjoint alternatives', () => {
+  it.each<[string, string, string | null]>([
+    [String.raw`(?:(?<x>a)|(?<x>b))\k<x>`, 'aa', 'aa'],
+    [String.raw`(?:(?<x>a)|(?<x>b))\k<x>`, 'bb', 'bb'],
+    [String.raw`(?:(?<x>a)|(?<x>b))\k<x>`, 'ab', null],
+    [String.raw`(?:(?<x>a)|(?<x>b))\k<x>`, 'ba', null],
+    [String.raw`(?:(?<x>a)|(?<x>b))+\k<x>$`, 'abb', 'abb'],
+    [String.raw`(?:(?<x>a)|(?<x>b))+\k<x>$`, 'baa', 'baa'],
+    [String.raw`^(?:(?<x>)a|(?<x>b))\k<x>$`, 'a', 'a'],
+    [String.raw`^(?:(?<x>a)|(?<x>b))?\k<x>$`, '', ''],
+    [String.raw`(?<=\k<x>(?:(?<x>a)|(?<x>b)))c`, 'aac', 'c'],
+    [String.raw`(?<=\k<x>(?:(?<x>a)|(?<x>b)))c`, 'bbc', 'c'],
+  ])('%s on %j', (pattern, text, expected) => {
+    // The browser E2E suite supplies native validation; Node 22 rejects this syntax.
+    const result = new SteppingMatcher(parseRegex(pattern), text, '').execute();
+    expect(result.truncated).toBe(false);
+    expect(result.matched ? text.slice(result.matchStart, result.matchEnd) : null).toBe(expected);
+  });
+});
+
+// Older Node versions reject scoped modifiers at compilation. Exercise the
+// parser and stepping engine directly here; E2E compares to browser RegExp.
+describe('scoped modifiers', () => {
+  it.each<[string, string, string, string | null]>([
+    ['(?i:a)', 'A', '', 'A'],
+    ['(?-i:a)', 'A', 'i', null],
+    ['(?i:a)b', 'AB', '', null],
+    ['(?i:a)b', 'Ab', '', 'Ab'],
+    ['(?i:a(?-i:b)c)', 'AbC', '', 'AbC'],
+    ['(?i:a(?-i:b)c)', 'ABC', '', null],
+    ['(?i:a|ab)c', 'ABc', '', 'ABc'],
+    ['(?i:a+)a', 'AAa', '', 'AAa'],
+    ['(?i:a+)a', 'AAA', '', null],
+    ['(?s:a.b)', 'a\rb', '', 'a\rb'],
+    ['(?s:a.b).', 'a\rb\n', '', null],
+    ['(?-s:a.b)', 'a\nb', 's', null],
+    ['(?m:^b$)', 'a\rb\nc', '', 'b'],
+    ['(?-m:^b$)', 'a\nb', 'm', null],
+    [String.raw`(?i:\bK\b)`, 'K', 'u', 'K'],
+    [String.raw`(?-i:\bK\b)`, 'K', 'iu', null],
+    [String.raw`(a)(?i:\1)`, 'aA', '', 'aA'],
+    [String.raw`(?i:(a))\1`, 'Aa', '', null],
+    ['(?i:(?<=a)b)', 'AB', '', 'B'],
+    ['(?i:(?=a)a)b', 'Ab', '', 'Ab'],
+    [String.raw`(?i:[\q{Ab|C}])d`, 'abd', 'v', 'abd'],
+  ])('%s on %j (%s)', (pattern, text, flags, expected) => {
+    const ast = parseRegex(pattern, flags);
+    const result = new SteppingMatcher(ast, text, flags).execute();
+    expect(result.truncated).toBe(false);
+    expect(result.matched ? text.slice(result.matchStart, result.matchEnd) : null).toBe(expected);
+  });
+
+  it('retains enabled and disabled flags on nested groups', () => {
+    const ast = parseRegex('(?im-s:a(?-i:b))');
+    expect(ast.flagSpec).toBe('im-s');
+    expect(ast.children?.[1].flagSpec).toBe('-i');
+  });
+});
 
 /**
  * The debugger walks the pattern itself instead of handing it to the engine,
@@ -21,6 +80,70 @@ function bothWays(pattern: string, text: string, flags = '') {
 }
 
 const CASES: Array<[pattern: string, text: string, flags?: string]> = [
+  // Unicode set operations and strings, including retries and reverse matching.
+  ['[a&&[ab]]', 'a', 'v'],
+  ['[a&&[ab]]', 'b', 'v'],
+  ['[[a-z]--[aeiou]]+', 'aeiobcdf', 'v'],
+  ['[^[[a-z]--[aeiou]]]', 'a', 'v'],
+  [String.raw`[\q{ab|cd}]`, 'xab', 'v'],
+  [String.raw`[\q{a|ab}]`, 'ab', 'v'],
+  [String.raw`([\q{a|ab}])b`, 'ab', 'v'],
+  [String.raw`([\q{ab|cd}])+`, 'abcd', 'v'],
+  [String.raw`[\q{a\]b|c}]`, 'a]b', 'v'],
+  [String.raw`[\q{ab|}]`, '', 'v'],
+  [String.raw`[\q{ab|}]ab`, 'ab', 'v'],
+  [String.raw`[\q{ab|}]*c`, 'abc', 'v'],
+  [String.raw`(?<=([\q{ab|b}]))c`, 'abc', 'v'],
+  [String.raw`(?<=a([\q{ab|b}]))c`, 'abc', 'v'],
+  [String.raw`(?<=([\q{ab|}]))c`, 'c', 'v'],
+  [String.raw`[\q{😀a|😀}]a`, '😀a', 'v'],
+  [String.raw`(?<=😀[\q{😀a|a}])b`, '😀ab', 'v'],
+  [String.raw`[\q{Ab|C}]`, 'ab', 'iv'],
+  [String.raw`\p{RGI_Emoji}`, '👨‍👩‍👧‍👦', 'v'],
+  [String.raw`[\p{RGI_Emoji}]`, '👨‍👩‍👧‍👦', 'v'],
+  [String.raw`[\q{abc|ab|a}]bc`, 'abc', 'v'],
+  [String.raw`[\q{abc|ab|a}]z`, 'abc', 'v'],
+  // Annex B identity escapes must retain literal text and quantifier boundaries.
+  [String.raw`\u{2}`, 'uu'],
+  [String.raw`\p{2}`, 'pp'],
+  [String.raw`\P{2}`, 'PP'],
+  [String.raw`\p{L}`, 'p{L}'],
+  [String.raw`\u{61}`, 'u'.repeat(61)],
+  [String.raw`\u{61}`, 'a', 'u'],
+  [String.raw`\k<a>`, 'k<a>'],
+  [String.raw`\k<a>`, 'other'],
+  [String.raw`\k<a>(?<a>x)`, 'x'],
+  // Unicode atoms, canonical case folding, boundaries and escaped group names.
+  ...['u', 'v'].flatMap(
+    (flag): Array<[string, string, string]> => [
+      ['😀+', '😀😀', flag],
+      ['😀{2}', 'x😀😀', flag],
+      ['(?<=(😀+))a', '😀😀a', flag],
+      [String.raw`\uD83D\uDE00+`, '😀😀', flag],
+      ['s', 'ſ', `i${flag}`],
+      ['σ', 'ς', `i${flag}`],
+      ['(s)\\1', 'sſ', `i${flag}`],
+      ['(σ)\\1', 'σς', `i${flag}`],
+      ['\\bK', 'K', `i${flag}`],
+      ['K\\b', 'K', `i${flag}`],
+    ],
+  ),
+  ['k', 'K', 'i'],
+  ['(k)\\1', 'kK', 'i'],
+  ['σ', 'ς', 'i'],
+  ['(σ)\\1', 'σς', 'i'],
+  [String.raw`(?<\u0061>x)\k<a>`, 'x'],
+  [String.raw`(?<\u0061>x)\k<a>`, 'xx'],
+  [String.raw`(?<a>x)\k<\u0061>`, 'xx'],
+  [String.raw`(?<\u{61}>x)\k<a>`, 'xx'],
+  ...['\r', '\n', '\r\n', '\u2028', '\u2029'].flatMap(
+    (newline): Array<[string, string, string]> => [
+      ['^b', `a${newline}b`, 'm'],
+      ['a$', `a${newline}b`, 'm'],
+      ['^b', `a${newline}b`, ''],
+      ['a$', `a${newline}b`, ''],
+    ],
+  ),
   // Literals and classes
   ['abc', 'abc'],
   ['abc', 'xabcx'],
@@ -149,6 +272,32 @@ describe('debugRegex agrees with the native engine', () => {
 });
 
 describe('step log', () => {
+  it.each([
+    [String.raw`([\q{ab|a}])b`, 'ab'],
+    [String.raw`(?<=a([\q{ab|b}]))c`, 'abc'],
+    [String.raw`(?<=([\q{ab|b}])+)c`, 'ababc'],
+    [String.raw`([\q{ab|a|}])+b`, 'aab'],
+    [String.raw`([\q{😀a|😀}])a`, '😀a'],
+    [String.raw`([\q{ab|a}])\1`, 'abab'],
+  ])('preserves native captures when Unicode strings backtrack: %s', (pattern, text) => {
+    const native = new RegExp(pattern, 'dv').exec(text)!;
+    const result = debugRegex(parseRegex(pattern, 'v'), text, 'v');
+    expect(result.matched).toBe(true);
+    expect(result.truncated).toBe(false);
+    const captures = result.steps[result.steps.length - 1].captureGroups;
+    for (let i = 1; i < native.length; i++) {
+      expect(captures[i] ?? null).toEqual(
+        native[i] === undefined
+          ? null
+          : {
+              value: native[i],
+              start: native.indices![i]![0],
+              end: native.indices![i]![1],
+            },
+      );
+    }
+  });
+
   it.each(['u', 'v'])('reports invalid decimal escapes before stepping with %s', (flags) => {
     for (const pattern of ['\\1{2}', '\\1*', '(?:\\8|)', '(a)\\2?', '\\01', '[\\1]']) {
       expect(() => new RegExp(pattern, flags)).toThrow(SyntaxError);

@@ -8,14 +8,19 @@ import {
 } from '../../utils/matchEngine';
 import { pcre2DebugResult } from '../../utils/pcre2DebugResult';
 import { useT } from '@/lib/i18n';
+import type { DebugStep } from '../../utils/steppingMatcher';
 import { DebuggerPanel } from './DebuggerPanel';
 
 export function Pcre2DebuggerPanel({
+  onInspectStep,
+  onReveal,
   ast,
   pattern,
   testText,
   flagString,
 }: {
+  onInspectStep?: (step: DebugStep | null) => void;
+  onReveal?: (target: 'pattern' | 'text') => void;
   ast: ASTNode;
   pattern: string;
   testText: string;
@@ -40,11 +45,13 @@ export function Pcre2DebuggerPanel({
   useEffect(() => {
     if (!pattern) return;
     let cancelled = false;
-    runMatch(input).then((outcome) => {
+    const controller = new AbortController();
+    runMatch(input, controller.signal).then((outcome) => {
       if (!cancelled) setEntry({ key, attempt, outcome });
     });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [input, key, attempt, pattern]);
   const outcome = entry?.key === key && entry.attempt === attempt ? entry.outcome : undefined;
@@ -91,6 +98,8 @@ export function Pcre2DebuggerPanel({
       )}
       {!error && (
         <DebuggerPanel
+          onInspectStep={onInspectStep}
+          onReveal={onReveal}
           ast={ast}
           pattern={pattern}
           testText={testText}

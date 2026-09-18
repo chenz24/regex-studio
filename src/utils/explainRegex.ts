@@ -85,6 +85,14 @@ function walkNode(node: ASTNode, tokens: ExplanationToken[]): void {
 
     case 'characterClass':
     case 'negatedCharacterClass': {
+      if (node.unicodeSet) {
+        tokens.push({
+          raw: node.raw,
+          description: `Match a character or string allowed by the Unicode set ${node.raw}`,
+          type: 'class',
+        });
+        break;
+      }
       const negated = node.type === 'negatedCharacterClass';
       const childDescs = (node.children || []).map((c) => {
         if (c.type === 'range') return `${c.children?.[0]?.value} to ${c.children?.[1]?.value}`;

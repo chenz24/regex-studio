@@ -40,6 +40,7 @@ function renderPanel(
       testResults={testResults}
       testsPassed={1}
       onAddTestCase={() => {}}
+      onImportTestCases={() => {}}
       onUpdateTestCase={() => {}}
       onRemoveTestCase={() => {}}
       onLoadTestCaseInput={() => {}}

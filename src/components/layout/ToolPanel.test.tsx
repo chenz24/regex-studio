@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { MatchInfo, TestCase, TestCaseResult } from '@/types/regex';
 import type { ToolPanelTab } from '@/tutorial/types';
 import { parseRegex } from '@/utils/regexParser';
+import { parsePcre2 } from '@/utils/pcre2Parser';
 import { ToolPanel } from './ToolPanel';
 
 const match: MatchInfo = { index: 0, match: 'needle', groups: [], start: 0, end: 6 };
@@ -12,10 +13,16 @@ const testCases: TestCase[] = [
 ];
 const testResults: TestCaseResult[] = [{ id: 't1', pass: true, matchCount: 1, invalid: false }];
 
-function renderPanel(activeTab: ToolPanelTab) {
+function renderPanel(
+  activeTab: ToolPanelTab,
+  executionEngine: 'javascript' | 'pcre2' = 'javascript',
+  visualizationSupported = true,
+) {
   const view = render(
     <ToolPanel
-      ast={parseRegex('needle')}
+      executionEngine={executionEngine}
+      visualizationSupported={visualizationSupported}
+      ast={executionEngine === 'pcre2' ? parsePcre2('needle').ast : parseRegex('needle')}
       pattern="needle"
       testText="a needle here"
       flagString="g"
@@ -33,6 +40,7 @@ function renderPanel(activeTab: ToolPanelTab) {
       testResults={testResults}
       testsPassed={1}
       onAddTestCase={() => {}}
+      onImportTestCases={() => {}}
       onUpdateTestCase={() => {}}
       onRemoveTestCase={() => {}}
       onLoadTestCaseInput={() => {}}
@@ -45,6 +53,25 @@ function renderPanel(activeTab: ToolPanelTab) {
 }
 
 describe('ToolPanel', () => {
+  it.each<ToolPanelTab>([
+    'explanation',
+    'ast',
+  ])('identifies unavailable PCRE2 %s instead of showing a JS interpretation', async (tab) => {
+    const { openPanel } = renderPanel(tab, 'pcre2', false);
+    await waitFor(() =>
+      expect(openPanel()?.textContent).toMatch(/not available|cannot be visualized/),
+    );
+    expect(openPanel()?.textContent).not.toContain('needle');
+  });
+
+  it.each<ToolPanelTab>(['explanation', 'ast'])('shows supported PCRE2 %s', async (tab) => {
+    const { openPanel } = renderPanel(tab, 'pcre2');
+    await waitFor(() =>
+      expect(openPanel()?.textContent).toContain(tab === 'ast' ? 'needle' : 'Matches'),
+    );
+    expect(openPanel()?.textContent).not.toContain('cannot be visualized');
+  });
+
   it('renders the open tab without waiting on a lazy chunk', () => {
     // The debugger is what is on screen at startup, so it is imported
     // eagerly: its content has to be there on the very first render.

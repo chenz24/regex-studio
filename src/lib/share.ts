@@ -1,5 +1,15 @@
 import type { TestCase } from '../types/regex';
-import { ENGINE_LIST } from '../types/engineTypes';
+import { validTestCases } from './testCases';
+import {
+  ENGINE_LIST,
+  ENGINE_FLAVORS,
+  EXECUTION_ENGINES,
+  COMPATIBILITY_TARGETS,
+  toJsFlagString,
+  type ExecutionEngine,
+  type CompatibilityTarget,
+  type RegexEngine,
+} from '../types/engineTypes';
 
 const VALID_ENGINES = new Set<string>(ENGINE_LIST);
 
@@ -14,13 +24,16 @@ const VALID_ENGINES = new Set<string>(ENGINE_LIST);
  * Field names are intentionally short to keep typical share URLs compact.
  */
 export interface SharePayload {
-  v: 1;
+  v: 3;
   /** pattern */
   p: string;
   /** flag string (display flags, not just JS-safe subset) */
   f: string;
-  /** target engine id */
-  e: string;
+  /** Actual execution engine, independent of compatibility checks. */
+  e: ExecutionEngine;
+  c?: CompatibilityTarget;
+  /** Display-only options recovered from a v1 share. */
+  lf?: string;
   /** test text */
   t?: string;
   /** replacement string */
@@ -59,12 +72,70 @@ export function decodeShare(s: string): SharePayload | null {
   try {
     const json = base64UrlToUtf8(s);
     const data = JSON.parse(json);
-    if (!data || data.v !== 1 || typeof data.p !== 'string') return null;
+    if (!data || (data.v !== 1 && data.v !== 2 && data.v !== 3) || typeof data.p !== 'string')
+      return null;
     // Engine must be a known target; otherwise downstream code (e.g.
     // ENGINE_FLAVORS[engine].name) would crash on an unknown id.
     if (typeof data.e !== 'string' || !VALID_ENGINES.has(data.e)) return null;
     if (typeof data.f !== 'string') return null;
-    return data as SharePayload;
+    if (data.t !== undefined && typeof data.t !== 'string') return null;
+    if (data.r !== undefined && typeof data.r !== 'string') return null;
+    if (data.sr !== undefined && typeof data.sr !== 'boolean') return null;
+    if (data.tc !== undefined && !validTestCases(data.tc)) return null;
+    const common = { p: data.p, t: data.t, r: data.r, sr: data.sr, tc: data.tc };
+    if (data.v >= 2) {
+      if (!EXECUTION_ENGINES.includes(data.e)) return null;
+      if (data.c !== undefined && !COMPATIBILITY_TARGETS.includes(data.c)) return null;
+      if (
+        data.lf !== undefined &&
+        (typeof data.lf !== 'string' ||
+          !data.c ||
+          [...data.lf].some(
+            (key) =>
+              !ENGINE_FLAVORS[data.c as CompatibilityTarget].flags.some(
+                (f) => f.key === key && !f.jsFlag,
+              ),
+          ))
+      )
+        return null;
+      if (
+        [...data.f].some(
+          (key) => !ENGINE_FLAVORS[data.e as ExecutionEngine].flags.some((f) => f.key === key),
+        )
+      )
+        return null;
+      return { v: 3, ...common, e: data.e, f: data.f, c: data.c, lf: data.lf };
+    }
+    const legacy = data.e as RegexEngine;
+    const enabled = ENGINE_FLAVORS[legacy].flags.map((f) => ({
+      ...f,
+      enabled: data.f.includes(f.key),
+    }));
+    if (legacy === 'javascript' || legacy === 'pcre2') {
+      return {
+        v: 3,
+        ...common,
+        e: legacy,
+        f: enabled
+          .filter((f) => f.enabled)
+          .map((f) => f.key)
+          .join(''),
+      };
+    }
+    // Preserve the actual old JS execution flags, including the absence of g.
+    // Python's informational u, Go's U and other display-only flags never ran.
+    return {
+      v: 3,
+      ...common,
+      e: 'javascript',
+      c: legacy,
+      f: toJsFlagString(enabled),
+      lf:
+        enabled
+          .filter((f) => f.enabled && !f.jsFlag)
+          .map((f) => f.key)
+          .join('') || undefined,
+    };
   } catch {
     return null;
   }
@@ -82,7 +153,7 @@ export function readShareFromLocation(): SharePayload | null {
 export function writeShareToLocation(payload: SharePayload): void {
   if (typeof window === 'undefined') return;
   const encoded = encodeShare(payload);
-  const next = `${window.location.pathname}${window.location.search}${HASH_PREFIX}${encoded}`;
+  const next = `${workspacePath()}${HASH_PREFIX}${encoded}`;
   // Use replaceState so we don't pollute browser history on every keystroke.
   window.history.replaceState(null, '', next);
 }
@@ -90,5 +161,13 @@ export function writeShareToLocation(payload: SharePayload): void {
 export function buildShareUrl(payload: SharePayload): string {
   if (typeof window === 'undefined') return '';
   const encoded = encodeShare(payload);
-  return `${window.location.origin}${window.location.pathname}${window.location.search}${HASH_PREFIX}${encoded}`;
+  return `${window.location.origin}${workspacePath()}${HASH_PREFIX}${encoded}`;
+}
+
+/** Entry links launch a lesson/challenge once; a workspace URL saves the editor. */
+function workspacePath(): string {
+  const params = new URLSearchParams(window.location.search);
+  for (const key of ['lesson', 'step', 'challenge']) params.delete(key);
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ''}`;
 }

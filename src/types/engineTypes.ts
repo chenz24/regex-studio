@@ -1,6 +1,16 @@
 import type { RegexFlag } from './regex';
 
 export type RegexEngine = 'javascript' | 'python' | 'pcre2' | 'java' | 'go' | 'dotnet' | 'rust';
+export type ExecutionEngine = 'javascript' | 'pcre2';
+export type CompatibilityTarget = Exclude<RegexEngine, ExecutionEngine>;
+export const EXECUTION_ENGINES: ExecutionEngine[] = ['javascript', 'pcre2'];
+export const COMPATIBILITY_TARGETS: CompatibilityTarget[] = [
+  'python',
+  'java',
+  'go',
+  'dotnet',
+  'rust',
+];
 
 export interface EngineFlavor {
   id: RegexEngine;
@@ -86,8 +96,18 @@ function flags(entries: FlagEntry[]): RegexFlag[] {
 // Common JS-mapped flag entries reused across engines.
 const F = {
   i: { key: 'i', description: 'Case insensitive', descKey: 'flag_desc_js_i', jsFlag: 'i' as const },
-  m: { key: 'm', description: 'Multiline - ^ and $ match line boundaries', descKey: 'flag_desc_js_m', jsFlag: 'm' as const },
-  s: { key: 's', description: 'Dotall - . matches newline', descKey: 'flag_desc_js_s', jsFlag: 's' as const },
+  m: {
+    key: 'm',
+    description: 'Multiline - ^ and $ match line boundaries',
+    descKey: 'flag_desc_js_m',
+    jsFlag: 'm' as const,
+  },
+  s: {
+    key: 's',
+    description: 'Dotall - . matches newline',
+    descKey: 'flag_desc_js_s',
+    jsFlag: 's' as const,
+  },
 };
 
 export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
@@ -95,18 +115,35 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
     id: 'javascript',
     name: 'JavaScript',
     shortName: 'JS',
-    version: 'ES2024 (V8)',
+    version: 'Browser native',
     flags: flags([
-      { key: 'g', description: 'Global - find all matches', descKey: 'flag_desc_js_g', jsFlag: 'g', enabled: true },
+      {
+        key: 'g',
+        description: 'Global - find all matches',
+        descKey: 'flag_desc_js_g',
+        jsFlag: 'g',
+        enabled: true,
+      },
       F.i,
       F.m,
       F.s,
       { key: 'u', description: 'Unicode', descKey: 'flag_desc_js_u', jsFlag: 'u' },
-      { key: 'd', description: 'hasIndices - generate indices for substring matches', descKey: 'flag_desc_js_d', jsFlag: 'd' },
-      { key: 'v', description: 'Unicode sets mode (supersets `u`)', descKey: 'flag_desc_js_v', jsFlag: 'v' },
+      {
+        key: 'd',
+        description: 'hasIndices - generate indices for substring matches',
+        descKey: 'flag_desc_js_d',
+        jsFlag: 'd',
+      },
+      {
+        key: 'v',
+        description: 'Unicode sets mode (supersets `u`)',
+        descKey: 'flag_desc_js_v',
+        jsFlag: 'v',
+      },
     ]),
     unsupportedFeatures: [],
-    notes: 'Native browser engine. Full support for all modern JavaScript regex features.',
+    notes:
+      'Uses this browser’s native RegExp implementation. Supported syntax depends on the browser version.',
   },
 
   python: {
@@ -147,20 +184,39 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
     id: 'pcre2',
     name: 'PCRE2',
     shortName: 'PCRE2',
-    version: '10.x (PHP, Nginx)',
-    // PCRE2 modifiers (no `g` — that\'s a host-language concept like PHP\'s preg_match_all).
+    version: '10.47',
+    // g controls host-side iteration; the remaining modifiers go to PCRE2.
     flags: flags([
+      {
+        key: 'g',
+        description: 'Global - find all matches',
+        descKey: 'flag_desc_js_g',
+        jsFlag: 'g',
+        enabled: true,
+      },
       { key: 'i', description: 'PCRE2_CASELESS', descKey: 'flag_desc_pcre2_i', jsFlag: 'i' },
       { key: 'm', description: 'PCRE2_MULTILINE', descKey: 'flag_desc_pcre2_m', jsFlag: 'm' },
       { key: 's', description: 'PCRE2_DOTALL', descKey: 'flag_desc_pcre2_s', jsFlag: 's' },
       { key: 'u', description: 'PCRE2_UTF / UCP', descKey: 'flag_desc_pcre2_u', jsFlag: 'u' },
-      { key: 'x', description: 'PCRE2_EXTENDED - ignore whitespace and # comments (display only)', descKey: 'flag_desc_pcre2_x' },
-      { key: 'U', description: 'PCRE2_UNGREEDY - swap greedy/lazy default (display only)', descKey: 'flag_desc_pcre2_U_flag' },
-      { key: 'J', description: 'PCRE2_DUPNAMES - allow duplicate named groups (display only)', descKey: 'flag_desc_pcre2_J' },
+      {
+        key: 'x',
+        description: 'PCRE2_EXTENDED - ignore whitespace and # comments',
+        descKey: 'flag_desc_pcre2_x',
+      },
+      {
+        key: 'U',
+        description: 'PCRE2_UNGREEDY - swap greedy/lazy default',
+        descKey: 'flag_desc_pcre2_U_flag',
+      },
+      {
+        key: 'J',
+        description: 'PCRE2_DUPNAMES - allow duplicate named groups',
+        descKey: 'flag_desc_pcre2_J',
+      },
     ]),
     unsupportedFeatures: [],
     notes:
-      'Most feature-rich target. Supports recursion (?R), atomic groups, possessive quantifiers, and \\K resets.',
+      'PCRE2 10.47 runs locally. Supports recursion (?R), atomic groups, possessive quantifiers, and \\K resets.',
   },
 
   java: {
@@ -175,7 +231,11 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
       { key: 'm', description: 'MULTILINE', descKey: 'flag_desc_java_m', jsFlag: 'm' },
       { key: 's', description: 'DOTALL', descKey: 'flag_desc_java_s', jsFlag: 's' },
       { key: 'u', description: 'UNICODE_CASE', descKey: 'flag_desc_java_u', jsFlag: 'u' },
-      { key: 'x', description: 'COMMENTS - permits whitespace and # comments (display only)', descKey: 'flag_desc_java_x' },
+      {
+        key: 'x',
+        description: 'COMMENTS - permits whitespace and # comments (display only)',
+        descKey: 'flag_desc_java_x',
+      },
     ]),
     unsupportedFeatures: [
       {
@@ -202,7 +262,11 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
       { key: 'i', description: '(?i) - case insensitive', descKey: 'flag_desc_go_i', jsFlag: 'i' },
       { key: 'm', description: '(?m) - multiline', descKey: 'flag_desc_go_m', jsFlag: 'm' },
       { key: 's', description: '(?s) - let . match \\n', descKey: 'flag_desc_go_s', jsFlag: 's' },
-      { key: 'U', description: '(?U) - swap greedy/lazy default (display only)', descKey: 'flag_desc_go_U_flag' },
+      {
+        key: 'U',
+        description: '(?U) - swap greedy/lazy default (display only)',
+        descKey: 'flag_desc_go_U_flag',
+      },
     ]),
     unsupportedFeatures: [
       {
@@ -247,8 +311,16 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
       { key: 'i', description: 'IgnoreCase', descKey: 'flag_desc_dotnet_i', jsFlag: 'i' },
       { key: 'm', description: 'Multiline', descKey: 'flag_desc_dotnet_m', jsFlag: 'm' },
       { key: 's', description: 'Singleline (DOTALL)', descKey: 'flag_desc_dotnet_s', jsFlag: 's' },
-      { key: 'x', description: 'IgnorePatternWhitespace (display only)', descKey: 'flag_desc_dotnet_x' },
-      { key: 'n', description: 'ExplicitCapture - only named groups capture (display only)', descKey: 'flag_desc_dotnet_n' },
+      {
+        key: 'x',
+        description: 'IgnorePatternWhitespace (display only)',
+        descKey: 'flag_desc_dotnet_x',
+      },
+      {
+        key: 'n',
+        description: 'ExplicitCapture - only named groups capture (display only)',
+        descKey: 'flag_desc_dotnet_n',
+      },
     ]),
     unsupportedFeatures: [],
     notes:
@@ -262,11 +334,24 @@ export const ENGINE_FLAVORS: Record<RegexEngine, EngineFlavor> = {
     version: 'regex crate (1.x)',
     // Rust has no `g`.
     flags: flags([
-      { key: 'i', description: '(?i) - case insensitive', descKey: 'flag_desc_rust_i', jsFlag: 'i' },
+      {
+        key: 'i',
+        description: '(?i) - case insensitive',
+        descKey: 'flag_desc_rust_i',
+        jsFlag: 'i',
+      },
       { key: 'm', description: '(?m) - multiline', descKey: 'flag_desc_rust_m', jsFlag: 'm' },
       { key: 's', description: '(?s) - let . match \\n', descKey: 'flag_desc_rust_s', jsFlag: 's' },
-      { key: 'u', description: 'Unicode - enabled by default; (?-u) to disable', descKey: 'flag_desc_rust_u' },
-      { key: 'x', description: '(?x) - ignore whitespace and # comments (display only)', descKey: 'flag_desc_rust_x' },
+      {
+        key: 'u',
+        description: 'Unicode - enabled by default; (?-u) to disable',
+        descKey: 'flag_desc_rust_u',
+      },
+      {
+        key: 'x',
+        description: '(?x) - ignore whitespace and # comments (display only)',
+        descKey: 'flag_desc_rust_x',
+      },
     ]),
     unsupportedFeatures: [
       {

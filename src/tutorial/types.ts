@@ -1,5 +1,5 @@
 import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '@/types/regex';
-import type { RegexEngine } from '@/types/engineTypes';
+import type { RegexEngine, ExecutionEngine } from '@/types/engineTypes';
 
 export type LessonDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -28,7 +28,7 @@ export interface Lesson {
 }
 
 export interface LessonInitialState {
-  engine?: RegexEngine;
+  engine?: ExecutionEngine;
   pattern: string;
   flags?: string;
   testText: string;

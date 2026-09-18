@@ -41,7 +41,8 @@ export function ChallengeRunner() {
       id: challengeCaseId(challenge.id, i),
     }));
   }, [challenge]);
-  const { validation, testResults, pending, timedOut } = useRegexDerived(gradingCases);
+  const { validation, testResults, pending, timedOut, executionError } =
+    useRegexDerived(gradingCases);
 
   const flagString = useMemo(
     () =>
@@ -55,7 +56,16 @@ export function ChallengeRunner() {
   const evaluation = useMemo(() => {
     if (!challenge) return null;
     const counts = new Map(
-      testResults.filter((r) => !r.pending && !r.timedOut).map((r) => [r.id, r.matchCount]),
+      testResults
+        .filter(
+          (r) =>
+            r.status !== 'inconclusive' &&
+            !r.invalid &&
+            !r.pending &&
+            !r.timedOut &&
+            !r.executionError,
+        )
+        .map((r) => [r.id, r.matchCount]),
     );
     return evaluateChallengeFromResults(challenge, pattern, validation, counts);
   }, [challenge, pattern, validation, testResults]);
@@ -152,24 +162,31 @@ export function ChallengeRunner() {
                     : 'text-gray-700 dark:text-gray-300'
               }`}
             >
-              {pending
-                ? t.match_pending()
-                : timedOut
-                  ? t.match_timed_out()
-                  : solved
-                    ? t.chal_runner_passed_all()
-                    : evaluation.invalid
-                      ? t.chal_runner_invalid()
-                      : t.chal_runner_progress({
-                          passed: String(evaluation.passed),
-                          total: String(evaluation.total),
-                        })}
+              {executionError
+                ? t.engine_execution_failed()
+                : pending
+                  ? t.match_pending()
+                  : timedOut
+                    ? t.match_timed_out()
+                    : solved
+                      ? t.chal_runner_passed_all()
+                      : evaluation.invalid
+                        ? t.chal_runner_invalid()
+                        : t.chal_runner_progress({
+                            passed: String(evaluation.passed),
+                            total: String(evaluation.total),
+                          })}
             </span>
-            {!pending && !timedOut && !solved && pattern && !evaluation.invalid && (
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                {t.chal_runner_keep_going()}
-              </span>
-            )}
+            {!pending &&
+              !timedOut &&
+              !executionError &&
+              !solved &&
+              pattern &&
+              !evaluation.invalid && (
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {t.chal_runner_keep_going()}
+                </span>
+              )}
           </div>
           {evaluation.invalidError && (
             <div className="mt-1 text-xs text-rose-600 dark:text-rose-400 font-mono">

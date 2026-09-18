@@ -15,17 +15,22 @@ vi.mock('../utils/matchEngine', async (original) => ({
   runMatch: vi.fn(),
 }));
 
-let requests: Array<{ input: MatchInput; resolve: (outcome: MatchOutcome) => void }>;
+let requests: Array<{
+  input: MatchInput;
+  signal?: AbortSignal;
+  resolve: (outcome: MatchOutcome) => void;
+}>;
 afterEach(cleanup);
 beforeEach(() => {
   requests = [];
   vi.mocked(runMatch).mockImplementation(
-    (input) =>
+    (input, signal) =>
       new Promise((resolve) => {
-        requests.push({ input, resolve });
+        requests.push({ input, signal, resolve });
       }),
   );
   act(() => {
+    useRegexStore.getState().setEngine('javascript');
     useRegexStore.getState().loadPattern('a+', 'g');
     useRegexStore.getState().setTestText('aaa');
     useRegexStore.getState().setTestCases([
@@ -36,6 +41,15 @@ beforeEach(() => {
 });
 
 describe('asynchronous matching results', () => {
+  it('releases obsolete work on edit and unmount', () => {
+    const { unmount } = renderHook(() => useRegexDerived());
+    expect(requests[0].signal?.aborted).toBe(false);
+    act(() => useRegexStore.getState().setPattern('new'));
+    expect(requests[0].signal?.aborted).toBe(true);
+    expect(requests[1].signal?.aborted).toBe(false);
+    unmount();
+    expect(requests[1].signal?.aborted).toBe(true);
+  });
   it('does not evaluate arbitrary input inline when another consumer mounts', () => {
     const { result } = renderHook(() => useRegexDerived());
     expect(result.current.pending).toBe(true);
@@ -66,6 +80,20 @@ describe('asynchronous matching results', () => {
     expect(result.current.testResults.every((r) => r.timedOut && !r.pass)).toBe(true);
   });
 
+  it('regrades saved expectations without rerunning even an uncached timeout', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () => requests[0].resolve(timedOutOutcome(requests[0].input)));
+    act(() => useRegexStore.getState().updateTestCase('positive', { assertions: { count: 2 } }));
+    expect(requests).toHaveLength(1);
+    expect(result.current.testResults[0].status).toBe('inconclusive');
+    act(() => result.current.retry());
+    await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
+    expect(result.current.testResults[0].status).toBe('fail');
+    act(() => useRegexStore.getState().updateTestCase('positive', { assertions: { count: 1 } }));
+    expect(requests).toHaveLength(2);
+    expect(result.current.testResults[0].status).toBe('pass');
+  });
+
   it('ignores a response belonging to an earlier input', async () => {
     const { result } = renderHook(() => useRegexDerived());
     act(() => useRegexStore.getState().setPattern('b'));
@@ -74,5 +102,51 @@ describe('asynchronous matching results', () => {
     await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
     expect(result.current.pending).toBe(false);
     expect(result.current.testsPassed).toBe(0);
+  });
+
+  it('sends PCRE2 syntax and flags to its engine before validating, and clears JS results on switch', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () => requests[0].resolve(runMatchInline(requests[0].input)));
+    act(() => {
+      useRegexStore.getState().setEngine('pcre2');
+      useRegexStore.getState().loadPattern('(?>a+)', 'gxU');
+    });
+    const request = requests[requests.length - 1];
+    expect(request.input).toMatchObject({ engine: 'pcre2', pattern: '(?>a+)', flags: 'gxU' });
+    expect(result.current.pending).toBe(true);
+    expect(result.current.matches).toEqual([]);
+    await act(async () =>
+      request.resolve({
+        matches: [],
+        replacedText: 'aaa',
+        testMatchCounts: [],
+        timedOut: false,
+        validation: { valid: false, error: 'native compile error' },
+      }),
+    );
+    expect(result.current.validation).toEqual({ valid: false, error: 'native compile error' });
+    expect(result.current.testsPassed).toBe(0);
+  });
+
+  it('withholds grading on an engine error and retries the same input', async () => {
+    const { result } = renderHook(() => useRegexDerived());
+    await act(async () =>
+      requests[0].resolve({
+        matches: [],
+        replacedText: 'aaa',
+        testMatchCounts: [],
+        timedOut: false,
+        executionError: 'load failed',
+      }),
+    );
+    expect(result.current.testsPassed).toBe(0);
+    expect(result.current.testResults.every((test) => test.executionError && !test.pass)).toBe(
+      true,
+    );
+    act(() => result.current.retry());
+    expect(result.current.pending).toBe(true);
+    expect(result.current.executionError).toBeUndefined();
+    await act(async () => requests[1].resolve(runMatchInline(requests[1].input)));
+    expect(result.current.testsPassed).toBe(2);
   });
 });

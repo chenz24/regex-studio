@@ -60,8 +60,8 @@ export function CodeGeneratorPanel({
     return generateCode({
       pattern,
       flags,
-      testText: testText || 'Sample text to test against',
-      replaceText: replacement || 'replacement',
+      testText,
+      replaceText: replacement,
       operation,
       language,
     });
@@ -182,9 +182,7 @@ export function CodeGeneratorPanel({
       </div>
 
       {/* Footer Hint */}
-      <p className="text-[10px] text-gray-400 dark:text-gray-500">
-        {t.codegen_footer_hint()}
-      </p>
+      <p className="text-[10px] text-gray-400 dark:text-gray-500">{t.codegen_footer_hint()}</p>
     </div>
   );
 }

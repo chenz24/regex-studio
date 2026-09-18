@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!.tanstack", "!src/routeTree.gen.ts"]
+    "includes": ["**", "!dist", "!.tanstack", "!src/routeTree.gen.ts", "!src/vendor/pcre2/pcre2.js"]
   },
   "formatter": {
     "enabled": true,

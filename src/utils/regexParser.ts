@@ -1,10 +1,13 @@
 import type { ASTNode, QuantifierInfo } from '../types/regex';
+import { decodeGroupName } from './regexNames';
 
 let pos = 0;
 let source = '';
 let groupCounter = 0;
 let totalGroups = 0;
 let unicode = false;
+let unicodeSets = false;
+let hasNamedGroups = false;
 let nodeIdCounter = 0;
 
 function nextNodeId(): string {
@@ -18,6 +21,7 @@ function isEmptySequence(node: ASTNode): boolean {
 /** Count all capture slots, including groups after a forward reference. */
 function countCaptures(pattern: string, unicodeSets: boolean): number {
   let count = 0;
+  hasNamedGroups = false;
   let classDepth = 0;
   for (let i = 0; i < pattern.length; i++) {
     const ch = pattern[i];
@@ -34,6 +38,7 @@ function countCaptures(pattern: string, unicodeSets: boolean): number {
         (pattern[i + 2] === 'P' && pattern[i + 3] === '<')
       ) {
         count++;
+        if (pattern[i + 1] === '?') hasNamedGroups = true;
       }
     }
   }
@@ -44,7 +49,8 @@ export function parseRegex(pattern: string, flags = ''): ASTNode {
   pos = 0;
   source = pattern;
   groupCounter = 0;
-  totalGroups = countCaptures(pattern, flags.includes('v'));
+  unicodeSets = flags.includes('v');
+  totalGroups = countCaptures(pattern, unicodeSets);
   unicode = flags.includes('u') || flags.includes('v');
   nodeIdCounter = 0;
 
@@ -222,7 +228,7 @@ function consumeEscapeSequence(): string {
       consumeHexDigits(2);
       break;
     case 'u':
-      if (source[pos] === '{') consumeBraced();
+      if (unicode && source[pos] === '{') consumeBraced();
       else consumeHexDigits(4);
       break;
     case 'c':
@@ -230,7 +236,7 @@ function consumeEscapeSequence(): string {
       break;
     case 'p':
     case 'P':
-      if (source[pos] === '{') consumeBraced();
+      if (unicode && source[pos] === '{') consumeBraced();
       break;
   }
 
@@ -262,8 +268,9 @@ function parseAtom(): ASTNode | null {
   }
 
   const s = pos;
-  pos++;
-  return { type: 'literal', value: ch, raw: ch, id: nextNodeId(), start: s, end: pos };
+  const literal = unicode ? String.fromCodePoint(source.codePointAt(pos)!) : ch;
+  pos += literal.length;
+  return { type: 'literal', value: literal, raw: literal, id: nextNodeId(), start: s, end: pos };
 }
 
 function parseGroup(): ASTNode {
@@ -273,6 +280,7 @@ function parseGroup(): ASTNode {
   let type: ASTNode['type'] = 'group';
   let groupName: string | undefined;
   let groupIndex: number | undefined;
+  let flagSpec: string | undefined;
 
   if (pos < source.length && source[pos] === '?') {
     pos++;
@@ -339,6 +347,7 @@ function parseGroup(): ASTNode {
       if (source[pos] === ':') {
         pos++;
         type = 'nonCapturingGroup';
+        flagSpec = flags;
       } else {
         if (source[pos] === ')') pos++;
         return {
@@ -372,6 +381,7 @@ function parseGroup(): ASTNode {
     children: content.type === 'sequence' && content.children ? content.children : [content],
     groupName,
     groupIndex,
+    flagSpec,
     openLen,
     raw,
     id: nextNodeId(),
@@ -388,10 +398,16 @@ function readGroupName(): string {
     pos++;
   }
   if (pos < source.length) pos++;
-  return name;
+  return decodeGroupName(name);
 }
 
 function parseCharacterClass(): ASTNode {
+  // Set operations and string alternatives are one regex atom. Keep their
+  // exact source instead of flattening operators into literal characters.
+  if (unicodeSets) {
+    const set = parseUnicodeSet();
+    if (set) return set;
+  }
   const start = pos;
   pos++;
 
@@ -443,8 +459,8 @@ function parseCharacterClass(): ASTNode {
       }
     } else {
       const atomStart = pos;
-      const ch = source[pos];
-      pos++;
+      const ch = unicode ? String.fromCodePoint(source.codePointAt(pos)!) : source[pos];
+      pos += ch.length;
 
       const atomNode: ASTNode = {
         type: 'literal',
@@ -494,6 +510,46 @@ function parseCharacterClass(): ASTNode {
   };
 }
 
+function parseUnicodeSet(): ASTNode | null {
+  const start = pos;
+  let depth = 1;
+  let complex = false;
+  let end = start + 1;
+  for (; end < source.length && depth > 0; end++) {
+    const ch = source[end];
+    if (ch === '\\') {
+      const escaped = source[++end];
+      if ((escaped === 'q' || escaped === 'p' || escaped === 'P') && source[end + 1] === '{') {
+        complex = true;
+        end += 2;
+        while (end < source.length && source[end] !== '}') {
+          if (source[end] === '\\') end++;
+          end++;
+        }
+      }
+    } else if (ch === '[') {
+      depth++;
+      complex = true;
+    } else if (ch === ']') {
+      depth--;
+    } else if ((ch === '&' || ch === '-') && source[end + 1] === ch) {
+      complex = true;
+    }
+  }
+  if (!complex) return null;
+  pos = Math.min(end, source.length);
+  const raw = source.slice(start, pos);
+  return {
+    type: source[start + 1] === '^' ? 'negatedCharacterClass' : 'characterClass',
+    unicodeSet: true,
+    value: raw,
+    raw,
+    id: nextNodeId(),
+    start,
+    end: pos,
+  };
+}
+
 function parseClassAtom(): ASTNode {
   if (source[pos] === '\\' && pos + 1 < source.length) {
     const start = pos;
@@ -501,8 +557,8 @@ function parseClassAtom(): ASTNode {
     return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
   }
   const s = pos;
-  const ch = source[pos];
-  pos++;
+  const ch = unicode ? String.fromCodePoint(source.codePointAt(pos)!) : source[pos];
+  pos += ch.length;
   return { type: 'literal', value: ch, raw: ch, id: nextNodeId(), start: s, end: pos };
 }
 
@@ -539,10 +595,10 @@ function parseEscape(): ASTNode {
   }
 
   // Named backreference `\k<name>`.
-  if (ch === 'k' && source[pos + 2] === '<') {
+  if (ch === 'k' && source[pos + 2] === '<' && (unicode || hasNamedGroups)) {
     const close = source.indexOf('>', pos + 3);
     if (close !== -1) {
-      const name = source.slice(pos + 3, close);
+      const name = decodeGroupName(source.slice(pos + 3, close));
       pos = close + 1;
       return {
         type: 'backreference',
@@ -556,7 +612,16 @@ function parseEscape(): ASTNode {
     }
   }
 
-  const raw = consumeEscapeSequence();
+  let raw = consumeEscapeSequence();
+  // A pair of escaped UTF-16 surrogates is one atom in Unicode mode, so
+  // the following quantifier applies to the whole code point.
+  if (unicode && /^\\u[dD][89aAbB][\da-fA-F]{2}$/.test(raw)) {
+    const trail = source.slice(pos, pos + 6);
+    if (/^\\u[dD][c-fC-F][\da-fA-F]{2}$/.test(trail)) {
+      raw += trail;
+      pos += trail.length;
+    }
+  }
   return { type: 'escape', value: raw, raw, id: nextNodeId(), start, end: pos };
 }
 

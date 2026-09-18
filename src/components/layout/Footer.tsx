@@ -24,8 +24,7 @@ export function Footer() {
           </p>
           <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 mt-2">
             {t.footer_about_p2_prefix()}
-            <code>g</code>, <code>i</code>, <code>m</code>, <code>s</code>, <code>u</code>,{' '}
-            <code>y</code>
+            <code>g</code>, <code>i</code>, <code>m</code>, <code>s</code>, <code>u</code>
             {t.footer_about_p2_suffix()}
           </p>
         </section>

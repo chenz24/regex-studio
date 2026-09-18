@@ -90,7 +90,7 @@ class Program
     case 'replace':
       code += `
         var replacement = ${replaceStr};
-        var result = pattern.Replace(text, replacement);
+        var result = pattern.Replace(text, replacement${flags.includes('g') ? '' : ', 1'});
         Console.WriteLine($"Result: {result}");`;
       break;
 

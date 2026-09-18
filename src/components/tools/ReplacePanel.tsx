@@ -5,17 +5,25 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { useT } from '@/lib/i18n';
 
 interface ReplacePanelProps {
+  executionEngine?: 'javascript' | 'pcre2';
+  error?: string;
+  pending?: boolean;
   replacement: string;
   onReplacementChange: (value: string) => void;
   replacedText: string;
   matchCount: number;
+  matchesTruncated?: boolean;
 }
 
 export function ReplacePanel({
+  executionEngine = 'javascript',
+  error,
+  pending,
   replacement,
   onReplacementChange,
   replacedText,
   matchCount,
+  matchesTruncated,
 }: ReplacePanelProps) {
   const t = useT();
   const [copied, setCopied] = useState(false);
@@ -40,18 +48,26 @@ export function ReplacePanel({
     });
   };
 
-  const tokens = [
-    { token: '$1', insert: '$1', desc: t.replace_help_numbered() },
-    { token: '$<name>', insert: '$<name>', desc: t.replace_help_named() },
-    { token: '$&', insert: '$&', desc: t.replace_help_amp() },
-    { token: '$`', insert: '$`', desc: t.replace_help_backtick() },
-    { token: "$'", insert: "$'", desc: t.replace_help_quote() },
-    { token: '$$', insert: '$$', desc: t.replace_help_dollar() },
-  ];
+  const tokens =
+    executionEngine === 'pcre2'
+      ? [
+          { token: '$1', insert: '$1', desc: t.replace_help_numbered() },
+          { token: `\${name}`, insert: `\${name}`, desc: t.replace_help_named() },
+          { token: '$0', insert: '$0', desc: t.replace_help_amp() },
+          { token: '$$', insert: '$$', desc: t.replace_help_dollar() },
+        ]
+      : [
+          { token: '$1', insert: '$1', desc: t.replace_help_numbered() },
+          { token: '$<name>', insert: '$<name>', desc: t.replace_help_named() },
+          { token: '$&', insert: '$&', desc: t.replace_help_amp() },
+          { token: '$`', insert: '$`', desc: t.replace_help_backtick() },
+          { token: "$'", insert: "$'", desc: t.replace_help_quote() },
+          { token: '$$', insert: '$$', desc: t.replace_help_dollar() },
+        ];
 
   // An empty replacement is a real operation — it deletes the matches — so
   // the preview is shown whenever there is something to replace.
-  const showResult = matchCount > 0;
+  const showResult = matchCount > 0 && !error && !pending;
 
   return (
     <div className="space-y-3">
@@ -78,26 +94,36 @@ export function ReplacePanel({
               {t.replace_help_popover_title()}
             </div>
             <p className="mb-3 text-gray-600 dark:text-gray-400">
-              {t.replace_help_popover_body()}
+              {executionEngine === 'pcre2'
+                ? t.pcre2_replacement_help({ named: `\${name}` })
+                : t.replace_help_popover_body()}
             </p>
             <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1.5">
               {t.replace_help_popover_example_label()}
             </div>
             <div className="space-y-1 mb-3 p-2.5 rounded-md bg-gray-50 dark:bg-gray-800/60 font-mono">
               <div>
-                <span className="text-gray-400 dark:text-gray-500 mr-2">{t.replace_help_popover_example_pattern()}</span>
+                <span className="text-gray-400 dark:text-gray-500 mr-2">
+                  {t.replace_help_popover_example_pattern()}
+                </span>
                 <code>(\w+)@(\w+)</code>
               </div>
               <div>
-                <span className="text-gray-400 dark:text-gray-500 mr-2">{t.replace_help_popover_example_text()}</span>
+                <span className="text-gray-400 dark:text-gray-500 mr-2">
+                  {t.replace_help_popover_example_text()}
+                </span>
                 <code>alice@gmail</code>
               </div>
               <div>
-                <span className="text-gray-400 dark:text-gray-500 mr-2">{t.replace_help_popover_example_replacement()}</span>
+                <span className="text-gray-400 dark:text-gray-500 mr-2">
+                  {t.replace_help_popover_example_replacement()}
+                </span>
                 <code className="text-teal-600 dark:text-teal-400">$2/$1</code>
               </div>
               <div>
-                <span className="text-gray-400 dark:text-gray-500 mr-2">{t.replace_help_popover_example_result()}</span>
+                <span className="text-gray-400 dark:text-gray-500 mr-2">
+                  {t.replace_help_popover_example_result()}
+                </span>
                 <code>gmail/alice</code>
               </div>
             </div>
@@ -162,13 +188,23 @@ export function ReplacePanel({
         </TooltipProvider>
       </div>
 
-      {showResult ? (
+      {error ? (
+        <p role="alert" className="text-sm text-red-500">
+          {error}
+        </p>
+      ) : pending ? (
+        <p role="status" className="text-sm text-gray-500">
+          {t.match_pending()}
+        </p>
+      ) : showResult ? (
         <div className="relative">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              {matchCount === 1
-                ? t.replace_result_label_one({ count: String(matchCount) })
-                : t.replace_result_label_other({ count: String(matchCount) })}
+              {matchesTruncated
+                ? t.replace_result_all_matches()
+                : matchCount === 1
+                  ? t.replace_result_label_one({ count: String(matchCount) })
+                  : t.replace_result_label_other({ count: String(matchCount) })}
             </span>
             <button
               onClick={handleCopy}
@@ -178,15 +214,16 @@ export function ReplacePanel({
               {copied ? t.replace_copied() : t.replace_copy_result()}
             </button>
           </div>
-          <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 font-mono text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto custom-scrollbar">
+          <div
+            data-testid="replacement-result"
+            className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 font-mono text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto custom-scrollbar"
+          >
             {replacedText}
           </div>
         </div>
       ) : (
         <div className="p-3 rounded-lg border border-dashed border-gray-200 dark:border-gray-700 text-xs text-gray-400 dark:text-gray-500 text-center">
-          {matchCount === 0
-            ? t.replace_empty_no_matches()
-            : t.replace_empty_no_replacement()}
+          {matchCount === 0 ? t.replace_empty_no_matches() : t.replace_empty_no_replacement()}
         </div>
       )}
     </div>

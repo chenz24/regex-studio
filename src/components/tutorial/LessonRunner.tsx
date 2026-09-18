@@ -94,7 +94,12 @@ export function LessonRunner() {
   // Run validation whenever the context changes.
   useEffect(() => {
     if (!step || !ctx) return;
-    if (derived.pending || derived.timedOut) {
+    if (
+      derived.pending ||
+      derived.timedOut ||
+      derived.executionError ||
+      derived.testResults.some((result) => result.status === 'inconclusive')
+    ) {
       reportValidation(null);
       return;
     }
@@ -103,7 +108,16 @@ export function LessonRunner() {
     if (result.pass && step.autoAdvance !== false) {
       markStepDone(step.id);
     }
-  }, [step, ctx, derived.pending, derived.timedOut, reportValidation, markStepDone]);
+  }, [
+    step,
+    ctx,
+    derived.pending,
+    derived.timedOut,
+    derived.executionError,
+    derived.testResults,
+    reportValidation,
+    markStepDone,
+  ]);
 
   if (!lesson || !step) {
     return (
@@ -194,9 +208,19 @@ export function LessonRunner() {
           />
         )}
 
-        <GoalCard result={lastResult} pending={derived.pending} timedOut={derived.timedOut} />
+        <GoalCard
+          result={lastResult}
+          pending={derived.pending}
+          timedOut={derived.timedOut}
+          executionError={derived.executionError}
+        />
 
-        <HintList step={step} failCount={failCount} onRevealSolution={revealSolution} />
+        <HintList
+          key={`${lesson.id}:${step.id}`}
+          step={step}
+          failCount={failCount}
+          onRevealSolution={revealSolution}
+        />
 
         {allDone && isLast && (
           <div className="rounded-lg bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/30 dark:to-cyan-900/30 border border-teal-200 dark:border-teal-800 p-3 space-y-2">

@@ -3,9 +3,11 @@ import type { LessonProgress, PersistedProgress, ValidationResult } from '@/tuto
 import { findLoadedLesson, loadTutorialContent } from '@/tutorial/content';
 import { useRegexStore } from './regexStore';
 import type { TestCase } from '@/types/regex';
+import type { ExecutionEngine, CompatibilityTarget } from '@/types/engineTypes';
 
 const STORAGE_KEY = 'regex-studio:tutorial-progress';
 const STORAGE_VERSION = 1;
+let startRequest = 0;
 
 type TutorialView = 'closed' | 'catalog' | 'lesson';
 
@@ -25,14 +27,19 @@ interface TutorialState {
 
   /** Snapshot of regex store taken when a lesson was started, for restore. */
   snapshotBeforeLesson: SnapshotBeforeLesson | null;
+  stepSnapshots: Record<number, SnapshotBeforeLesson>;
 }
 
 interface SnapshotBeforeLesson {
   pattern: string;
   flagString: string;
   testText: string;
+  replacement: string;
+  showReplace: boolean;
   testCases: TestCase[];
-  engine: string;
+  engine: ExecutionEngine;
+  compatibilityTarget: CompatibilityTarget | null;
+  legacyTargetFlags: string;
 }
 
 interface TutorialActions {
@@ -84,8 +91,8 @@ function applyStepSetup(
   setup: Partial<import('@/tutorial/types').LessonInitialState> | undefined,
 ): void {
   if (!setup) return;
+  if (setup.engine) useRegexStore.getState().setEngine(setup.engine);
   const r = useRegexStore.getState();
-  if (setup.engine) r.setEngine(setup.engine);
   if (setup.pattern !== undefined || setup.flags !== undefined) {
     const currentFlagString = r.flags
       .filter((f) => f.enabled)
@@ -96,23 +103,43 @@ function applyStepSetup(
   if (setup.testText !== undefined) r.setTestText(setup.testText);
 }
 
-function applyLessonInitialState(lessonId: string, stepIndex: number): SnapshotBeforeLesson | null {
-  const lesson = findLoadedLesson(lessonId);
-  if (!lesson) return null;
-
+function snapshotWorkspace(): SnapshotBeforeLesson {
   const r = useRegexStore.getState();
-  const snapshot: SnapshotBeforeLesson = {
+  return {
     pattern: r.pattern,
     flagString: r.flags
       .filter((f) => f.enabled)
       .map((f) => f.key)
       .join(''),
     testText: r.testText,
+    replacement: r.replacement,
+    showReplace: r.showReplace,
     testCases: r.testCases,
     engine: r.engine,
+    compatibilityTarget: r.compatibilityTarget,
+    legacyTargetFlags: r.legacyTargetFlags,
   };
+}
+
+function restoreWorkspace(snapshot: SnapshotBeforeLesson): void {
+  const r = useRegexStore.getState();
+  r.setEngine(snapshot.engine);
+  r.setCompatibilityTarget(snapshot.compatibilityTarget);
+  r.setLegacyTargetFlags(snapshot.legacyTargetFlags);
+  r.loadPattern(snapshot.pattern, snapshot.flagString);
+  r.setTestText(snapshot.testText);
+  r.setReplacement(snapshot.replacement);
+  r.setShowReplace(snapshot.showReplace);
+  r.setTestCases(snapshot.testCases);
+}
+
+function applyLessonInitialState(lessonId: string, stepIndex: number): void {
+  const lesson = findLoadedLesson(lessonId);
+  if (!lesson) return;
+  const r = useRegexStore.getState();
 
   // Apply lesson initial state.
+  r.setCompatibilityTarget(null);
   const init = lesson.initialState;
   if (init.engine) r.setEngine(init.engine);
   r.loadPattern(init.pattern, init.flags ?? '');
@@ -134,8 +161,6 @@ function applyLessonInitialState(lessonId: string, stepIndex: number): SnapshotB
   for (let i = 0; i <= stepIndex && i < lesson.steps.length; i++) {
     applyStepSetup(lesson.steps[i].setup);
   }
-
-  return snapshot;
 }
 
 export const useTutorialStore = create<TutorialStore>((set, get) => ({
@@ -146,19 +171,31 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
   lastResult: null,
   failCount: 0,
   snapshotBeforeLesson: null,
+  stepSnapshots: {},
 
-  openCatalog: () => set({ view: 'catalog' }),
+  openCatalog: () => {
+    startRequest++;
+    set({ view: 'catalog' });
+  },
 
-  close: () => set({ view: 'closed' }),
+  close: () => {
+    startRequest++;
+    set({ view: 'closed' });
+  },
 
   // Async because the lesson content is a separate chunk. Every other
   // transition runs after a lesson has started, so by then it is loaded.
   startLesson: async (lessonId, stepIndex = 0) => {
+    const request = ++startRequest;
     await loadTutorialContent();
+    if (request !== startRequest) return;
     const lesson = findLoadedLesson(lessonId);
     if (!lesson) return;
     const idx = Math.max(0, Math.min(stepIndex, lesson.steps.length - 1));
-    const snapshot = applyLessonInitialState(lessonId, idx);
+    // Advancing to another lesson must not replace the user's workspace
+    // with the previous lesson's exercises.
+    const snapshot = get().snapshotBeforeLesson ?? snapshotWorkspace();
+    applyLessonInitialState(lessonId, idx);
     set({
       view: 'lesson',
       currentLessonId: lessonId,
@@ -166,17 +203,15 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
       lastResult: null,
       failCount: 0,
       snapshotBeforeLesson: snapshot,
+      stepSnapshots: {},
     });
   },
 
   exitLesson: (restore = false) => {
+    startRequest++;
     const { snapshotBeforeLesson } = get();
     if (restore && snapshotBeforeLesson) {
-      const r = useRegexStore.getState();
-      r.setEngine(snapshotBeforeLesson.engine as never);
-      r.loadPattern(snapshotBeforeLesson.pattern, snapshotBeforeLesson.flagString);
-      r.setTestText(snapshotBeforeLesson.testText);
-      r.setTestCases(snapshotBeforeLesson.testCases);
+      restoreWorkspace(snapshotBeforeLesson);
     }
     set({
       view: 'catalog',
@@ -185,34 +220,38 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
       lastResult: null,
       failCount: 0,
       snapshotBeforeLesson: null,
+      stepSnapshots: {},
     });
   },
 
   next: () => {
-    const { currentLessonId, currentStepIndex } = get();
-    if (!currentLessonId) return;
-    const lesson = findLoadedLesson(currentLessonId);
-    if (!lesson) return;
-    const nextIdx = Math.min(currentStepIndex + 1, lesson.steps.length - 1);
-    if (nextIdx === currentStepIndex) return;
-    // Apply step setup if any.
-    applyStepSetup(lesson.steps[nextIdx].setup);
-    set({ currentStepIndex: nextIdx, lastResult: null, failCount: 0 });
+    get().goTo(get().currentStepIndex + 1);
   },
 
   prev: () => {
-    const { currentStepIndex } = get();
-    if (currentStepIndex === 0) return;
-    set({ currentStepIndex: currentStepIndex - 1, lastResult: null, failCount: 0 });
+    get().goTo(get().currentStepIndex - 1);
   },
 
   goTo: (stepIndex) => {
-    const { currentLessonId } = get();
-    if (!currentLessonId) return;
+    const { currentLessonId, currentStepIndex, stepSnapshots } = get();
+    if (!currentLessonId || !Number.isFinite(stepIndex)) return;
     const lesson = findLoadedLesson(currentLessonId);
     if (!lesson) return;
-    const idx = Math.max(0, Math.min(stepIndex, lesson.steps.length - 1));
-    set({ currentStepIndex: idx, lastResult: null, failCount: 0 });
+    const idx = Math.max(0, Math.min(Math.trunc(stepIndex), lesson.steps.length - 1));
+    if (idx === currentStepIndex) return;
+    const snapshots = { ...stepSnapshots, [currentStepIndex]: snapshotWorkspace() };
+    if (snapshots[idx]) {
+      restoreWorkspace(snapshots[idx]);
+    } else if (idx > currentStepIndex) {
+      // Keep the learner's answer and apply every skipped setup, just as
+      // pressing Next repeatedly would do.
+      for (let i = currentStepIndex + 1; i <= idx; i++) applyStepSetup(lesson.steps[i].setup);
+    } else {
+      // Deep links can start midway through a lesson, before earlier steps
+      // have a saved answer.
+      applyLessonInitialState(currentLessonId, idx);
+    }
+    set({ currentStepIndex: idx, stepSnapshots: snapshots, lastResult: null, failCount: 0 });
   },
 
   markStepDone: (stepId) =>

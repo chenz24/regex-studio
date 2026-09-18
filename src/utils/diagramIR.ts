@@ -34,7 +34,15 @@ export type IR =
       id: string;
       assertionType?: 'lookahead' | 'negativeLookahead' | 'lookbehind' | 'negativeLookbehind';
     }
-  | { type: 'Quantifier'; min: number; max: number | null; greedy: boolean; child: IR; id: string }
+  | {
+      type: 'Quantifier';
+      min: number;
+      max: number | null;
+      greedy: boolean;
+      possessive?: boolean;
+      child: IR;
+      id: string;
+    }
   | { type: 'Backref'; ref: string; id: string };
 
 const ESCAPE_CLASS_MAP: Record<string, { kind: string; label: string }> = {
@@ -110,17 +118,17 @@ function mergeAdjacentLiterals(nodes: IR[]): IR[] {
     const node = nodes[i];
     if (node.type === 'Literal') {
       let merged = node.text;
-      let lastId = node.id;
+      const sourceIds = [node.id];
       while (i + 1 < nodes.length && nodes[i + 1].type === 'Literal') {
         i++;
         const next = nodes[i] as IR & { type: 'Literal' };
         merged += next.text;
-        lastId = next.id;
+        sourceIds.push(next.id);
       }
       result.push({
         type: 'Literal',
         text: merged,
-        id: merged.length > node.text.length ? `${node.id}_${lastId}` : node.id,
+        id: sourceIds.length > 1 ? `merged:${sourceIds.join(',')}` : node.id,
       });
     } else {
       result.push(node);
@@ -133,7 +141,7 @@ function mergeAdjacentLiterals(nodes: IR[]): IR[] {
 function astToIR(node: ASTNode): IR {
   switch (node.type) {
     case 'sequence': {
-      const children = mergeAdjacentLiterals((node.children || []).map(astToIR));
+      const children = visualChildren(node);
       if (children.length === 1) return children[0];
       return { type: 'Sequence', children, id: node.id };
     }
@@ -150,6 +158,7 @@ function astToIR(node: ASTNode): IR {
         min: q.min,
         max: q.max,
         greedy: !q.lazy,
+        possessive: q.possessive,
         child: astToIR(child),
         id: node.id,
       };
@@ -168,6 +177,7 @@ function astToIR(node: ASTNode): IR {
       return {
         type: 'Group',
         capturing: false,
+        caption: node.flagSpec ? `Flags ${node.flagSpec}` : undefined,
         child: wrapChildren(node),
         id: node.id,
       };
@@ -182,6 +192,60 @@ function astToIR(node: ASTNode): IR {
     case 'inlineFlags':
       // Not a matcher — an instruction to the engine. Shown as a plain token.
       return { type: 'Token', kind: 'special', label: `flags ${node.value}`, id: node.id };
+    case 'resetStart':
+      return { type: 'Token', kind: 'special', label: '\\K · Reset match start', id: node.id };
+    case 'subroutine':
+      return { type: 'Token', kind: 'special', label: `Call ${node.value}`, id: node.id };
+    case 'verb':
+    case 'pcreEscape':
+      return { type: 'Token', kind: 'special', label: node.raw, id: node.id };
+    case 'branchReset':
+      return {
+        type: 'Group',
+        capturing: false,
+        caption: 'Branch reset',
+        child: wrapChildren(node),
+        id: node.id,
+      };
+    case 'conditional': {
+      const branches = node.assertionCondition ? node.children?.slice(1) : node.children;
+      const choice: IR = {
+        type: 'Choice',
+        id: `${node.id}_branches`,
+        alts: [0, 1].map(
+          (i): IR => ({
+            type: 'Group',
+            capturing: false,
+            caption: i === 0 ? 'Then' : 'Else',
+            id: node.id,
+            child: branches?.[i]
+              ? astToIR(branches[i])
+              : { type: 'Sequence', children: [], id: `${node.id}_empty` },
+          }),
+        ),
+      };
+      return {
+        type: 'Group',
+        capturing: false,
+        caption:
+          node.value === 'DEFINE'
+            ? 'Definitions (not executed)'
+            : node.assertionCondition
+              ? 'If assertion'
+              : `If ${node.value}`,
+        id: node.id,
+        child:
+          node.value === 'DEFINE'
+            ? wrapChildren(node)
+            : node.assertionCondition && node.children?.[0]
+              ? {
+                  type: 'Sequence',
+                  children: [astToIR(node.children[0]), choice],
+                  id: `${node.id}_condition`,
+                }
+              : choice,
+      };
+    }
     case 'lookahead':
     case 'negativeLookahead':
     case 'lookbehind':
@@ -195,16 +259,19 @@ function astToIR(node: ASTNode): IR {
       };
     case 'characterClass':
     case 'negatedCharacterClass': {
+      if (node.unicodeSet) {
+        return { type: 'Token', kind: 'unicodeSet', label: node.raw, id: node.id };
+      }
       const items = mergeCharClassLiterals((node.children || []).map(mapCharItem));
-      if (items.length === 1 && items[0].kind === 'token') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'token') {
         const t = items[0] as { kind: 'token'; token: string; label: string };
         return { type: 'Token', kind: t.token, label: t.label, id: node.id };
       }
-      if (items.length === 1 && items[0].kind === 'range') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'range') {
         const r = items[0] as { kind: 'range'; from: string; to: string };
         return { type: 'Token', kind: 'range', label: `${r.from}\u2013${r.to}`, id: node.id };
       }
-      if (items.length === 1 && items[0].kind === 'literal') {
+      if (node.type === 'characterClass' && items.length === 1 && items[0].kind === 'literal') {
         const litText = (items[0] as { kind: 'literal'; text: string }).text;
         if (litText.length === 1) {
           return { type: 'Literal', text: litText, id: node.id };
@@ -246,8 +313,13 @@ function astToIR(node: ASTNode): IR {
   }
 }
 
+function visualChildren(node: ASTNode): IR[] {
+  const children = (node.children || []).map(astToIR);
+  return node.dialect === 'pcre2' ? children : mergeAdjacentLiterals(children);
+}
+
 function wrapChildren(node: ASTNode): IR {
-  const children = mergeAdjacentLiterals((node.children || []).map(astToIR));
+  const children = visualChildren(node);
   if (children.length === 0) return { type: 'Sequence', children: [], id: `${node.id}_inner` };
   if (children.length === 1) return children[0];
   return { type: 'Sequence', children, id: `${node.id}_inner` };

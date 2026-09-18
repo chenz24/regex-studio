@@ -1,4 +1,5 @@
 import type { MatchInfo, GroupInfo } from '../types/regex';
+import { decodeGroupName } from './regexNames';
 
 /**
  * Upper bound on matches collected in a single run. A pathological pattern
@@ -40,39 +41,70 @@ function advanceIndex(text: string, index: number, unicode: boolean): number {
   return index + (code > 0xffff ? 2 : 1);
 }
 
-export function findMatches(pattern: string, flags: string, text: string): MatchInfo[] {
-  if (!pattern) return [];
+export interface MatchDetailBudget {
+  remaining: number;
+}
+export const TEST_DETAIL_LIMIT = 100;
+export const TEST_DETAIL_BUDGET = 200_000;
 
-  try {
-    // `d` makes the engine report exact group offsets in `match.indices`.
+/** Bound retained strings and capture objects across the entire test batch. */
+export function retainMatch(match: MatchInfo, budget?: MatchDetailBudget): boolean {
+  if (!budget) return true;
+  const cost =
+    1 +
+    match.match.length +
+    match.groups.reduce(
+      (total, group) => total + 1 + (group.value?.length ?? 0) + (group.name?.length ?? 0),
+      0,
+    );
+  if (cost > budget.remaining) return false;
+  budget.remaining -= cost;
+  return true;
+}
+
+export function findMatchResult(
+  pattern: string,
+  flags: string,
+  text: string,
+  detailLimit = MAX_MATCHES,
+  budget?: MatchDetailBudget,
+) {
+  const matches: MatchInfo[] = [];
+  let matchCount = 0;
+  let truncated = false;
+  let retain = true;
+  if (pattern) {
     const execFlags = SUPPORTS_INDICES && !flags.includes('d') ? `${flags}d` : flags;
     const regex = new RegExp(pattern, execFlags);
     const groupNames = collectGroupNames(pattern);
-    const matches: MatchInfo[] = [];
     const unicode = flags.includes('u') || flags.includes('v');
-    let match: RegExpExecArray | null;
-
-    if (flags.includes('g')) {
-      match = regex.exec(text);
-      while (match !== null) {
-        matches.push(buildMatchInfo(match, groupNames));
-        if (matches.length >= MAX_MATCHES) break;
-        // A zero-length match leaves lastIndex where it is; step forward
-        // ourselves or `exec` returns the same match indefinitely.
-        if (match[0].length === 0) {
-          regex.lastIndex = advanceIndex(text, regex.lastIndex, unicode);
-          if (regex.lastIndex > text.length) break;
-        }
-        match = regex.exec(text);
+    for (;;) {
+      const match = regex.exec(text);
+      if (!match) break;
+      // Probe one extra match so exactly MAX_MATCHES is still a complete count.
+      if (matchCount === MAX_MATCHES) {
+        truncated = true;
+        break;
       }
-    } else {
-      match = regex.exec(text);
-      if (match) {
-        matches.push(buildMatchInfo(match, groupNames));
+      matchCount++;
+      if (retain && matches.length < detailLimit) {
+        const info = buildMatchInfo(match, groupNames);
+        retain = retainMatch(info, budget);
+        if (retain) matches.push(info);
+      }
+      if (!flags.includes('g')) break;
+      if (match[0].length === 0) {
+        regex.lastIndex = advanceIndex(text, regex.lastIndex, unicode);
+        if (regex.lastIndex > text.length) break;
       }
     }
+  }
+  return { matches, matchCount, truncated, detailsTruncated: matches.length < matchCount };
+}
 
-    return matches;
+export function findMatches(pattern: string, flags: string, text: string): MatchInfo[] {
+  try {
+    return findMatchResult(pattern, flags, text).matches;
   } catch {
     return [];
   }
@@ -120,7 +152,7 @@ export function collectGroupNames(pattern: string): Array<string | null> {
       continue;
     const close = pattern.indexOf('>', nameStart);
     if (close === -1) continue;
-    names.push(pattern.slice(nameStart, close));
+    names.push(decodeGroupName(pattern.slice(nameStart, close)));
   }
 
   return names;
@@ -158,7 +190,7 @@ export function replaceMatches(
   text: string,
   replacement: string,
 ): string {
-  if (!pattern || !text) return text;
+  if (!pattern) return text;
 
   try {
     const regex = new RegExp(pattern, flags);

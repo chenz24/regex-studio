@@ -14,12 +14,24 @@ import { HighlightStyle, syntaxHighlighting, StreamLanguage } from '@codemirror/
 import { tags } from '@lezer/highlight';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FlavorSelector } from './FlavorSelector';
-import { CompatibilityWarnings } from './CompatibilityWarnings';
+import { CompatibilityCheck } from './CompatibilityCheck';
 import type { RegexFlag, ASTNode } from '../../types/regex';
-import type { RegexEngine, CompatibilityWarning } from '../../types/engineTypes';
-import { ENGINE_FLAVORS } from '../../types/engineTypes';
+import type {
+  ExecutionEngine,
+  CompatibilityTarget,
+  CompatibilityWarning,
+} from '../../types/engineTypes';
 import { findNodeById, findNodeAtPosition } from '../../lib/ast';
+import {
+  inspectionField,
+  inspectionTheme,
+  rangeDecorations,
+  setInspectionDecorations,
+} from '../../lib/inspectionDecorations';
+import type { SourceRange } from '../../utils/resultInspection';
 import { useT, type Messages } from '@/lib/i18n';
+import { useRevealRange } from '../../hooks/useRevealRange';
+import { escapePattern, escapeUnescaped } from '../../utils/codegen/escaper';
 
 function resolveDesc(t: Messages, key: string | undefined, fallback: string): string {
   if (!key) return fallback;
@@ -29,20 +41,32 @@ function resolveDesc(t: Messages, key: string | undefined, fallback: string): st
 }
 
 interface RegexInputProps {
+  revealRequest?: object;
+  inspectionRanges?: SourceRange[];
+  onInspectSource?: (range: SourceRange) => void;
   pattern: string;
   onPatternChange: (value: string) => void;
+  onUndo: () => void;
+  onRedo: () => void;
   flags: RegexFlag[];
   flagString: string;
   onToggleFlag: (key: string) => void;
   validation: { valid: boolean; error?: string };
   matchCount: number;
+  matchesTruncated?: boolean;
   /** The pattern overran its deadline and was abandoned. */
   timedOut?: boolean;
+  pending?: boolean;
+  executionError?: string;
+  onRetry?: () => void;
   ast: ASTNode;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
-  engine: RegexEngine;
-  onEngineChange: (engine: RegexEngine) => void;
+  engine: ExecutionEngine;
+  onEngineChange: (engine: ExecutionEngine) => void;
+  compatibilityTarget: CompatibilityTarget | null;
+  onCompatibilityTargetChange: (target: CompatibilityTarget | null) => void;
+  legacyTargetFlags: string;
   compatibilityWarnings: CompatibilityWarning[];
 }
 
@@ -114,7 +138,8 @@ const regexInputTheme = EditorView.theme({
     outline: 'none',
   },
   '.cm-scroller': {
-    overflow: 'hidden',
+    overflow: 'auto',
+    maxHeight: '200px',
     lineHeight: '1.5',
     padding: '10px 12px',
   },
@@ -159,19 +184,31 @@ const highlightField = StateField.define<DecorationSet>({
 const hoverMark = Decoration.mark({ class: 'cm-hover-highlight' });
 
 export function RegexInput({
+  revealRequest,
+  inspectionRanges,
+  onInspectSource,
   pattern,
   onPatternChange,
+  onUndo,
+  onRedo,
   flags,
   flagString,
   onToggleFlag,
   validation,
   matchCount,
+  matchesTruncated,
   timedOut,
+  pending,
+  executionError,
+  onRetry,
   ast,
   hoveredNodeId,
   onHoverNode,
   engine,
   onEngineChange,
+  compatibilityTarget,
+  onCompatibilityTargetChange,
+  legacyTargetFlags,
   compatibilityWarnings,
 }: RegexInputProps) {
   const t = useT();
@@ -180,7 +217,11 @@ export function RegexInput({
   const viewRef = useRef<EditorView | null>(null);
   const isExternalUpdate = useRef(false);
   const onChangeRef = useRef(onPatternChange);
+  const historyRef = useRef({ onUndo, onRedo });
+  historyRef.current = { onUndo, onRedo };
   const onHoverRef = useRef(onHoverNode);
+  const onInspectRef = useRef(onInspectSource);
+  onInspectRef.current = onInspectSource;
   const astRef = useRef(ast);
   const themeCompartment = useRef(new Compartment());
   const highlightCompartment = useRef(new Compartment());
@@ -202,38 +243,54 @@ export function RegexInput({
       if (isExternalUpdate.current) return;
       if (update.docChanged) {
         onChangeRef.current(update.state.doc.toString());
+      } else if (update.selectionSet && update.view.hasFocus) {
+        const { from, to } = update.state.selection.main;
+        onInspectRef.current?.({ start: from, end: to });
       }
-    });
-
-    const singleLine = EditorState.transactionFilter.of((tr) => {
-      if (!tr.docChanged) return tr;
-      const newDoc = tr.newDoc.toString();
-      if (newDoc.includes('\n')) {
-        return {
-          ...tr,
-          changes: { from: 0, to: tr.startState.doc.length, insert: newDoc.replace(/\n/g, '') },
-        };
-      }
-      return tr;
     });
 
     const isDark = document.documentElement.classList.contains('dark');
+    const undo = () => {
+      historyRef.current.onUndo();
+      return true;
+    };
+    const redo = () => {
+      historyRef.current.onRedo();
+      return true;
+    };
 
     const state = EditorState.create({
       doc: initialPatternRef.current,
       extensions: [
+        // Keep CR and CRLF as written so source offsets and matching agree.
+        EditorState.lineSeparator.of('\n'),
         regexInputTheme,
         themeCompartment.current.of(isDark ? darkTheme : lightTheme),
         regexLanguage,
         highlightCompartment.current.of(
           syntaxHighlighting(isDark ? darkHighlight : lightHighlight),
         ),
-        keymap.of(defaultKeymap),
+        // Share history with the diagram toolbar, including native Edit-menu undo.
+        keymap.of([
+          { key: 'Mod-z', run: undo, preventDefault: true },
+          { key: 'Mod-Shift-z', run: redo, preventDefault: true },
+          { key: 'Ctrl-y', run: redo, preventDefault: true },
+          ...defaultKeymap,
+        ]),
+        EditorView.domEventHandlers({
+          beforeinput(event) {
+            if (event.inputType !== 'historyUndo' && event.inputType !== 'historyRedo')
+              return false;
+            event.preventDefault();
+            return event.inputType === 'historyUndo' ? undo() : redo();
+          },
+        }),
         cmPlaceholder(t.regex_input_placeholder()),
         onUpdate,
-        singleLine,
         EditorView.lineWrapping,
         highlightField,
+        inspectionField,
+        inspectionTheme,
       ],
     });
 
@@ -353,20 +410,46 @@ export function RegexInput({
     view.dispatch({ effects: setHighlightEffect.of(decos) });
   }, [hoveredNodeId, ast]);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(`/${pattern}/${flagString}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }, [pattern, flagString]);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    if (view.state.doc.toString() !== pattern) return;
+    view.dispatch({
+      effects: setInspectionDecorations.of(
+        rangeDecorations(inspectionRanges ?? [], view.state.doc.length, 'cm-source-inspection'),
+      ),
+    });
+  }, [inspectionRanges, pattern]);
+
+  useRevealRange(viewRef, inspectionRanges?.[0], revealRequest);
+
+  const handleCopy = useCallback(async () => {
+    const source =
+      engine === 'javascript'
+        ? escapePattern(pattern || '(?:)', 'javascript')
+        : escapeUnescaped(pattern, '/');
+    try {
+      await navigator.clipboard.writeText(`/${source}/${flagString}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }, [pattern, flagString, engine]);
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FlavorSelector
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <FlavorSelector engine={engine} onEngineChange={onEngineChange} />
+          <CompatibilityCheck
             engine={engine}
-            onEngineChange={onEngineChange}
-            warningCount={compatibilityWarnings.length}
+            target={compatibilityTarget}
+            onTargetChange={onCompatibilityTargetChange}
+            warnings={compatibilityWarnings}
+            valid={validation.valid}
+            hasPattern={!!pattern}
+            legacyTargetFlags={legacyTargetFlags}
           />
         </div>
 
@@ -376,6 +459,8 @@ export function RegexInput({
               <Tooltip key={flag.key}>
                 <TooltipTrigger asChild>
                   <button
+                    aria-pressed={flag.enabled}
+                    aria-label={t.execution_flag_label({ flag: flag.key })}
                     onClick={() => onToggleFlag(flag.key)}
                     className={`w-7 h-7 flex items-center justify-center rounded-md font-mono text-sm font-bold transition-all ${
                       flag.enabled
@@ -388,8 +473,10 @@ export function RegexInput({
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={8}>
                   <div className="font-semibold">{flag.label}</div>
-                  <div className="opacity-80 mt-0.5">{resolveDesc(t, flag.descKey, flag.description)}</div>
-                  {!flag.jsFlag && (
+                  <div className="opacity-80 mt-0.5">
+                    {resolveDesc(t, flag.descKey, flag.description)}
+                  </div>
+                  {!flag.jsFlag && engine !== 'pcre2' && (
                     <div className="opacity-60 mt-1 text-[10px]">
                       {t.regex_input_display_only()}
                     </div>
@@ -401,7 +488,19 @@ export function RegexInput({
         </TooltipProvider>
       </div>
 
-      <div className="relative group">
+      <div
+        data-testid="execution-summary"
+        className="px-1 text-xs text-gray-500 dark:text-gray-400"
+      >
+        {t.execution_engine_label({
+          engine:
+            engine === 'pcre2'
+              ? 'PCRE2 10.47 (16-bit)'
+              : `JavaScript (${t.engine_browser_native()})`,
+        })}
+      </div>
+
+      <div role="group" aria-label={t.regex_pattern_input_label()} className="relative group">
         <div
           className={`flex items-center rounded-xl border-2 transition-all bg-white dark:bg-gray-800/80 shadow-sm ${
             !pattern
@@ -420,6 +519,7 @@ export function RegexInput({
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity px-1">
             <button
               onClick={handleCopy}
+              aria-label={t.regex_input_copy()}
               className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               {copied ? (
@@ -430,6 +530,7 @@ export function RegexInput({
             </button>
             <button
               onClick={() => onPatternChange('')}
+              aria-label={t.regex_input_clear()}
               className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -442,35 +543,47 @@ export function RegexInput({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
+      <div data-testid="match-status" className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
-          {pattern && validation.valid && !timedOut && (
-            <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-              <Check className="w-3.5 h-3.5" />
-              {matchCount === 1
-                ? t.regex_input_match_count_one({ count: String(matchCount) })
-                : t.regex_input_match_count_other({ count: String(matchCount) })}
+          {pending && (
+            <span role="status" className="text-sm text-gray-500">
+              {t.match_pending()}
             </span>
           )}
-          {pattern && validation.valid && timedOut && (
+          {!pending && executionError && (
+            <span role="alert" className="text-sm text-amber-600">
+              {t.engine_execution_failed()}: {executionError}
+            </span>
+          )}
+          {pattern && validation.valid && !timedOut && !pending && !executionError && (
+            <span className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+              <Check className="w-3.5 h-3.5" />
+              {matchesTruncated
+                ? t.matches_truncated({ count: String(matchCount) })
+                : matchCount === 1
+                  ? t.regex_input_match_count_one({ count: String(matchCount) })
+                  : t.regex_input_match_count_other({ count: String(matchCount) })}
+            </span>
+          )}
+          {pattern && validation.valid && timedOut && !pending && (
             <span className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium">
               <AlertCircle className="w-3.5 h-3.5" />
               {t.regex_input_timed_out()}
             </span>
           )}
-          {pattern && !validation.valid && (
+          {pattern && !validation.valid && !pending && (
             <span className="flex items-center gap-1.5 text-sm text-red-500">
               <AlertCircle className="w-3.5 h-3.5" />
               {validation.error}
             </span>
           )}
+          {!pending && (timedOut || executionError) && onRetry && (
+            <button onClick={onRetry} className="text-sm text-teal-600 underline">
+              {t.engine_retry()}
+            </button>
+          )}
         </div>
       </div>
-
-      <CompatibilityWarnings
-        warnings={compatibilityWarnings}
-        engineName={ENGINE_FLAVORS[engine].name}
-      />
     </div>
   );
 }

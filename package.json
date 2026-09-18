@@ -11,7 +11,7 @@
     "format": "biome format --write .",
     "check:biome": "biome check --write .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc -p tsconfig.e2e.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:content": "tsx scripts/verify-content.ts",
@@ -19,7 +19,9 @@
     "verify:debugger": "node --import tsx scripts/verify-debugger.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "cf:dev": "wrangler dev",
-    "deploy": "pnpm build && wrangler deploy"
+    "deploy": "pnpm build && wrangler deploy",
+    "test:e2e": "pnpm build && playwright test",
+    "test:e2e:built": "playwright test"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",
@@ -48,6 +50,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
     "@inlang/paraglide-js": "^2.18.0",
+    "@playwright/test": "^1.63.0",
     "@tanstack/router-plugin": "^1.167.35",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

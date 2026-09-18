@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Library, FileText, X } from 'lucide-react';
 import { useRegexStore, useRegexActions, useRegexDerived } from './stores/regexStore';
 import { useTheme } from './hooks/useTheme';
@@ -7,11 +7,11 @@ import { TestArea } from './components/layout/TestArea';
 import { Footer } from './components/layout/Footer';
 import { RailroadBanner } from './components/diagram/RailroadBanner';
 import { ToolPanel } from './components/layout/ToolPanel';
+import { EngineCapabilityNotice } from './components/EngineCapabilityNotice';
 import { ThemeToggle } from './components/ThemeToggle';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { ShareButton } from './components/ShareButton';
 import { readShareFromLocation, writeShareToLocation, type SharePayload } from './lib/share';
-import type { RegexEngine } from './types/engineTypes';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { TutorialLauncher } from './components/tutorial/TutorialLauncher';
 import { useTutorialStore } from './stores/tutorialStore';
@@ -22,6 +22,17 @@ import type { ToolPanelTab } from './tutorial/types';
 import { ChallengesLauncher } from './components/challenges/ChallengesLauncher';
 import { useChallengeStore } from './stores/challengeStore';
 import { useT } from '@/lib/i18n';
+import { useNarrowLayout } from './hooks/useNarrowLayout';
+import {
+  inspectMatch,
+  inspectSource,
+  inspectStep,
+  validRange,
+  type SourceRange,
+  type ResultInspection,
+} from './utils/resultInspection';
+import { findNodeById } from './lib/ast';
+import type { DebugStep } from './utils/steppingMatcher';
 
 // The drawers pull in all lesson and challenge content, which nobody sees
 // until they open one. They are fetched on demand — or during idle time, so
@@ -53,21 +64,130 @@ function App() {
   // Subscribe field by field: reading the whole store re-rendered the entire
   // app on every hover over a diagram node.
   const engine = useRegexStore((s) => s.engine);
+  const compatibilityTarget = useRegexStore((s) => s.compatibilityTarget);
+  const legacyTargetFlags = useRegexStore((s) => s.legacyTargetFlags);
   const pattern = useRegexStore((s) => s.pattern);
   const flags = useRegexStore((s) => s.flags);
   const testText = useRegexStore((s) => s.testText);
   const replacement = useRegexStore((s) => s.replacement);
   const showReplace = useRegexStore((s) => s.showReplace);
   const testCases = useRegexStore((s) => s.testCases);
-  const selectedMatch = useRegexStore((s) => s.selectedMatch);
   const hoveredNodeId = useRegexStore((s) => s.hoveredNodeId);
   const actions = useRegexActions();
   const derived = useRegexDerived();
+
+  const [activeToolPanelTab, setActiveToolPanelTab] = useState<ToolPanelTab>('debugger');
+  const narrow = useNarrowLayout();
+  const patternSectionRef = useRef<HTMLDivElement>(null);
+  const textSectionRef = useRef<HTMLDivElement>(null);
+  const toolsSectionRef = useRef<HTMLDivElement>(null);
+  const contextKey = JSON.stringify([engine, pattern, derived.flagString, testText]);
+  const [inspectionEntry, setInspectionEntry] = useState<{
+    key: string;
+    value: ResultInspection;
+  } | null>(null);
+  const resultsReady =
+    !derived.pending && !derived.timedOut && !derived.executionError && derived.validation.valid;
+  const inspection =
+    inspectionEntry?.key === contextKey &&
+    (inspectionEntry.value.origin !== 'match' || resultsReady)
+      ? inspectionEntry.value
+      : null;
+  const selectedMatch = inspection?.matchIndex ?? null;
+  const selectedGroup = inspection?.groupIndex;
+  const inspectedNodeIds = useMemo(() => new Set(inspection?.nodeIds ?? []), [inspection]);
+  const [revealRequest, setRevealRequest] = useState<{
+    key: string;
+    target: 'pattern' | 'text' | 'tools';
+  }>();
+  const currentReveal = revealRequest?.key === contextKey ? revealRequest : undefined;
+  useEffect(() => {
+    setInspectionEntry((entry) => (entry?.key === contextKey ? entry : null));
+  }, [contextKey]);
+  const selectMatch = useCallback(
+    (index: number | null, group?: number) => {
+      const value =
+        index !== null && resultsReady
+          ? inspectMatch(
+              derived.matches,
+              index,
+              group,
+              derived.ast,
+              pattern.length,
+              testText.length,
+              derived.visualizationSupported,
+            )
+          : null;
+      setInspectionEntry(value ? { key: contextKey, value } : null);
+      if (value) setActiveToolPanelTab('matches');
+    },
+    [
+      resultsReady,
+      derived.matches,
+      derived.ast,
+      derived.visualizationSupported,
+      pattern.length,
+      testText.length,
+      contextKey,
+    ],
+  );
+  const selectSource = useCallback(
+    (range: SourceRange) => {
+      if (!validRange(range, pattern.length)) return;
+      setInspectionEntry({
+        key: contextKey,
+        value: inspectSource(derived.ast, range, derived.visualizationSupported),
+      });
+    },
+    [contextKey, derived.ast, derived.visualizationSupported, pattern.length],
+  );
+  const selectNode = useCallback(
+    (id: string | null) => {
+      const node = id ? findNodeById(derived.ast, id) : null;
+      if (node) selectSource({ start: node.start, end: node.end });
+      else setInspectionEntry(null);
+    },
+    [derived.ast, selectSource],
+  );
+  const selectStep = useCallback(
+    (step: DebugStep | null) => {
+      if (!step) {
+        setInspectionEntry((entry) => (entry?.value.origin === 'debugger' ? null : entry));
+        return;
+      }
+      const value = inspectStep(
+        derived.ast,
+        step,
+        pattern.length,
+        testText.length,
+        derived.visualizationSupported,
+      );
+      setInspectionEntry(value ? { key: contextKey, value } : null);
+    },
+    [contextKey, derived.ast, derived.visualizationSupported, pattern.length, testText.length],
+  );
+  const revealSection = useCallback(
+    (target: 'pattern' | 'text' | 'tools') => {
+      const element = (
+        target === 'pattern'
+          ? patternSectionRef
+          : target === 'text'
+            ? textSectionRef
+            : toolsSectionRef
+      ).current;
+      element?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      element?.focus({ preventScroll: true });
+      setRevealRequest({ key: contextKey, target });
+    },
+    [contextKey],
+  );
 
   const { isDark, toggle: toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('reference');
   const hydratedRef = useRef(false);
+  const shareWriteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastShareUrl = useRef<string | undefined>(undefined);
 
   // Tutorial state
   const tutorialView = useTutorialStore((s) => s.view);
@@ -95,7 +215,6 @@ function App() {
   // Controlled Tool panel tab. Defaults to 'debugger'; the tutorial can
   // request a specific tab via `step.spotlight.openPanel`. The user can
   // still click tabs manually — that just updates the same state.
-  const [activeToolPanelTab, setActiveToolPanelTab] = useState<ToolPanelTab>('debugger');
   const requestedPanel = currentStep?.spotlight?.openPanel;
   useEffect(() => {
     if (requestedPanel) setActiveToolPanelTab(requestedPanel);
@@ -139,13 +258,16 @@ function App() {
     hydrateTutorial();
     hydrateChallenges();
     if (typeof window === 'undefined') return;
+    // A saved workspace takes precedence over leftover entry parameters in
+    // older links. Starting a lesson here would overwrite its restored text.
+    if (readShareFromLocation()) return;
     const params = new URLSearchParams(window.location.search);
     const challengeId = params.get('challenge');
     if (challengeId) {
       // Starting waits on the challenge content chunk, so the fallback has to
       // wait with it: if the id was invalid, show the catalogue instead.
-      void startChallenge(challengeId).then(() => {
-        if (useChallengeStore.getState().view === 'closed') {
+      void startChallenge(challengeId).then((result) => {
+        if (result === 'missing' && useChallengeStore.getState().view === 'closed') {
           openChallengeCatalog();
         }
       });
@@ -159,28 +281,32 @@ function App() {
     }
   }, [hydrateTutorial, hydrateChallenges, startLesson, startChallenge, openChallengeCatalog]);
 
-  // Hydrate state from `#s=...` once on mount. Doing this in an effect keeps
-  // SSR clean — the server still renders the default state, and the client
-  // applies the share payload after hydration.
+  // Hash-only navigation keeps this component mounted. Restore each visited
+  // share, including browser back/forward, without treating our own saves as loads.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-    // If a tutorial is being launched via ?lesson=, don't apply the share payload —
-    // the lesson's initialState owns the editor.
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      // Lessons / challenges own the editor when launched via URL params.
-      if (params.get('lesson') || params.get('challenge')) return;
+    const restore = () => {
+      if (lastShareUrl.current === window.location.href) return;
+      const payload = readShareFromLocation();
+      if (!payload) return;
+      clearTimeout(shareWriteTimer.current);
+      lastShareUrl.current = window.location.href;
+      // Discard exercise snapshots before loading so closing a drawer cannot
+      // subsequently overwrite the newly opened workspace.
+      useTutorialStore.getState().exitLesson();
+      useTutorialStore.getState().close();
+      useChallengeStore.getState().close();
+      actions.loadShare(payload);
+    };
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      restore();
     }
-    const payload = readShareFromLocation();
-    if (!payload) return;
-    actions.setEngine(payload.e as RegexEngine);
-    actions.loadPattern(payload.p, payload.f);
-    if (payload.t !== undefined) actions.setTestText(payload.t);
-    if (payload.r !== undefined) actions.setReplacement(payload.r);
-    if (payload.sr !== undefined) actions.setShowReplace(payload.sr);
-    if (payload.tc) actions.setTestCases(payload.tc);
-    // Runs once: the ref above guards against a second pass.
+    window.addEventListener('hashchange', restore);
+    window.addEventListener('popstate', restore);
+    return () => {
+      window.removeEventListener('hashchange', restore);
+      window.removeEventListener('popstate', restore);
+    };
   }, [actions]);
 
   // Keep the URL hash in sync with the current state. Debounced and using
@@ -188,18 +314,37 @@ function App() {
   useEffect(() => {
     if (!hydratedRef.current) return;
     const payload: SharePayload = {
-      v: 1,
+      v: 3,
       p: pattern,
       f: derived.flagString,
       e: engine,
+      c: compatibilityTarget ?? undefined,
+      lf: legacyTargetFlags || undefined,
       t: testText,
       r: replacement || undefined,
       sr: showReplace || undefined,
       tc: testCases.length > 0 ? testCases : undefined,
     };
-    const handle = setTimeout(() => writeShareToLocation(payload), 400);
+    const sourceUrl = window.location.href;
+    const handle = setTimeout(() => {
+      // Navigation wins over a save queued for the workspace being left.
+      if (window.location.href !== sourceUrl) return;
+      writeShareToLocation(payload);
+      lastShareUrl.current = window.location.href;
+    }, 400);
+    shareWriteTimer.current = handle;
     return () => clearTimeout(handle);
-  }, [pattern, derived.flagString, engine, testText, replacement, showReplace, testCases]);
+  }, [
+    pattern,
+    derived.flagString,
+    engine,
+    compatibilityTarget,
+    legacyTargetFlags,
+    testText,
+    replacement,
+    showReplace,
+    testCases,
+  ]);
 
   const openSidebar = (tab: SidebarTab) => {
     if (sidebarOpen && sidebarTab === tab) {
@@ -211,10 +356,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+    <div className="min-h-screen overflow-x-clip bg-gray-50 dark:bg-gray-950 transition-colors">
       <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -233,7 +378,7 @@ function App() {
                 />
               </svg>
             </div>
-            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+            <h1 className="sr-only sm:not-sr-only text-base font-bold text-gray-900 dark:text-gray-100 tracking-tight">
               RegexStudio
             </h1>
             <span className="hidden sm:inline-block text-xs text-gray-400 dark:text-gray-500 border-l border-gray-200 dark:border-gray-700 pl-3 ml-1">
@@ -241,8 +386,9 @@ function App() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center min-w-0 gap-1 sm:gap-2 overflow-x-auto [&>button]:shrink-0 [&>button]:px-2 sm:[&>button]:px-3">
             <button
+              aria-label={t.header_patterns()}
               onClick={() => openSidebar('library')}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                 sidebarOpen && sidebarTab === 'library'
@@ -254,6 +400,7 @@ function App() {
               <span className="hidden sm:inline">{t.header_patterns()}</span>
             </button>
             <button
+              aria-label={t.header_reference()}
               onClick={() => openSidebar('reference')}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                 sidebarOpen && sidebarTab === 'reference'
@@ -268,10 +415,12 @@ function App() {
             <ChallengesLauncher onOpen={() => setSidebarOpen(false)} />
             <ShareButton
               payload={{
-                v: 1,
+                v: 3,
                 p: pattern,
                 f: derived.flagString,
                 e: engine,
+                c: compatibilityTarget ?? undefined,
+                lf: legacyTargetFlags || undefined,
                 t: testText,
                 r: replacement || undefined,
                 sr: showReplace || undefined,
@@ -293,55 +442,143 @@ function App() {
         >
           <div className="px-4 sm:px-6 py-5 space-y-4">
             {/* Regex Input */}
-            <RegexInput
-              pattern={pattern}
-              onPatternChange={actions.setPattern}
-              flags={flags}
-              flagString={derived.flagString}
-              onToggleFlag={actions.toggleFlag}
-              validation={derived.validation}
-              matchCount={derived.matches.length}
-              timedOut={derived.timedOut}
-              ast={derived.ast}
-              hoveredNodeId={hoveredNodeId}
-              onHoverNode={actions.setHoveredNodeId}
-              engine={engine}
-              onEngineChange={actions.setEngine}
-              compatibilityWarnings={derived.compatibilityWarnings}
-            />
+            <div ref={patternSectionRef} tabIndex={-1} className="scroll-mt-20 outline-none">
+              <RegexInput
+                revealRequest={currentReveal?.target === 'pattern' ? currentReveal : undefined}
+                inspectionRanges={inspection?.source}
+                onInspectSource={selectSource}
+                pattern={pattern}
+                onPatternChange={actions.setPattern}
+                onUndo={actions.undoPattern}
+                onRedo={actions.redoPattern}
+                flags={flags}
+                flagString={derived.flagString}
+                onToggleFlag={actions.toggleFlag}
+                validation={derived.validation}
+                matchCount={derived.matches.length}
+                matchesTruncated={derived.matchesTruncated}
+                timedOut={derived.timedOut}
+                pending={derived.pending}
+                executionError={derived.executionError}
+                onRetry={derived.retry}
+                ast={derived.ast}
+                hoveredNodeId={hoveredNodeId}
+                onHoverNode={actions.setHoveredNodeId}
+                engine={engine}
+                onEngineChange={actions.setEngine}
+                compatibilityTarget={compatibilityTarget}
+                onCompatibilityTargetChange={actions.setCompatibilityTarget}
+                legacyTargetFlags={legacyTargetFlags}
+                compatibilityWarnings={derived.compatibilityWarnings}
+              />
+            </div>
 
             {/* Railroad Banner — full width */}
-            <RailroadBanner
-              diagram={derived.diagram}
-              ast={derived.ast}
-              pattern={pattern}
-              onPatternChange={actions.setPattern}
-              hoveredNodeId={hoveredNodeId}
-              onHoverNode={actions.setHoveredNodeId}
-              spotlightNodeIds={spotlight.nodeIds}
-            />
+            {!derived.visualizationSupported ? (
+              <EngineCapabilityNotice reason={derived.visualizationReason} />
+            ) : (
+              <RailroadBanner
+                key={derived.executionEngine}
+                flags={derived.flagString}
+                diagram={derived.diagram}
+                ast={derived.ast}
+                pattern={pattern}
+                onPatternChange={actions.setPattern}
+                hoveredNodeId={hoveredNodeId}
+                onHoverNode={actions.setHoveredNodeId}
+                spotlightNodeIds={spotlight.nodeIds}
+                inspectedNodeIds={inspectedNodeIds}
+                onInspectNode={selectNode}
+              />
+            )}
 
-            {/* Two-column: Test Area + Match Details | Tool Panel */}
-            <ResizablePanelGroup orientation="horizontal" className="min-h-[400px] rounded-xl">
+            {/* Test text and tools stack on narrow screens without remounting editors. */}
+            {narrow && (
+              <nav
+                aria-label={t.inspection_navigation()}
+                className="sticky top-14 z-10 flex gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 p-2 text-xs"
+              >
+                <button
+                  onClick={() => revealSection('pattern')}
+                  className="flex-1 py-1.5 rounded bg-gray-100 dark:bg-gray-800"
+                >
+                  {t.inspection_expression()}
+                </button>
+                <button
+                  onClick={() => revealSection('text')}
+                  className="flex-1 py-1.5 rounded bg-gray-100 dark:bg-gray-800"
+                >
+                  {t.testarea_title()}
+                </button>
+                <button
+                  onClick={() => revealSection('tools')}
+                  className="flex-1 py-1.5 rounded bg-gray-100 dark:bg-gray-800"
+                >
+                  {t.inspection_tools()}
+                </button>
+              </nav>
+            )}
+            <ResizablePanelGroup
+              orientation={narrow ? 'vertical' : 'horizontal'}
+              className="min-h-[400px] rounded-xl max-md:!h-auto max-md:!overflow-visible max-md:!touch-auto max-md:[&>[data-panel]]:!flex-none max-md:[&>[data-panel]]:!max-h-none"
+              disabled={narrow}
+              style={narrow ? { height: 'auto', overflow: 'visible' } : undefined}
+            >
               {/* Left: Test String */}
-              <ResizablePanel defaultSize={45} minSize={30}>
-                <div className="pr-2 h-full">
+              <ResizablePanel
+                className="max-md:!max-h-none max-md:!overflow-visible max-md:!touch-auto"
+                defaultSize="45%"
+                minSize={narrow ? 0 : '30%'}
+              >
+                <div
+                  ref={textSectionRef}
+                  tabIndex={-1}
+                  className="md:pr-2 md:h-full scroll-mt-28 outline-none"
+                >
                   <TestArea
+                    revealRequest={currentReveal?.target === 'text' ? currentReveal : undefined}
+                    inspectionRange={inspection?.subject}
+                    resultsReady={resultsReady}
                     text={testText}
                     onTextChange={actions.setTestText}
                     matches={derived.matches}
+                    matchesTruncated={derived.matchesTruncated}
                     selectedMatch={selectedMatch}
-                    onSelectMatch={actions.setSelectedMatch}
+                    onSelectMatch={selectMatch}
                   />
                 </div>
               </ResizablePanel>
 
-              <ResizableHandle withHandle className="mx-1" />
+              <ResizableHandle
+                disabled={narrow}
+                withHandle={!narrow}
+                className={narrow ? 'my-2 opacity-0 pointer-events-none' : 'mx-1'}
+              />
 
               {/* Right: Tool Panel (Tabs) */}
-              <ResizablePanel defaultSize={55} minSize={30}>
-                <div className="pl-2 h-full">
+              <ResizablePanel
+                className="max-md:!max-h-none max-md:!overflow-visible max-md:!touch-auto"
+                defaultSize="55%"
+                minSize={narrow ? 0 : '30%'}
+              >
+                <div
+                  ref={toolsSectionRef}
+                  tabIndex={-1}
+                  className="md:pl-2 md:h-full scroll-mt-28 outline-none"
+                >
                   <ToolPanel
+                    resultsReady={resultsReady}
+                    selectedGroup={selectedGroup}
+                    sourceAvailable={!!inspection?.source.length}
+                    ambiguousSource={inspection?.ambiguous}
+                    onSelectGroup={selectMatch}
+                    onInspectStep={selectStep}
+                    onReveal={revealSection}
+                    executionEngine={derived.executionEngine}
+                    visualizationSupported={derived.visualizationSupported}
+                    visualizationReason={derived.visualizationReason}
+                    replacementError={derived.replacementError}
+                    pending={derived.pending}
                     ast={derived.ast}
                     pattern={pattern}
                     testText={testText}
@@ -353,13 +590,15 @@ function App() {
                     onReplacementChange={actions.setReplacement}
                     replacedText={derived.replacedText}
                     matchCount={derived.matches.length}
+                    matchesTruncated={derived.matchesTruncated}
                     matches={derived.matches}
                     selectedMatch={selectedMatch}
-                    onSelectMatch={actions.setSelectedMatch}
+                    onSelectMatch={selectMatch}
                     testCases={testCases}
                     testResults={derived.testResults}
                     testsPassed={derived.testsPassed}
                     onAddTestCase={actions.addTestCase}
+                    onImportTestCases={actions.importTestCases}
                     onUpdateTestCase={actions.updateTestCase}
                     onRemoveTestCase={actions.removeTestCase}
                     onLoadTestCaseInput={actions.setTestText}

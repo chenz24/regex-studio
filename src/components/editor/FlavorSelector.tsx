@@ -7,8 +7,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
-import type { RegexEngine } from '../../types/engineTypes';
-import { ENGINE_FLAVORS, ENGINE_LIST } from '../../types/engineTypes';
+import type { RegexEngine, ExecutionEngine } from '../../types/engineTypes';
+import { ENGINE_FLAVORS, EXECUTION_ENGINES } from '../../types/engineTypes';
 import { useT, type Messages } from '@/lib/i18n';
 
 const ENGINE_NOTES_KEY: Record<RegexEngine, keyof Messages> = {
@@ -22,12 +22,11 @@ const ENGINE_NOTES_KEY: Record<RegexEngine, keyof Messages> = {
 };
 
 interface FlavorSelectorProps {
-  engine: RegexEngine;
-  onEngineChange: (engine: RegexEngine) => void;
-  warningCount?: number;
+  engine: ExecutionEngine;
+  onEngineChange: (engine: ExecutionEngine) => void;
 }
 
-export function FlavorSelector({ engine, onEngineChange, warningCount = 0 }: FlavorSelectorProps) {
+export function FlavorSelector({ engine, onEngineChange }: FlavorSelectorProps) {
   const t = useT();
   const current = ENGINE_FLAVORS[engine];
   const noteFor = (id: RegexEngine) => {
@@ -38,15 +37,13 @@ export function FlavorSelector({ engine, onEngineChange, warningCount = 0 }: Fla
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 font-mono hover:bg-gray-200 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
+        <button
+          aria-label={t.execution_engine_select()}
+          className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 font-mono hover:bg-gray-200 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+        >
           <span>
-            {current.name} ({current.version})
+            {current.name} ({engine === 'javascript' ? t.engine_browser_native() : current.version})
           </span>
-          {warningCount > 0 && (
-            <span className="flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
-              {warningCount}
-            </span>
-          )}
           <ChevronDown className="w-3 h-3" />
         </button>
       </DropdownMenuTrigger>
@@ -56,18 +53,18 @@ export function FlavorSelector({ engine, onEngineChange, warningCount = 0 }: Fla
       >
         <DropdownMenuLabel className="px-3 py-3 border-b border-gray-100 dark:border-gray-800">
           <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-            {t.flavor_target_compatibility_label()}
+            {t.execution_engine_select()}
           </div>
           <p className="mt-1 text-[11px] font-normal normal-case tracking-normal text-gray-500 dark:text-gray-400 leading-snug">
-            {t.flavor_target_compatibility_desc()}
+            {t.execution_engine_select_hint()}
           </p>
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={engine}
-          onValueChange={(val) => onEngineChange(val as RegexEngine)}
+          onValueChange={(val) => onEngineChange(val as ExecutionEngine)}
         >
           <div className="py-1">
-            {ENGINE_LIST.map((id) => {
+            {EXECUTION_ENGINES.map((id) => {
               const flavor = ENGINE_FLAVORS[id];
               const isActive = id === engine;
               return (
@@ -92,7 +89,7 @@ export function FlavorSelector({ engine, onEngineChange, warningCount = 0 }: Fla
                         {flavor.name}
                       </span>
                       <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
-                        {flavor.version}
+                        {id === 'javascript' ? t.engine_browser_native() : flavor.version}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">

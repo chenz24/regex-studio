@@ -149,7 +149,8 @@ export function getPhpFlags(flags: string): string {
 export function getRubyFlags(flags: string): string {
   let rbFlags = '';
   if (flags.includes('i')) rbFlags += 'i';
-  if (flags.includes('m')) rbFlags += 'm';
+  // Ruby's m is dotAll; its anchors are line-aware independently of flags.
+  if (flags.includes('s')) rbFlags += 'm';
   if (flags.includes('x')) rbFlags += 'x';
   return rbFlags;
 }

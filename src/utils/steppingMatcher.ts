@@ -6,6 +6,9 @@ import { isValidRegex } from './regexMatcher';
 export type StepAction = 'try' | 'match' | 'fail' | 'backtrack' | 'enter-group' | 'exit-group';
 
 export interface DebugStep {
+  /** Native callouts provide source ranges without requiring a visual AST. */
+  patternStart?: number;
+  patternEnd?: number;
   id: number;
   /** The AST node being processed */
   astNodeId: string;
@@ -70,10 +73,14 @@ function escapeForDisplay(value: string): string {
   return value;
 }
 
-/** Map every named group in the pattern to its capture number. */
-function collectGroupNumbers(node: ASTNode, out: Map<string, number>): Map<string, number> {
+function escapeLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Disjoint alternatives may legally reuse a name with different capture numbers. */
+function collectGroupNumbers(node: ASTNode, out: Map<string, number[]>): Map<string, number[]> {
   if (node.type === 'namedGroup' && node.groupName && node.groupIndex !== undefined) {
-    out.set(node.groupName, node.groupIndex);
+    out.set(node.groupName, [...(out.get(node.groupName) ?? []), node.groupIndex]);
   }
   for (const child of node.children || []) collectGroupNumbers(child, out);
   return out;
@@ -86,25 +93,36 @@ export class SteppingMatcher {
   private stepId = 0;
   private text: string;
   private ast: ASTNode;
-  private caseInsensitive: boolean;
-  private multiline: boolean;
-  private dotAll: boolean;
+  private flagsByNode = new Map<string, string>();
   private unicode: boolean;
   private unicodeFlag: string;
+  private wordTests = new Map<string, RegExp>();
   private direction: 1 | -1 = 1;
   private captureGroups: Captures = {};
   private depth = 0;
   private truncated = false;
-  private groupNumbers: Map<string, number>;
+  private groupNumbers: Map<string, number[]>;
   /** Compiled single-character tests, keyed by AST node id. */
   private charTests = new Map<string, RegExp | null>();
+  private setTests = new Map<string, RegExp>();
 
   constructor(ast: ASTNode, text: string, flags: string) {
     this.ast = ast;
     this.text = text;
-    this.caseInsensitive = flags.includes('i');
-    this.multiline = flags.includes('m');
-    this.dotAll = flags.includes('s');
+    // Modifiers are lexical: each node always uses its enclosing groups'
+    // flags, even when a continuation leaves the group or backtracks into it.
+    const visit = (node: ASTNode, inherited: string) => {
+      let effective = inherited;
+      if (node.flagSpec) {
+        const [enabled, disabled = ''] = node.flagSpec.split('-');
+        effective = [...new Set(effective + enabled)]
+          .filter((flag) => !disabled.includes(flag))
+          .join('');
+      }
+      this.flagsByNode.set(node.id, effective);
+      for (const child of node.children ?? []) visit(child, effective);
+    };
+    visit(ast, flags);
     this.unicodeFlag = flags.includes('v') ? 'v' : flags.includes('u') ? 'u' : '';
     this.unicode = this.unicodeFlag !== '';
     this.groupNumbers = collectGroupNumbers(ast, new Map());
@@ -300,12 +318,13 @@ export class SteppingMatcher {
     if (cached !== undefined) return cached;
 
     let flags = '';
-    if (this.caseInsensitive) flags += 'i';
-    if (this.dotAll) flags += 's';
+    if (this.flagsByNode.get(node.id)?.includes('i')) flags += 'i';
+    if (this.flagsByNode.get(node.id)?.includes('s')) flags += 's';
 
     let test: RegExp | null = null;
     try {
-      test = new RegExp(`^(?:${node.raw})$`, `${flags}${this.unicodeFlag}`);
+      const source = node.type === 'literal' ? escapeLiteral(node.value) : node.raw;
+      test = new RegExp(`^(?:${source})$`, `${flags}${this.unicodeFlag}`);
     } catch {
       test = null;
     }
@@ -320,6 +339,14 @@ export class SteppingMatcher {
   private *matchSingleChar(node: ASTNode, pos: number, cont: Continuation): MatchTask {
     // `\b` / `\B` are assertions, not characters.
     if (this.isWordBoundaryEscape(node)) return yield this.matchWordBoundary(node, pos, cont);
+    if (
+      this.unicodeFlag === 'v' &&
+      (node.type === 'characterClass' ||
+        node.type === 'negatedCharacterClass' ||
+        (node.type === 'escape' && /^\\[pP]\{/.test(node.raw)))
+    ) {
+      return yield this.matchUnicodeSet(node, pos, cont);
+    }
 
     const display = node.raw || node.value;
     if (!this.record(node.id, pos, pos, 'try', `Try ${display} at position ${pos}`)) return null;
@@ -339,13 +366,8 @@ export class SteppingMatcher {
           : this.text[charPos];
     const next = this.direction === 1 ? pos + ch.length : charPos;
 
-    let ok: boolean;
-    if (node.type === 'literal') {
-      ok = this.caseInsensitive ? ch.toLowerCase() === node.value.toLowerCase() : ch === node.value;
-    } else {
-      const test = this.charTest(node);
-      ok = test ? test.test(ch) : false;
-    }
+    const test = this.charTest(node);
+    const ok = test ? test.test(ch) : false;
 
     if (ok) {
       this.record(node.id, pos, next, 'match', `✓ ${display} matched "${escapeForDisplay(ch)}"`);
@@ -359,11 +381,69 @@ export class SteppingMatcher {
     return null;
   }
 
+  /** Unicode sets may consume strings (including ""), longest first. */
+  private *matchUnicodeSet(node: ASTNode, pos: number, cont: Continuation): MatchTask {
+    if (!this.record(node.id, pos, pos, 'try', `Try ${node.raw} at position ${pos}`)) return null;
+    const key = `${node.id}:${this.direction}`;
+    let probe = this.setTests.get(key);
+    if (!probe) {
+      const source = this.direction === 1 ? `(${node.raw})` : `(?<=(${node.raw}))`;
+      probe = new RegExp(source, `${this.flagsByNode.get(node.id)?.includes('i') ? 'i' : ''}vy`);
+      this.setTests.set(key, probe);
+    }
+    probe.lastIndex = pos;
+    const first = probe.exec(this.text);
+    if (!first) {
+      this.record(node.id, pos, pos, 'fail', `✗ ${node.raw} did not match at position ${pos}`);
+      return null;
+    }
+
+    // The native atom gives the longest candidate without scanning all of
+    // the remaining input. Retry shorter candidates if the continuation
+    // fails, preserving set-string backtracking in both directions.
+    const fullTest = this.charTest(node)!;
+    let next = pos + this.direction * first[1].length;
+    while (!this.truncated) {
+      const text = this.text.slice(Math.min(pos, next), Math.max(pos, next));
+      if (fullTest.test(text)) {
+        if (
+          !this.record(
+            node.id,
+            pos,
+            next,
+            'match',
+            `✓ ${node.raw} matched "${escapeForDisplay(text)}"`,
+          )
+        )
+          return null;
+        const result = yield cont(next);
+        if (result !== null) return result;
+        if (
+          !this.record(node.id, pos, next, 'backtrack', `↩ Giving back "${escapeForDisplay(text)}"`)
+        )
+          return null;
+      } else if (
+        !this.record(
+          node.id,
+          pos,
+          next,
+          'fail',
+          `✗ ${node.raw} did not match "${escapeForDisplay(text)}"`,
+        )
+      ) {
+        return null;
+      }
+      if (next === pos) break;
+      next = this.direction === 1 ? this.retreat(next) : this.advance(next);
+    }
+    return null;
+  }
+
   private *matchWordBoundary(node: ASTNode, pos: number, cont: Continuation): MatchTask {
     const esc = node.value;
     if (!this.record(node.id, pos, pos, 'try', `Test ${esc} at position ${pos}`)) return null;
 
-    const isBoundary = this.isWordBoundary(pos);
+    const isBoundary = this.isWordBoundary(node, pos);
     if (isBoundary === (esc === '\\b')) {
       this.record(node.id, pos, pos, 'match', `✓ ${esc} assertion passed at position ${pos}`);
       return yield cont(pos);
@@ -388,9 +468,15 @@ export class SteppingMatcher {
 
     let pass: boolean;
     if (anchor === '^') {
-      pass = pos === 0 || (this.multiline && this.text[pos - 1] === '\n');
+      pass =
+        pos === 0 ||
+        (this.flagsByNode.get(node.id)!.includes('m') &&
+          /[\n\r\u2028\u2029]/.test(this.text[pos - 1] ?? ''));
     } else {
-      pass = pos === this.text.length || (this.multiline && this.text[pos] === '\n');
+      pass =
+        pos === this.text.length ||
+        (this.flagsByNode.get(node.id)!.includes('m') &&
+          /[\n\r\u2028\u2029]/.test(this.text[pos] ?? ''));
     }
 
     if (pass) {
@@ -690,7 +776,9 @@ export class SteppingMatcher {
 
   private *matchBackreference(node: ASTNode, pos: number, cont: Continuation): MatchTask {
     const groupIdx = node.groupName
-      ? (this.groupNumbers.get(node.groupName) ?? -1)
+      ? (this.groupNumbers
+          .get(node.groupName)
+          ?.find((index) => this.captureGroups[index] != null) ?? -1)
       : parseInt(node.value, 10);
     const display = node.raw || `\\${node.value}`;
 
@@ -713,8 +801,10 @@ export class SteppingMatcher {
     const expected = captured.value;
     const next = pos + this.direction * expected.length;
     const actual = this.text.slice(Math.min(pos, next), Math.max(pos, next));
-    const same = this.caseInsensitive
-      ? actual.toLowerCase() === expected.toLowerCase()
+    const same = this.flagsByNode.get(node.id)?.includes('i')
+      ? // The escaped capture is a literal-only test, never an arbitrary
+        // pattern. Native case folding differs between legacy and u/v mode.
+        new RegExp(`^(?:${escapeLiteral(expected)})$`, `i${this.unicodeFlag}`).test(actual)
       : actual === expected;
 
     if (same) {
@@ -741,9 +831,16 @@ export class SteppingMatcher {
     return null;
   }
 
-  private isWordBoundary(pos: number): boolean {
-    const before = pos > 0 ? /\w/.test(this.text[pos - 1]) : false;
-    const after = pos < this.text.length ? /\w/.test(this.text[pos]) : false;
+  private isWordBoundary(node: ASTNode, pos: number): boolean {
+    const flags = `${this.flagsByNode.get(node.id)?.includes('i') ? 'i' : ''}${this.unicodeFlag}`;
+    let wordTest = this.wordTests.get(flags);
+    if (!wordTest) {
+      wordTest = new RegExp('\\w', flags);
+      this.wordTests.set(flags, wordTest);
+    }
+    const before = pos > 0 ? wordTest.test(this.text.slice(this.retreat(pos), pos)) : false;
+    const after =
+      pos < this.text.length ? wordTest.test(this.text.slice(pos, this.advance(pos))) : false;
     return before !== after;
   }
 }

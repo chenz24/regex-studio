@@ -3,6 +3,9 @@ import { Maximize2, Minimize2, Pencil, Undo2, Redo2 } from 'lucide-react';
 import { RailroadDiagram } from './RailroadDiagram';
 
 // Only mounted once the user starts editing a node.
+const Pcre2NodeEditor = lazy(() =>
+  import('./Pcre2NodeEditor').then((m) => ({ default: m.Pcre2NodeEditor })),
+);
 const NodeEditor = lazy(() => import('./NodeEditor').then((m) => ({ default: m.NodeEditor })));
 import { findNodeById } from '../../utils/patternEditor';
 import { useRegexStore } from '../../stores/regexStore';
@@ -32,6 +35,10 @@ function findNodeAtStart(root: ASTNode, start: number): ASTNode | null {
 }
 
 interface RailroadBannerProps {
+  inspectedNodeIds?: Set<string>;
+  onInspectNode?: (id: string | null) => void;
+  readOnly?: boolean;
+  flags?: string;
   diagram: LayoutResult;
   ast: ASTNode;
   pattern: string;
@@ -43,6 +50,10 @@ interface RailroadBannerProps {
 }
 
 export function RailroadBanner({
+  inspectedNodeIds,
+  onInspectNode,
+  readOnly = false,
+  flags = '',
   diagram,
   ast,
   pattern,
@@ -52,6 +63,7 @@ export function RailroadBanner({
   spotlightNodeIds,
 }: RailroadBannerProps) {
   const t = useT();
+  const pcre2 = ast.dialect === 'pcre2';
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const pendingAnchorRef = useRef<{ start: number; end: number } | null>(null);
@@ -61,11 +73,15 @@ export function RailroadBanner({
   const canUndo = useRegexStore((s) => s.patternPast.length > 0);
   const canRedo = useRegexStore((s) => s.patternFuture.length > 0);
 
-  const handleSelectNode = useCallback((id: string | null) => {
-    setSelectedNodeId(id);
-    // Auto-expand when a node is selected for editing
-    if (id) setExpanded(true);
-  }, []);
+  const handleSelectNode = useCallback(
+    (id: string | null) => {
+      setSelectedNodeId(id);
+      onInspectNode?.(id);
+      // Auto-expand when a node is selected for editing
+      if (id) setExpanded(true);
+    },
+    [onInspectNode],
+  );
 
   const handleCloseEditor = useCallback(() => {
     setSelectedNodeId(null);
@@ -78,18 +94,33 @@ export function RailroadBanner({
       if (selectedNodeId) {
         const current = findNodeById(ast, selectedNodeId);
         if (current) {
-          pendingAnchorRef.current = { start: current.start, end: current.end };
+          pendingAnchorRef.current = {
+            start: current.start,
+            end: current.end + newPattern.length - pattern.length,
+          };
         }
       }
       onPatternChange(newPattern);
     },
-    [ast, selectedNodeId, onPatternChange],
+    [ast, selectedNodeId, onPatternChange, pattern.length],
   );
 
   useEffect(() => {
     const anchor = pendingAnchorRef.current;
-    if (!anchor) return;
+    if (!anchor) {
+      setSelectedNodeId(null);
+      return;
+    }
     pendingAnchorRef.current = null;
+    // Prefer the visible node for this span, including a merged literal.
+    const visible = [...diagram.nodes, ...diagram.badges].find((item) => {
+      const node = item.nodeId ? findNodeById(ast, item.nodeId) : null;
+      return node?.start === anchor.start && node.end === anchor.end;
+    });
+    if (visible?.nodeId) {
+      setSelectedNodeId(visible.nodeId);
+      return;
+    }
     const exact = findNodeByRange(ast, anchor.start, anchor.end);
     if (exact) {
       setSelectedNodeId(exact.id);
@@ -101,7 +132,7 @@ export function RailroadBanner({
       return;
     }
     setSelectedNodeId(null);
-  }, [ast]);
+  }, [ast, diagram]);
 
   // Global keyboard shortcuts: Cmd/Ctrl+Z = undo, Cmd/Ctrl+Shift+Z or Ctrl+Y = redo.
   // Skip when focus is in an input/textarea/contenteditable (preserve native undo).
@@ -127,7 +158,7 @@ export function RailroadBanner({
     return () => window.removeEventListener('keydown', handler);
   }, [undoPattern, redoPattern]);
 
-  const isEditing = selectedNodeId !== null;
+  const isEditing = !readOnly && selectedNodeId !== null;
   const maxHeight = expanded || isEditing ? 800 : 160;
 
   return (
@@ -142,7 +173,7 @@ export function RailroadBanner({
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
             <Pencil className="w-3 h-3" />
-            {t.railroad_click_to_edit()}
+            {readOnly ? t.pcre2_visual_readonly() : t.railroad_click_to_edit()}
           </span>
           <div className="flex items-center gap-0.5">
             <button
@@ -180,10 +211,14 @@ export function RailroadBanner({
       </div>
 
       {/* Content */}
-      <div className="flex transition-all duration-300" style={{ maxHeight, minHeight: 220 }}>
+      <div
+        className="flex flex-col sm:flex-row transition-all duration-300"
+        style={{ maxHeight, minHeight: 220 }}
+      >
         {/* Diagram area */}
         <div
-          className="relative overflow-auto custom-scrollbar flex-1"
+          data-railroad-viewport
+          className="relative overflow-auto custom-scrollbar flex-1 min-h-[180px]"
           style={{
             backgroundImage: 'radial-gradient(circle, var(--dot-color) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
@@ -192,10 +227,11 @@ export function RailroadBanner({
           <div className="p-4">
             <RailroadDiagram
               layout={diagram}
+              inspectedNodeIds={inspectedNodeIds}
               hoveredNodeId={hoveredNodeId}
               onHoverNode={onHoverNode}
               selectedNodeId={selectedNodeId}
-              onSelectNode={handleSelectNode}
+              onSelectNode={readOnly ? undefined : handleSelectNode}
               spotlightNodeIds={spotlightNodeIds}
             />
           </div>
@@ -203,19 +239,31 @@ export function RailroadBanner({
 
         {/* Node Editor (slides in when editing) */}
         {isEditing && (
-          <div className="w-72 shrink-0 overflow-y-auto custom-scrollbar">
+          <div className="w-full sm:w-72 shrink-0 overflow-y-auto custom-scrollbar">
             <Suspense
               fallback={
                 <div className="h-40 animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800/60" />
               }
             >
-              <NodeEditor
-                ast={ast}
-                selectedNodeId={selectedNodeId}
-                pattern={pattern}
-                onPatternChange={handleEditPatternChange}
-                onClose={handleCloseEditor}
-              />
+              {pcre2 ? (
+                <Pcre2NodeEditor
+                  key={JSON.stringify([pattern, flags, selectedNodeId])}
+                  ast={ast}
+                  selectedNodeId={selectedNodeId!}
+                  pattern={pattern}
+                  flags={flags}
+                  onPatternChange={onPatternChange}
+                  onClose={handleCloseEditor}
+                />
+              ) : (
+                <NodeEditor
+                  ast={ast}
+                  selectedNodeId={selectedNodeId}
+                  pattern={pattern}
+                  onPatternChange={handleEditPatternChange}
+                  onClose={handleCloseEditor}
+                />
+              )}
             </Suspense>
           </div>
         )}

@@ -1,5 +1,5 @@
 import type { CodeGenContext, CodeGenResult } from '../types';
-import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
+import { contextReplacement, escapePattern, escapeTestString, escapeReplacement } from '../escaper';
 import { getPhpFlags } from '../flagMapper';
 
 export function generatePhp(ctx: CodeGenContext): CodeGenResult {
@@ -13,6 +13,12 @@ export function generatePhp(ctx: CodeGenContext): CodeGenResult {
 
   // escapePattern already escaped the delimiter and the PHP string layer.
   const patternStr = `'/${escapedPattern}/${phpFlags}'`;
+
+  const contextual = contextReplacement(replaceText, 'php', pattern, {
+    capture: (index) => `($match[${index}][0] ?? '')`,
+    prefix: 'substr($text, 0, $match[0][1])',
+    suffix: 'substr($text, $match[0][1] + strlen($match[0][0]))',
+  });
 
   let code = `<?php
 
@@ -63,7 +69,13 @@ foreach ($matches as $i => $match) {
     case 'replace':
       code += `
 $replacement = ${replaceStr};
-$result = preg_replace($pattern, $replacement, $text);
+${
+  contextual
+    ? `$result = preg_replace_callback($pattern, function ($match) use ($text) {
+    return ${contextual};
+}, $text, ${flags.includes('g') ? -1 : 1}, $count, PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL);`
+    : `$result = preg_replace($pattern, $replacement, $text${flags.includes('g') ? '' : ', 1'});`
+}
 echo "Result: $result\\n";`;
       break;
 

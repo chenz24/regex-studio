@@ -55,6 +55,15 @@ describe('findMatches', () => {
   });
 
   describe('capture groups', () => {
+    it.each([
+      String.raw`\u0061`,
+      String.raw`\u{61}`,
+      String.raw`\uD835\uDC9C`,
+    ])('reports the native name for escaped identifier %s', (name) => {
+      const pattern = `(?<${name}>x)`;
+      const native = new RegExp(pattern).exec('x')!;
+      expect(findMatches(pattern, '', 'x')[0].groups[0].name).toBe(Object.keys(native.groups!)[0]);
+    });
     it('reports the offsets of the groups themselves, not of equal text', () => {
       const [match] = findMatches('(\\w+)\\s(\\w+)', 'g', 'foo foo');
       expect(match.groups.map((g) => [g.start, g.end])).toEqual([

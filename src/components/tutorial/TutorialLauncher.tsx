@@ -40,7 +40,7 @@ export function TutorialLauncher({ onOpen }: Props) {
       <span className="hidden sm:inline">{t.tut_launcher_label()}</span>
       {total > 0 && (
         <span
-          className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold ${
+          className={`hidden sm:inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold ${
             done === total
               ? 'bg-emerald-500 text-white'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'

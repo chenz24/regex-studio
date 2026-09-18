@@ -6,19 +6,27 @@ export function GoalCard({
   result,
   pending = false,
   timedOut = false,
+  executionError,
 }: {
   result: ValidationResult | null;
   pending?: boolean;
   timedOut?: boolean;
+  executionError?: string;
 }) {
   const t = useT();
-  if (pending || timedOut || !result || result.checks.length === 0) {
+  if (pending || timedOut || executionError || !result || result.checks.length === 0) {
     return (
       <div
-        role={pending || timedOut ? 'status' : undefined}
+        role={pending || timedOut || executionError ? 'status' : undefined}
         className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-3 text-xs text-gray-500 dark:text-gray-400"
       >
-        {pending ? t.match_pending() : timedOut ? t.match_timed_out() : t.tut_goal_empty()}
+        {executionError
+          ? t.engine_execution_failed()
+          : pending
+            ? t.match_pending()
+            : timedOut
+              ? t.match_timed_out()
+              : t.tut_goal_empty()}
       </div>
     );
   }

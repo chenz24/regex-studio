@@ -1,4 +1,5 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { diagramNodeMatches } from '../../lib/ast';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import type {
   LayoutResult,
@@ -10,6 +11,7 @@ import type {
 import { useT } from '@/lib/i18n';
 
 interface RailroadDiagramProps {
+  inspectedNodeIds?: Set<string>;
   layout: LayoutResult;
   hoveredNodeId: string | null;
   onHoverNode: (id: string | null) => void;
@@ -46,6 +48,8 @@ function RectElement({
   isHovered,
   isSelected,
   isSpotlighted,
+  isInspected,
+  accessibleLabel,
   onEnter,
   onLeave,
   onClick,
@@ -55,6 +59,8 @@ function RectElement({
   isHovered: boolean;
   isSelected: boolean;
   isSpotlighted: boolean;
+  isInspected: boolean;
+  accessibleLabel: string;
   onEnter: () => void;
   onLeave: () => void;
   onClick: () => void;
@@ -65,6 +71,17 @@ function RectElement({
 
   return (
     <g
+      data-node-id={r.nodeId}
+      data-inspected={isInspected || undefined}
+      role={r.nodeId ? 'button' : undefined}
+      tabIndex={r.nodeId ? 0 : undefined}
+      aria-label={r.nodeId ? accessibleLabel : undefined}
+      onKeyDown={(event) => {
+        if (r.nodeId && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onClick={onClick}
@@ -82,6 +99,19 @@ function RectElement({
         strokeDasharray={hoverStroke ? undefined : r.strokeDash}
         style={{ transition: 'stroke 0.15s' }}
       />
+      {isInspected && (
+        <rect
+          x={r.x - 4}
+          y={r.y - 4}
+          width={r.w + 8}
+          height={r.h + 8}
+          rx={r.rx + 4}
+          fill="none"
+          stroke="#a855f7"
+          strokeWidth={3}
+          pointerEvents="none"
+        />
+      )}
       {isSelected && (
         <rect
           x={r.x - 3}
@@ -114,6 +144,7 @@ function RectElement({
 function TextElement({ t, isDark }: { t: DrawText; isDark: boolean }) {
   return (
     <text
+      data-node-id={t.nodeId}
       x={t.x}
       y={t.y}
       textAnchor={t.anchor}
@@ -135,6 +166,8 @@ function BadgeElement({
   isHovered,
   isSelected,
   isSpotlighted,
+  isInspected,
+  accessibleLabel,
   onEnter,
   onLeave,
   onClick,
@@ -144,6 +177,8 @@ function BadgeElement({
   isHovered: boolean;
   isSelected: boolean;
   isSpotlighted: boolean;
+  isInspected: boolean;
+  accessibleLabel: string;
   onEnter: () => void;
   onLeave: () => void;
   onClick: () => void;
@@ -158,6 +193,17 @@ function BadgeElement({
   const accent = isDark ? '#2dd4bf' : '#14b8a6';
   return (
     <g
+      data-node-id={b.nodeId}
+      data-inspected={isInspected || undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? accessibleLabel : undefined}
+      onKeyDown={(event) => {
+        if (clickable && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       onMouseEnter={clickable ? onEnter : undefined}
       onMouseLeave={clickable ? onLeave : undefined}
       onClick={clickable ? onClick : undefined}
@@ -174,6 +220,19 @@ function BadgeElement({
           stroke={isDark ? '#fbbf24' : '#f59e0b'}
           strokeWidth={2.5}
           className="spotlight-ring"
+        />
+      )}
+      {isInspected && (
+        <rect
+          x={hitX - 2}
+          y={hitY - 2}
+          width={hitW + 4}
+          height={hitH + 4}
+          rx={6}
+          fill="none"
+          stroke="#a855f7"
+          strokeWidth={3}
+          pointerEvents="none"
         />
       )}
       {clickable && (
@@ -221,6 +280,7 @@ function BadgeElement({
 }
 
 export function RailroadDiagram({
+  inspectedNodeIds,
   layout,
   hoveredNodeId,
   onHoverNode,
@@ -240,6 +300,31 @@ export function RailroadDiagram({
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
+
+  const nodeLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const label of layout.texts) if (label.nodeId) labels.set(label.nodeId, label.text);
+    return labels;
+  }, [layout]);
+  useEffect(() => {
+    const container = containerRef.current;
+    const node = layout.nodes.find((item) => diagramNodeMatches(item.nodeId, inspectedNodeIds));
+    const badge = layout.badges.find((item) => diagramNodeMatches(item.nodeId, inspectedNodeIds));
+    if (!container || (!node && !badge)) return;
+    const x = (node?.x ?? badge!.x) * zoom;
+    const width = (node?.w ?? 40) * zoom;
+    if (x < container.scrollLeft || x + width > container.scrollLeft + container.clientWidth)
+      container.scrollLeft = Math.max(0, x + width / 2 - container.clientWidth / 2);
+    const viewport = container.closest<HTMLElement>('[data-railroad-viewport]');
+    if (viewport) {
+      const y = (node?.y ?? badge!.y) * zoom;
+      if (
+        y < viewport.scrollTop ||
+        y + (node?.h ?? 20) * zoom > viewport.scrollTop + viewport.clientHeight
+      )
+        viewport.scrollTop = Math.max(0, y - viewport.clientHeight / 2);
+    }
+  }, [inspectedNodeIds, layout, zoom]);
 
   const handleNodeEnter = useCallback(
     (nodeId: string | undefined) => {
@@ -273,9 +358,7 @@ export function RailroadDiagram({
           <div className="w-24 h-0.5 bg-gray-300 dark:bg-gray-600" />
           <div className="w-3 h-3 rounded-full border-2 border-gray-300 dark:border-gray-600" />
         </div>
-        <p className="text-sm text-gray-400 dark:text-gray-500">
-          {t.railroad_empty_hint()}
-        </p>
+        <p className="text-sm text-gray-400 dark:text-gray-500">{t.railroad_empty_hint()}</p>
       </div>
     );
   }
@@ -349,9 +432,16 @@ export function RailroadDiagram({
                 key={`c-${i}`}
                 r={r}
                 isDark={isDark}
-                isHovered={!!r.nodeId && r.nodeId === hoveredNodeId}
+                isHovered={diagramNodeMatches(
+                  r.nodeId,
+                  hoveredNodeId ? new Set([hoveredNodeId]) : undefined,
+                )}
                 isSelected={!!r.nodeId && r.nodeId === selectedNodeId}
-                isSpotlighted={!!r.nodeId && !!spotlightNodeIds?.has(r.nodeId)}
+                isSpotlighted={diagramNodeMatches(r.nodeId, spotlightNodeIds)}
+                isInspected={diagramNodeMatches(r.nodeId, inspectedNodeIds)}
+                accessibleLabel={t.inspection_edit_node({
+                  label: nodeLabels.get(r.nodeId ?? '') ?? t.inspection_expression(),
+                })}
                 onEnter={() => handleNodeEnter(r.nodeId)}
                 onLeave={handleNodeLeave}
                 onClick={() => handleNodeClick(r.nodeId)}
@@ -365,9 +455,16 @@ export function RailroadDiagram({
                 key={`n-${i}`}
                 r={r}
                 isDark={isDark}
-                isHovered={!!r.nodeId && r.nodeId === hoveredNodeId}
+                isHovered={diagramNodeMatches(
+                  r.nodeId,
+                  hoveredNodeId ? new Set([hoveredNodeId]) : undefined,
+                )}
                 isSelected={!!r.nodeId && r.nodeId === selectedNodeId}
-                isSpotlighted={!!r.nodeId && !!spotlightNodeIds?.has(r.nodeId)}
+                isSpotlighted={diagramNodeMatches(r.nodeId, spotlightNodeIds)}
+                isInspected={diagramNodeMatches(r.nodeId, inspectedNodeIds)}
+                accessibleLabel={t.inspection_edit_node({
+                  label: nodeLabels.get(r.nodeId ?? '') ?? t.inspection_expression(),
+                })}
                 onEnter={() => handleNodeEnter(r.nodeId)}
                 onLeave={handleNodeLeave}
                 onClick={() => handleNodeClick(r.nodeId)}
@@ -384,9 +481,14 @@ export function RailroadDiagram({
                 key={`b-${i}`}
                 b={b}
                 isDark={isDark}
-                isHovered={!!b.nodeId && b.nodeId === hoveredNodeId}
+                isHovered={diagramNodeMatches(
+                  b.nodeId,
+                  hoveredNodeId ? new Set([hoveredNodeId]) : undefined,
+                )}
                 isSelected={!!b.nodeId && b.nodeId === selectedNodeId}
-                isSpotlighted={!!b.nodeId && !!spotlightNodeIds?.has(b.nodeId)}
+                isSpotlighted={diagramNodeMatches(b.nodeId, spotlightNodeIds)}
+                isInspected={diagramNodeMatches(b.nodeId, inspectedNodeIds)}
+                accessibleLabel={t.inspection_edit_node({ label: b.text })}
                 onEnter={() => handleNodeEnter(b.nodeId)}
                 onLeave={handleNodeLeave}
                 onClick={() => handleNodeClick(b.nodeId)}

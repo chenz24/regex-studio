@@ -118,18 +118,48 @@ print("Result: \\(result)")`;
 
     case 'split':
       code += `
-var parts: [String] = []
-var lastEnd = text.startIndex
-for match in pattern.matches(in: text, range: range) {
-    let matchRange = Range(match.range, in: text)!
-    parts.append(String(text[lastEnd..<matchRange.lowerBound]))
-    lastEnd = matchRange.upperBound
+let subject = text as NSString
+var parts: [String?] = []
+if subject.length == 0 {
+    if pattern.firstMatch(in: text, range: range) == nil {
+        parts.append("")
+    }
+} else {
+    var lastEnd = 0
+    var position = 0
+    while position < subject.length {
+        // Preserve the full text's anchors and lookbehind while matching here.
+        let searchRange = NSRange(location: position, length: subject.length - position)
+        guard let match = pattern.firstMatch(in: text,
+            options: [.anchored, .withTransparentBounds, .withoutAnchoringBounds],
+            range: searchRange), NSMaxRange(match.range) != lastEnd else {
+            ${
+              flags.includes('u') || flags.includes('v')
+                ? `if position + 1 < subject.length,
+                (0xD800...0xDBFF).contains(subject.character(at: position)),
+                (0xDC00...0xDFFF).contains(subject.character(at: position + 1)) {
+                position += 2
+            } else {
+                position += 1
+            }`
+                : 'position += 1'
+            }
+            continue
+        }
+        parts.append(subject.substring(with: NSRange(location: lastEnd, length: match.range.location - lastEnd)))
+        for group in 1..<match.numberOfRanges {
+            let capture = match.range(at: group)
+            parts.append(capture.location == NSNotFound ? nil : subject.substring(with: capture))
+        }
+        lastEnd = NSMaxRange(match.range)
+        position = lastEnd
+    }
+    parts.append(subject.substring(from: lastEnd))
 }
-parts.append(String(text[lastEnd...]))
 
 print("Split into \\(parts.count) parts:")
 for (i, part) in parts.enumerated() {
-    print("[\\(i)] \\"\\(part)\\"")
+    print("[\\(i)] \\"\\(part ?? "undefined")\\"")
 }`;
       break;
   }

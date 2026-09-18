@@ -2,9 +2,11 @@ import type { CodeGenContext, CodeGenResult } from '../types';
 import { escapePattern, escapeTestString, escapeReplacement } from '../escaper';
 import { getRubyFlags } from '../flagMapper';
 
-/** Ruby's anchors and dot use different newline rules from JavaScript. */
+/** Translate JS line rules and scoped flags (Ruby calls dotAll `m`). */
 function translatePattern(pattern: string, flags: string): string {
-  const multiline = flags.includes('m');
+  type Scope = { multiline: boolean; dotAll: boolean };
+  let scope: Scope = { multiline: flags.includes('m'), dotAll: flags.includes('s') };
+  const scopes: Scope[] = [];
   let result = '';
   let inClass = false;
   for (let i = 0; i < pattern.length; i++) {
@@ -17,11 +19,32 @@ function translatePattern(pattern: string, flags: string): string {
     } else if (ch === '[') {
       inClass = true;
       result += ch;
+    } else if (ch === '(') {
+      scopes.push(scope);
+      const modifier = /^\(\?([ims]*)(?:-([ims]+))?:/.exec(pattern.slice(i));
+      if (modifier) {
+        const enabled = modifier[1],
+          disabled = modifier[2] ?? '';
+        scope = {
+          multiline: enabled.includes('m') || (scope.multiline && !disabled.includes('m')),
+          dotAll: enabled.includes('s') || (scope.dotAll && !disabled.includes('s')),
+        };
+        // JS m is implemented by translating anchors within this scope.
+        const rubyFlags = (value: string) => value.replace(/m/g, '').replace(/s/g, 'm');
+        const off = rubyFlags(disabled);
+        result += `(?${rubyFlags(enabled)}${off ? `-${off}` : ''}:`;
+        i += modifier[0].length - 1;
+      } else {
+        result += ch;
+      }
+    } else if (ch === ')') {
+      scope = scopes.pop() ?? scope;
+      result += ch;
     } else if (ch === '^') {
-      result += multiline ? String.raw`(?:\A|(?<=[\n\r\u2028\u2029]))` : String.raw`\A`;
+      result += scope.multiline ? String.raw`(?:\A|(?<=[\n\r\u2028\u2029]))` : String.raw`\A`;
     } else if (ch === '$') {
-      result += multiline ? String.raw`(?:\z|(?=[\n\r\u2028\u2029]))` : String.raw`\z`;
-    } else if (ch === '.' && !flags.includes('s')) {
+      result += scope.multiline ? String.raw`(?:\z|(?=[\n\r\u2028\u2029]))` : String.raw`\z`;
+    } else if (ch === '.' && !scope.dotAll) {
       result += String.raw`[^\n\r\u2028\u2029]`;
     } else {
       result += ch;

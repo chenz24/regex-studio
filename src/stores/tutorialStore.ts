@@ -7,6 +7,7 @@ import type { ExecutionEngine, CompatibilityTarget } from '@/types/engineTypes';
 
 const STORAGE_KEY = 'regex-studio:tutorial-progress';
 const STORAGE_VERSION = 1;
+let startRequest = 0;
 
 type TutorialView = 'closed' | 'catalog' | 'lesson';
 
@@ -172,14 +173,22 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
   snapshotBeforeLesson: null,
   stepSnapshots: {},
 
-  openCatalog: () => set({ view: 'catalog' }),
+  openCatalog: () => {
+    startRequest++;
+    set({ view: 'catalog' });
+  },
 
-  close: () => set({ view: 'closed' }),
+  close: () => {
+    startRequest++;
+    set({ view: 'closed' });
+  },
 
   // Async because the lesson content is a separate chunk. Every other
   // transition runs after a lesson has started, so by then it is loaded.
   startLesson: async (lessonId, stepIndex = 0) => {
+    const request = ++startRequest;
     await loadTutorialContent();
+    if (request !== startRequest) return;
     const lesson = findLoadedLesson(lessonId);
     if (!lesson) return;
     const idx = Math.max(0, Math.min(stepIndex, lesson.steps.length - 1));
@@ -199,6 +208,7 @@ export const useTutorialStore = create<TutorialStore>((set, get) => ({
   },
 
   exitLesson: (restore = false) => {
+    startRequest++;
     const { snapshotBeforeLesson } = get();
     if (restore && snapshotBeforeLesson) {
       restoreWorkspace(snapshotBeforeLesson);

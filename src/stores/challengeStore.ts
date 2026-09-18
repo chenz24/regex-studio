@@ -8,6 +8,7 @@ import type { ExecutionEngine, CompatibilityTarget } from '@/types/engineTypes';
 
 const STORAGE_KEY = 'regex-studio:challenges-progress';
 const STORAGE_VERSION = 1;
+let startRequest = 0;
 
 type ChallengeView = 'closed' | 'catalog' | 'challenge';
 
@@ -36,7 +37,7 @@ interface State {
 interface Actions {
   openCatalog: () => void;
   close: () => void;
-  startChallenge: (id: string) => Promise<void>;
+  startChallenge: (id: string) => Promise<'started' | 'missing' | 'cancelled'>;
   exitChallenge: (restore?: boolean) => void;
 
   /** Mark the active challenge as solved with the current regex state. */
@@ -101,9 +102,13 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
   completion: {},
   snapshotBeforeChallenge: null,
 
-  openCatalog: () => set({ view: 'catalog' }),
+  openCatalog: () => {
+    startRequest++;
+    set({ view: 'catalog' });
+  },
 
   close: () => {
+    startRequest++;
     const { snapshotBeforeChallenge } = get();
     if (snapshotBeforeChallenge) {
       const r = useRegexStore.getState();
@@ -121,9 +126,11 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
 
   // Async because the challenge content is a separate chunk.
   startChallenge: async (id) => {
+    const request = ++startRequest;
     await loadChallengeContent();
+    if (request !== startRequest) return 'cancelled';
     const challenge = findLoadedChallenge(id);
-    if (!challenge) return;
+    if (!challenge) return 'missing';
 
     const snapshot = get().snapshotBeforeChallenge ?? snapshotRegex();
 
@@ -153,9 +160,11 @@ export const useChallengeStore = create<ChallengeStore>((set, get) => ({
       currentChallengeId: id,
       snapshotBeforeChallenge: snapshot,
     });
+    return 'started';
   },
 
   exitChallenge: (restore = true) => {
+    startRequest++;
     const { snapshotBeforeChallenge } = get();
     if (restore && snapshotBeforeChallenge) {
       const r = useRegexStore.getState();

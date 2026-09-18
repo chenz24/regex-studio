@@ -21,6 +21,30 @@ for (const runtime of runtimes) {
       }).trim();
     };
 
+    if (runtime.language === 'ruby') {
+      it.each([
+        ['(?s:a.b)', '', 'a\nb', true],
+        ['(?-s:a.b)', 's', 'a\nb', false],
+        ['(?m:^b$)', '', 'a\rb\nc', true],
+        ['(?-m:^b$)', 'm', 'a\nb\nc', false],
+        ['(?s:a.b).c', '', 'a\rb\rc', false],
+        ['(?m:^b$)|^c$', '', 'a\rc', false],
+        ['(?s:a(?-s:.).b)', '', 'aX\nb', true],
+        ['(?s:a(?-s:.).b)', '', 'a\n\nb', false],
+        ['(?im-s:^a.b$)', 's', 'x\rA B\nz', true],
+        ['(?i:a)(?-i:b)', '', 'Ab', true],
+        ['(?i:a)(?-i:b)', '', 'AB', false],
+        ['(?m:.)', '', '\n', false],
+        ['(?-m:.)', 's', '\n', true],
+        ['[(?s:).]+', '', '(?s:).', true],
+        [String.raw`\(\?s:a\.b\)`, '', '(?s:a.b)', true],
+      ] as const)('preserves scoped flags in /%s/%s on %j', (pattern, flags, text, expected) => {
+        expect(run({ pattern, flags, testText: text, replaceText: '', operation: 'test' })).toBe(
+          `Match: ${expected}`,
+        );
+      });
+    }
+
     it.each(['', 'g'])('preserves contextual replacements with flags "%s"', (flags) => {
       for (const [pattern, text, replacement] of [
         ['a', 'ba', '$`'],
@@ -40,6 +64,50 @@ for (const runtime of runtimes) {
     });
 
     if (runtime.language === 'python') {
+      it.each([
+        ['(?=a)|a', 'a'],
+        ['a*?', 'ab'],
+        ['a*', 'aba'],
+        ['(?:)|a', 'aa'],
+        ['(?=(a))|a', 'aba'],
+        ['a|$', 'a'],
+        ['(?:)', ''],
+        ['z', 'abc'],
+      ])('advances once after empty global matches for /%s/ on %j', (pattern, text) => {
+        const native = [...text.matchAll(new RegExp(pattern, 'g'))];
+        const input = { pattern, flags: 'g', testText: text, replaceText: '' };
+        const all = run({ ...input, operation: 'matchAll' });
+        expect(
+          [...all.matchAll(/^\[\d+\] "(.*)" at index (\d+)$/gm)].map((m) => [m[1], Number(m[2])]),
+        ).toEqual(native.map((m) => [m[0], m.index]));
+        const captures = run({ ...input, operation: 'capture' });
+        expect([...captures.matchAll(/^Match \d+: "(.*)"$/gm)].map((m) => m[1])).toEqual(
+          native.map((m) => m[0]),
+        );
+        for (const flags of ['', 'g']) {
+          for (const replacement of ['X', '', '<$&>', "$`/$'"]) {
+            expect(run({ ...input, flags, replaceText: replacement, operation: 'replace' })).toBe(
+              `Result: ${text.replace(new RegExp(pattern, flags), replacement)}`.trim(),
+            );
+          }
+        }
+      });
+
+      it('expands numbered and named captures in replacements after empty matches', () => {
+        for (const replacement of ['$1', '<$<x>>', "$`<$1>$'"]) {
+          const pattern = '(?<x>a*?)';
+          expect(
+            run({
+              pattern,
+              flags: 'g',
+              testText: 'ab',
+              replaceText: replacement,
+              operation: 'replace',
+            }),
+          ).toBe(`Result: ${'ab'.replace(new RegExp(pattern, 'g'), replacement)}`);
+        }
+      });
+
       it('preserves NUL in patterns, input and replacements without writing NUL into source', () => {
         expect(
           run({ pattern: 'a\0b', flags: '', testText: 'a\0b', replaceText: '', operation: 'test' }),
@@ -71,7 +139,7 @@ for (const runtime of runtimes) {
       }
     });
 
-    if (runtime.language === 'ruby') {
+    if (runtime.language === 'ruby' || runtime.language === 'python') {
       it.each([
         '',
         'm',
@@ -90,7 +158,9 @@ for (const runtime of runtimes) {
             expect(
               run({ pattern, flags, testText: text, replaceText: '', operation: 'test' }),
               JSON.stringify({ pattern, flags, text }),
-            ).toBe(`Match: ${expected}`);
+            ).toBe(
+              `Match: ${runtime.language === 'python' ? (expected ? 'True' : 'False') : expected}`,
+            );
           }
         }
       });
@@ -100,8 +170,55 @@ for (const runtime of runtimes) {
           const text = '^$.';
           expect(
             run({ pattern, flags: '', testText: text, replaceText: '', operation: 'test' }),
-          ).toBe(`Match: ${new RegExp(pattern).test(text)}`);
+          ).toBe(
+            `Match: ${runtime.language === 'python' ? (new RegExp(pattern).test(text) ? 'True' : 'False') : new RegExp(pattern).test(text)}`,
+          );
         }
+      });
+    }
+
+    if (runtime.language === 'python') {
+      it('preserves scoped dotAll and multiline overrides through nesting', () => {
+        for (const [pattern, flags, text, expected] of [
+          ['(?s:a.b)', '', 'a\rb', true],
+          ['(?-s:a.b)', 's', 'a\rb', false],
+          ['(?m:^b$)', '', 'a\rb\nc', true],
+          ['(?-m:^b$)', 'm', 'a\nb\nc', false],
+          ['(?s:a.b).c', '', 'a\rb\rc', false],
+          ['(?m:^b$)|^c$', '', 'a\rc', false],
+        ] as const) {
+          expect(run({ pattern, flags, testText: text, replaceText: '', operation: 'test' })).toBe(
+            `Match: ${expected ? 'True' : 'False'}`,
+          );
+        }
+      });
+
+      it.each([
+        [String.raw`\b`, 'ab cd'],
+        ['(?=a)', 'a'],
+        ['(?=a)|a', 'ab'],
+        ['a*?', 'ab'],
+        ['a*', 'aba'],
+        ['(,)', 'a,b,'],
+        ['(,)|(x)', 'a,b'],
+        [',', ',a,,'],
+        ['^', 'abc'],
+        ['$', 'abc'],
+        ['(?:)', 'ab'],
+        ['(?:)', ''],
+        [',', ''],
+        ['(?<=a)', 'abc'],
+        ['(a)', 'a'],
+      ])('preserves JS split behavior for /%s/ on %j', (pattern, text) => {
+        const output = run({
+          pattern,
+          flags: '',
+          testText: text,
+          replaceText: '',
+          operation: 'split',
+        });
+        const parts = [...output.matchAll(/^\[\d+\] "(.*)"$/gm)].map((match) => match[1]);
+        expect(parts).toEqual(text.split(new RegExp(pattern)).map(String));
       });
     }
   });

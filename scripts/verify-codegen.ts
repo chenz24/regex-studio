@@ -29,6 +29,14 @@ interface Case {
 
 /** Characters that have to survive two layers of escaping to work at all. */
 const MATCH_CASES: Case[] = [
+  ...['\n', '\r', '\r\n', '\t', '\u2028', '\u2029'].map(
+    (separator, index): Case => ({
+      name: `literal-pattern-separator-${index}`,
+      pattern: `a${separator}b`,
+      text: `a${separator}b`,
+      languages: ['javascript', 'python', 'java', 'swift'],
+    }),
+  ),
   { name: 'nul-input', pattern: 'b', text: 'a\0b', languages: ['javascript', 'python'] },
   { name: 'nul-pattern', pattern: 'a\0b', text: 'a\0b', languages: ['javascript', 'python'] },
   {
@@ -165,6 +173,10 @@ const SPLIT_CASES: Case[] = [
     ['(?:)', 'ab'],
     ['a*', 'aba'],
     ['(?=b)', 'ab'],
+    ['(?=a)|a', 'ab'],
+    ['a*?', 'ab'],
+    ['(?<=a)', 'abc'],
+    ['()', 'ab'],
     ['^', 'abc'],
     ['$', 'abc'],
     ['z', 'abc'],
@@ -175,9 +187,25 @@ const SPLIT_CASES: Case[] = [
       pattern,
       text,
       operation: 'split',
-      languages: ['javascript', 'java', 'ruby'],
+      languages: ['javascript', 'python', 'java', 'ruby', 'swift'],
     }),
   ),
+  {
+    name: 'split-unicode-empty',
+    pattern: '(?:)',
+    text: '😀x',
+    flags: 'u',
+    operation: 'split',
+    languages: ['javascript', 'python', 'swift'],
+  },
+  {
+    name: 'split-unicode-capture',
+    pattern: '(😀)',
+    text: 'a😀b😀',
+    flags: 'u',
+    operation: 'split',
+    languages: ['javascript', 'python', 'swift'],
+  },
 ];
 
 const OTHER_CASES: Case[] = ['match', 'matchAll', 'capture'].map((operation) => ({

@@ -144,6 +144,8 @@
   "node_desc_quantifier": "量词:{raw}",
   "node_desc_backreference": "反向引用 #{n}",
   "regex_input_placeholder": "输入正则表达式...",
+  "regex_input_copy": "复制正则表达式",
+  "regex_input_clear": "清空正则表达式",
   "regex_input_display_only": "仅显示 — 不影响匹配预览。",
   "regex_input_match_count_one": "{count} 个匹配",
   "regex_input_match_count_other": "{count} 个匹配",

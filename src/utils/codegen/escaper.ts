@@ -8,7 +8,7 @@ import type { CodeGenLanguage } from './types';
  * valid `https:\/\/` into `https:\\/\\/`, which ends the literal early and
  * makes the generated code a syntax error.
  */
-function escapeUnescaped(pattern: string, chars: string): string {
+export function escapeUnescaped(pattern: string, chars: string): string {
   let out = '';
   for (let i = 0; i < pattern.length; i++) {
     const ch = pattern[i];
@@ -102,6 +102,16 @@ export function pythonStringLiteral(value: string): string {
   return `'${escaped}'`;
 }
 
+/** Body of an ordinary double-quoted string (not a regex literal). */
+function escapeDoubleQuoted(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t');
+}
+
 /**
  * Escape a regex pattern for use in different languages
  */
@@ -119,18 +129,17 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
       return pythonPattern(pattern);
 
     case 'java':
-      // For string "...", double backslashes and escape quotes
-      return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return escapeDoubleQuoted(pattern);
 
     case 'kotlin':
       // Same, plus `$`: Kotlin reads `$name` in a string as a template, so an
       // unescaped dollar either changes the pattern or fails to compile.
-      return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$');
+      return escapeDoubleQuoted(pattern).replace(/\$/g, '\\$');
 
     case 'go':
       // For raw string `...`, backticks cannot be escaped, fall back to regular string
-      if (pattern.includes('`')) {
-        return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      if (/[`\r]/.test(pattern)) {
+        return escapeDoubleQuoted(pattern);
       }
       return pattern; // Raw string, no escaping needed
 
@@ -140,8 +149,8 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
 
     case 'rust':
       // For raw string r#"..."#, no escaping needed unless it contains "#
-      if (pattern.includes('"#')) {
-        return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      if (pattern.includes('"#') || pattern.includes('\r')) {
+        return escapeDoubleQuoted(pattern);
       }
       return pattern;
 
@@ -160,8 +169,7 @@ export function escapePattern(pattern: string, lang: CodeGenLanguage): string {
       return escapeUnescaped(pattern, '/#');
 
     case 'swift':
-      // For string "...", escape backslashes and quotes
-      return pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return escapeDoubleQuoted(pattern);
 
     default:
       return pattern;
@@ -182,13 +190,7 @@ function javascriptStringLiteral(text: string): string {
 export function escapeTestString(text: string, lang: CodeGenLanguage): string {
   // Never shorten exported data. Raw multiline literals can also normalize
   // CRLF, strip indentation or collide with a delimiter in the user's input.
-  const quoted = () =>
-    text
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\r/g, '\\r')
-      .replace(/\n/g, '\\n')
-      .replace(/\t/g, '\\t');
+  const quoted = () => escapeDoubleQuoted(text);
   switch (lang) {
     case 'javascript':
     case 'typescript':

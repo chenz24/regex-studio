@@ -110,6 +110,62 @@ describe('workspace restoration with independent compatibility settings', () => 
   });
 });
 
+describe('obsolete exercise starts', () => {
+  it.each([
+    'close',
+    'exitLesson',
+    'openCatalog',
+  ] as const)('does not commit a pending lesson after %s', async (action) => {
+    const tutorial = useTutorialStore.getState();
+    const pending = tutorial.startLesson('basics-literals');
+    tutorial[action]();
+    useRegexStore.getState().loadShare({ v: 3, e: 'javascript', p: 'SHARED', f: '', t: 'SHARED' });
+    await pending;
+    expect(useRegexStore.getState().pattern).toBe('SHARED');
+    expect(useTutorialStore.getState().view).toBe(action === 'close' ? 'closed' : 'catalog');
+    expect(useTutorialStore.getState().snapshotBeforeLesson).toBeNull();
+  });
+
+  it.each([
+    'close',
+    'exitChallenge',
+    'openCatalog',
+  ] as const)('does not commit a pending challenge after %s', async (action) => {
+    const challenge = useChallengeStore.getState();
+    const pending = challenge.startChallenge('email-find');
+    challenge[action]();
+    useRegexStore.getState().loadShare({ v: 3, e: 'javascript', p: 'SHARED', f: '', t: 'SHARED' });
+    expect(await pending).toBe('cancelled');
+    expect(useRegexStore.getState().pattern).toBe('SHARED');
+    expect(useChallengeStore.getState().view).toBe(action === 'close' ? 'closed' : 'catalog');
+    expect(useChallengeStore.getState().snapshotBeforeChallenge).toBeNull();
+  });
+
+  it('only applies the newest requested lesson', async () => {
+    const tutorial = useTutorialStore.getState();
+    const first = tutorial.startLesson('basics-literals');
+    const second = tutorial.startLesson('basics-anchors');
+    const patterns: string[] = [];
+    const unsubscribe = useRegexStore.subscribe((state, previous) => {
+      if (state.pattern !== previous.pattern) patterns.push(state.pattern);
+    });
+    await Promise.all([first, second]);
+    unsubscribe();
+    expect(useTutorialStore.getState().currentLessonId).toBe('basics-anchors');
+    expect(patterns).toEqual([useRegexStore.getState().pattern]);
+  });
+
+  it('distinguishes missing, started and superseded challenges', async () => {
+    const challenge = useChallengeStore.getState();
+    const first = challenge.startChallenge('email-find');
+    const second = challenge.startChallenge('https-url');
+    expect(await first).toBe('cancelled');
+    expect(await second).toBe('started');
+    expect(useChallengeStore.getState().currentChallengeId).toBe('https-url');
+    expect(await challenge.startChallenge('missing-challenge')).toBe('missing');
+  });
+});
+
 describe('lesson step navigation', () => {
   it('keeps each visited step’s replacement settings and restores the original on exit', async () => {
     const tutorial = useTutorialStore.getState();

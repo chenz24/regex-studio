@@ -20,6 +20,7 @@ import {
   type MatchOutcome,
 } from '../utils/matchEngine';
 import { MAX_TEST_CASES } from '../lib/testCases';
+import type { SharePayload } from '../lib/share';
 import { gradeTestCase } from '../utils/testCaseGrader';
 import { checkCompatibility } from '../utils/compatibilityChecker';
 import { layoutAST, type LayoutResult } from '../utils/diagramLayout';
@@ -71,6 +72,7 @@ interface RegexActions {
   setReplacement: (replacement: string) => void;
   setShowReplace: (show: boolean) => void;
   loadPattern: (pattern: string, flagString: string) => void;
+  loadShare: (payload: SharePayload) => void;
 
   // Test case actions
   addTestCase: (init?: Partial<Omit<TestCase, 'id'>>) => void;
@@ -331,6 +333,27 @@ export const useRegexStore = create<RegexStore>((set) => ({
       };
     }),
 
+  // A share represents a whole workspace. Omitted optional fields use the
+  // same defaults as a fresh tab, rather than leaking from the previous link.
+  loadShare: (payload) =>
+    set({
+      engine: payload.e,
+      compatibilityTarget: payload.c ?? null,
+      legacyTargetFlags: payload.lf ?? '',
+      pattern: payload.p,
+      flags: getDefaultFlags(payload.e).map((flag) => ({
+        ...flag,
+        enabled: payload.f.includes(flag.key),
+      })),
+      testText: payload.t ?? DEFAULT_TEXT,
+      replacement: payload.r ?? '',
+      showReplace: payload.sr ?? false,
+      testCases: payload.tc ?? [],
+      patternPast: [],
+      patternFuture: [],
+      hoveredNodeId: null,
+    }),
+
   setHoveredNodeId: (hoveredNodeId) => set({ hoveredNodeId }),
 
   addTestCase: (init) =>
@@ -471,11 +494,14 @@ export const useRegexActions = () =>
       setCompatibilityTarget: s.setCompatibilityTarget,
       setLegacyTargetFlags: s.setLegacyTargetFlags,
       setPattern: s.setPattern,
+      undoPattern: s.undoPattern,
+      redoPattern: s.redoPattern,
       toggleFlag: s.toggleFlag,
       setTestText: s.setTestText,
       setReplacement: s.setReplacement,
       setShowReplace: s.setShowReplace,
       loadPattern: s.loadPattern,
+      loadShare: s.loadShare,
       setHoveredNodeId: s.setHoveredNodeId,
       addTestCase: s.addTestCase,
       updateTestCase: s.updateTestCase,

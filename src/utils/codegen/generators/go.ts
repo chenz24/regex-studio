@@ -14,11 +14,9 @@ export function generateGo(ctx: CodeGenContext): CodeGenResult {
   // Go uses inline flags
   const fullPattern = flagMapping.inlinePrefix + pattern;
 
-  // Check if we can use raw string
-  const useRawString = !fullPattern.includes('`');
-  const patternStr = useRawString
-    ? `\`${fullPattern}\``
-    : `"${fullPattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  // Go removes CR from raw strings, so quote patterns containing CR as well.
+  const useRawString = !/[`\r]/.test(fullPattern);
+  const patternStr = useRawString ? `\`${fullPattern}\`` : escapeTestString(fullPattern, 'go');
 
   const testStr = escapeTestString(testText, 'go');
   const replaceStr = escapeReplacement(replaceText, 'go', pattern);

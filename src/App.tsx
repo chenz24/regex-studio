@@ -186,6 +186,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('reference');
   const hydratedRef = useRef(false);
+  const shareWriteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastShareUrl = useRef<string | undefined>(undefined);
 
   // Tutorial state
   const tutorialView = useTutorialStore((s) => s.view);
@@ -264,8 +266,8 @@ function App() {
     if (challengeId) {
       // Starting waits on the challenge content chunk, so the fallback has to
       // wait with it: if the id was invalid, show the catalogue instead.
-      void startChallenge(challengeId).then(() => {
-        if (useChallengeStore.getState().view === 'closed') {
+      void startChallenge(challengeId).then((result) => {
+        if (result === 'missing' && useChallengeStore.getState().view === 'closed') {
           openChallengeCatalog();
         }
       });
@@ -279,23 +281,32 @@ function App() {
     }
   }, [hydrateTutorial, hydrateChallenges, startLesson, startChallenge, openChallengeCatalog]);
 
-  // Hydrate state from `#s=...` once on mount. Doing this in an effect keeps
-  // SSR clean — the server still renders the default state, and the client
-  // applies the share payload after hydration.
+  // Hash-only navigation keeps this component mounted. Restore each visited
+  // share, including browser back/forward, without treating our own saves as loads.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-    const payload = readShareFromLocation();
-    if (!payload) return;
-    actions.setEngine(payload.e);
-    actions.setCompatibilityTarget(payload.c ?? null);
-    actions.setLegacyTargetFlags(payload.lf ?? '');
-    actions.loadPattern(payload.p, payload.f);
-    if (payload.t !== undefined) actions.setTestText(payload.t);
-    if (payload.r !== undefined) actions.setReplacement(payload.r);
-    if (payload.sr !== undefined) actions.setShowReplace(payload.sr);
-    if (payload.tc) actions.setTestCases(payload.tc);
-    // Runs once: the ref above guards against a second pass.
+    const restore = () => {
+      if (lastShareUrl.current === window.location.href) return;
+      const payload = readShareFromLocation();
+      if (!payload) return;
+      clearTimeout(shareWriteTimer.current);
+      lastShareUrl.current = window.location.href;
+      // Discard exercise snapshots before loading so closing a drawer cannot
+      // subsequently overwrite the newly opened workspace.
+      useTutorialStore.getState().exitLesson();
+      useTutorialStore.getState().close();
+      useChallengeStore.getState().close();
+      actions.loadShare(payload);
+    };
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      restore();
+    }
+    window.addEventListener('hashchange', restore);
+    window.addEventListener('popstate', restore);
+    return () => {
+      window.removeEventListener('hashchange', restore);
+      window.removeEventListener('popstate', restore);
+    };
   }, [actions]);
 
   // Keep the URL hash in sync with the current state. Debounced and using
@@ -314,7 +325,14 @@ function App() {
       sr: showReplace || undefined,
       tc: testCases.length > 0 ? testCases : undefined,
     };
-    const handle = setTimeout(() => writeShareToLocation(payload), 400);
+    const sourceUrl = window.location.href;
+    const handle = setTimeout(() => {
+      // Navigation wins over a save queued for the workspace being left.
+      if (window.location.href !== sourceUrl) return;
+      writeShareToLocation(payload);
+      lastShareUrl.current = window.location.href;
+    }, 400);
+    shareWriteTimer.current = handle;
     return () => clearTimeout(handle);
   }, [
     pattern,
@@ -431,6 +449,8 @@ function App() {
                 onInspectSource={selectSource}
                 pattern={pattern}
                 onPatternChange={actions.setPattern}
+                onUndo={actions.undoPattern}
+                onRedo={actions.redoPattern}
                 flags={flags}
                 flagString={derived.flagString}
                 onToggleFlag={actions.toggleFlag}

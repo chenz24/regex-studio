@@ -144,6 +144,8 @@
   "node_desc_quantifier": "Quantifier: {raw}",
   "node_desc_backreference": "Backreference #{n}",
   "regex_input_placeholder": "Enter your regex pattern...",
+  "regex_input_copy": "Copy regular expression",
+  "regex_input_clear": "Clear regular expression",
   "regex_input_display_only": "Display only — does not affect match preview.",
   "regex_input_match_count_one": "{count} match",
   "regex_input_match_count_other": "{count} matches",

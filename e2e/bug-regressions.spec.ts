@@ -14,6 +14,164 @@ async function open(page: Page, state: Record<string, unknown>) {
   await expect(editor(page)).toHaveText(String(state.p ?? 'a'));
 }
 
+test('editors undo and redo a complete deletion without losing the original input', async ({
+  page,
+}) => {
+  await open(page, { p: 'abc', t: 'sample' });
+  for (const [input, original, placeholder] of [
+    [editor(page), 'abc', 'Enter your regex pattern...'],
+    [textEditor(page), 'sample', 'Enter test string...'],
+  ] as const) {
+    await input.click();
+    await input.press('ControlOrMeta+a');
+    await input.press('Backspace');
+    await expect(input).toContainText(placeholder);
+    await input.press('ControlOrMeta+z');
+    await expect(input).toHaveText(original);
+    await input.press('ControlOrMeta+Shift+z');
+    await expect(input).toContainText(placeholder);
+    await input.press('ControlOrMeta+z');
+    await expect(input).toHaveText(original);
+  }
+  await editor(page).press('ControlOrMeta+a');
+  await editor(page).press('Backspace');
+  await page.getByTitle('Undo (⌘Z / Ctrl+Z)', { exact: true }).click();
+  await expect(editor(page)).toHaveText('abc');
+  await editor(page).press('ControlOrMeta+Shift+z');
+  await expect(editor(page)).toContainText('Enter your regex pattern...');
+  await editor(page).evaluate((el) =>
+    el.dispatchEvent(
+      new InputEvent('beforeinput', {
+        inputType: 'historyUndo',
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await expect(editor(page)).toHaveText('abc');
+});
+
+test('shared multiline patterns keep their source, matches and copied literal consistent', async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
+        writeText: async (text: string) => {
+          (window as unknown as { copiedText: string }).copiedText = text;
+        },
+      },
+    }),
+  );
+  for (const separator of ['\n', '\r\n', '\r', '\u2028', '\u2029']) {
+    const pattern = `a${separator}b`;
+    await page.goto('about:blank');
+    await page.goto(share({ p: pattern, f: '', t: pattern }));
+    await expect(page.getByTestId('match-status')).toHaveText('1 match');
+    await expect(editor(page).locator('.cm-line')).toHaveCount(separator.includes('\n') ? 2 : 1);
+    await page.getByRole('button', { name: 'Copy regular expression', exact: true }).click();
+    const literal = await page.evaluate(
+      () => (window as unknown as { copiedText: string }).copiedText,
+    );
+    expect(new Function(`return ${literal}`)().test(pattern)).toBe(true);
+    // A further edit must preserve every original line ending in the store.
+    await editor(page).press('ControlOrMeta+End');
+    await editor(page).pressSequentially('c');
+    await expect
+      .poll(
+        async () => JSON.parse(Buffer.from(page.url().split('#s=')[1], 'base64url').toString()).p,
+      )
+      .toBe(`${pattern}c`);
+    await expect(page.getByTestId('match-status')).toHaveText('0 matches');
+    await editor(page).press('ControlOrMeta+z');
+    await expect(page.getByTestId('match-status')).toHaveText('1 match');
+    await textEditor(page).press('ControlOrMeta+End');
+    await textEditor(page).pressSequentially('c');
+    await expect
+      .poll(
+        async () => JSON.parse(Buffer.from(page.url().split('#s=')[1], 'base64url').toString()).t,
+      )
+      .toBe(`${pattern}c`);
+    await textEditor(page).press('ControlOrMeta+z');
+    await expect
+      .poll(
+        async () => JSON.parse(Buffer.from(page.url().split('#s=')[1], 'base64url').toString()).t,
+      )
+      .toBe(pattern);
+  }
+});
+
+test('PCRE2 multiline patterns preserve comments when copied', async ({ page }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
+        writeText: async (text: string) => {
+          (window as unknown as { copiedText: string }).copiedText = text;
+        },
+      },
+    }),
+  );
+  const pattern = '^a # Comment\nb$';
+  await page.goto(share({ e: 'pcre2', p: pattern, f: 'x', t: 'ab' }));
+  await expect(page.getByTestId('match-status')).toHaveText('1 match');
+  await expect(editor(page).locator('.cm-line')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Copy regular expression', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { copiedText: string }).copiedText)).toBe(
+    `/${pattern}/x`,
+  );
+});
+
+test('copying regex literals escapes delimiters exactly once and handles empty patterns', async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
+        writeText: async (text: string) => {
+          (window as unknown as { copiedText: string }).copiedText = text;
+        },
+      },
+    }),
+  );
+  for (const pattern of [
+    'https://example.com',
+    String.raw`https:\/\/example\.com`,
+    '[a/]',
+    String.raw`\\/`,
+    '',
+  ]) {
+    await page.goto('about:blank');
+    await page.goto(share({ p: pattern, f: 'g', t: 'https://example.com\\/' }));
+    await expect(page.getByTestId('match-status')).not.toContainText('Evaluating');
+    await page.getByRole('button', { name: 'Copy regular expression', exact: true }).click();
+    const literal = await page.evaluate(
+      () => (window as unknown as { copiedText: string }).copiedText,
+    );
+    const copied = new Function(`return ${literal}`)() as RegExp;
+    for (const text of ['https://example.com', 'a/b', String.raw`\/`, 'plain', '']) {
+      const values = (regex: RegExp) =>
+        [...text.matchAll(regex)].map((match) => [match[0], match.index]);
+      expect(values(copied)).toEqual(values(new RegExp(pattern, 'g')));
+    }
+    expect(copied.flags).toBe('g');
+  }
+});
+
+test('Python export displays remaining Unicode compatibility differences', async ({ page }) => {
+  await open(page, { p: String.raw`\w+`, f: '', t: 'é' });
+  await expect(page.getByTestId('match-status')).toHaveText('0 matches');
+  await page.getByRole('tab', { name: 'Code Gen', exact: true }).click();
+  await page.getByRole('button', { name: 'JavaScript', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Python', exact: true }).click();
+  await expect(
+    page
+      .getByRole('tabpanel')
+      .getByText(/Python character classes and word boundaries/, { exact: false })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByRole('tabpanel').locator('code')).toContainText('# Compatibility note:');
+});
+
 test('lesson navigation resets hints and restores the original replacement template', async ({
   page,
 }) => {
@@ -219,7 +377,11 @@ for (const entry of [
     await expect(page.getByRole('dialog', { name: entry.dialog, exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: entry.dialog, exact: true })).toBeHidden();
-    await editor(page).fill('SAVED_WORKSPACE');
+    // Drive CodeMirror's own selection on touch Chromium; fill() can leave
+    // its model selection collapsed. Replace in one input event, without
+    // triggering iOS's delayed Backspace handling on an already empty editor.
+    await editor(page).press('ControlOrMeta+a');
+    await page.keyboard.insertText('SAVED_WORKSPACE');
     await expect(editor(page)).toHaveText('SAVED_WORKSPACE');
     await expect
       .poll(() => {

@@ -20,7 +20,12 @@ interface Literal {
 }
 
 /** `"…"` with the usual backslash escapes. `extra` maps language-specific ones. */
-function readQuoted(src: string, start: number, extra: Record<string, string> = {}): Literal {
+function readQuoted(
+  src: string,
+  start: number,
+  extra: Record<string, string> = {},
+  allowMultiline = false,
+): Literal {
   const basic: Record<string, string> = {
     '\\': '\\',
     '"': '"',
@@ -33,6 +38,8 @@ function readQuoted(src: string, start: number, extra: Record<string, string> = 
   let i = start + 1;
   while (i < src.length) {
     const ch = src[i];
+    if (!allowMultiline && (ch === '\n' || ch === '\r'))
+      throw new Error('newline in quoted string');
     if (ch === '\\') {
       const next = src[i + 1];
       if (!(next in basic)) throw new Error(`unknown escape \\${next}`);
@@ -59,7 +66,7 @@ const readers: Record<string, (src: string, start: number) => Literal> = {
     if (src[start] === '`') {
       const close = src.indexOf('`', start + 1);
       if (close === -1) throw new Error('unterminated raw string');
-      return { value: src.slice(start + 1, close), end: close + 1 };
+      return { value: src.slice(start + 1, close).replace(/\r/g, ''), end: close + 1 };
     }
     return readQuoted(src, start);
   },
@@ -69,9 +76,9 @@ const readers: Record<string, (src: string, start: number) => Literal> = {
     if (src.startsWith('r#"', start)) {
       const close = src.indexOf('"#', start + 3);
       if (close === -1) throw new Error('unterminated raw string');
-      return { value: src.slice(start + 3, close), end: close + 2 };
+      return { value: src.slice(start + 3, close).replace(/\r\n/g, '\n'), end: close + 2 };
     }
-    return readQuoted(src, start);
+    return readQuoted(src, start, {}, true);
   },
 
   // `@"…"` is verbatim: backslashes are literal and `""` is one quote.
@@ -121,6 +128,7 @@ const readers: Record<string, (src: string, start: number) => Literal> = {
     let i = start + 1;
     while (i < src.length) {
       const ch = src[i];
+      if (ch === '\n' || ch === '\r') throw new Error('newline in quoted string');
       if (ch === '\\') {
         const next = src[i + 1];
         const escapes: Record<string, string> = {
@@ -275,6 +283,28 @@ describe.each(['go', 'rust', 'dotnet', 'kotlin'] as const)('generated %s', (lang
 describe.each(['java', 'swift'] as const)('generated %s', (language) => {
   it.each(PATTERNS)('embeds the pattern unchanged: %s', (_name, pattern) => {
     expect(readPattern(language, generate(language, pattern))).toBe(pattern);
+  });
+});
+
+describe.each([
+  'java',
+  'swift',
+  'kotlin',
+  'go',
+  'rust',
+] as const)('multiline %s patterns', (language) => {
+  it.each([
+    '\n',
+    '\r',
+    '\r\n',
+    '\t',
+    '\u2028',
+    '\u2029',
+  ])('preserves %j inside a valid string literal', (separator) => {
+    // Include raw-string delimiters to exercise the Go/Rust quoted fallback.
+    for (const pattern of [`a\`"#${separator}b\\d`, `a${separator}b\\d`]) {
+      expect(readPattern(language, generate(language, pattern))).toBe(pattern);
+    }
   });
 });
 

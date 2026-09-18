@@ -31,6 +31,7 @@ import {
 import type { SourceRange } from '../../utils/resultInspection';
 import { useT, type Messages } from '@/lib/i18n';
 import { useRevealRange } from '../../hooks/useRevealRange';
+import { escapePattern, escapeUnescaped } from '../../utils/codegen/escaper';
 
 function resolveDesc(t: Messages, key: string | undefined, fallback: string): string {
   if (!key) return fallback;
@@ -45,6 +46,8 @@ interface RegexInputProps {
   onInspectSource?: (range: SourceRange) => void;
   pattern: string;
   onPatternChange: (value: string) => void;
+  onUndo: () => void;
+  onRedo: () => void;
   flags: RegexFlag[];
   flagString: string;
   onToggleFlag: (key: string) => void;
@@ -135,7 +138,8 @@ const regexInputTheme = EditorView.theme({
     outline: 'none',
   },
   '.cm-scroller': {
-    overflow: 'hidden',
+    overflow: 'auto',
+    maxHeight: '200px',
     lineHeight: '1.5',
     padding: '10px 12px',
   },
@@ -185,6 +189,8 @@ export function RegexInput({
   onInspectSource,
   pattern,
   onPatternChange,
+  onUndo,
+  onRedo,
   flags,
   flagString,
   onToggleFlag,
@@ -211,6 +217,8 @@ export function RegexInput({
   const viewRef = useRef<EditorView | null>(null);
   const isExternalUpdate = useRef(false);
   const onChangeRef = useRef(onPatternChange);
+  const historyRef = useRef({ onUndo, onRedo });
+  historyRef.current = { onUndo, onRedo };
   const onHoverRef = useRef(onHoverNode);
   const onInspectRef = useRef(onInspectSource);
   onInspectRef.current = onInspectSource;
@@ -241,33 +249,44 @@ export function RegexInput({
       }
     });
 
-    const singleLine = EditorState.transactionFilter.of((tr) => {
-      if (!tr.docChanged) return tr;
-      const newDoc = tr.newDoc.toString();
-      if (newDoc.includes('\n')) {
-        return {
-          ...tr,
-          changes: { from: 0, to: tr.startState.doc.length, insert: newDoc.replace(/\n/g, '') },
-        };
-      }
-      return tr;
-    });
-
     const isDark = document.documentElement.classList.contains('dark');
+    const undo = () => {
+      historyRef.current.onUndo();
+      return true;
+    };
+    const redo = () => {
+      historyRef.current.onRedo();
+      return true;
+    };
 
     const state = EditorState.create({
       doc: initialPatternRef.current,
       extensions: [
+        // Keep CR and CRLF as written so source offsets and matching agree.
+        EditorState.lineSeparator.of('\n'),
         regexInputTheme,
         themeCompartment.current.of(isDark ? darkTheme : lightTheme),
         regexLanguage,
         highlightCompartment.current.of(
           syntaxHighlighting(isDark ? darkHighlight : lightHighlight),
         ),
-        keymap.of(defaultKeymap),
+        // Share history with the diagram toolbar, including native Edit-menu undo.
+        keymap.of([
+          { key: 'Mod-z', run: undo, preventDefault: true },
+          { key: 'Mod-Shift-z', run: redo, preventDefault: true },
+          { key: 'Ctrl-y', run: redo, preventDefault: true },
+          ...defaultKeymap,
+        ]),
+        EditorView.domEventHandlers({
+          beforeinput(event) {
+            if (event.inputType !== 'historyUndo' && event.inputType !== 'historyRedo')
+              return false;
+            event.preventDefault();
+            return event.inputType === 'historyUndo' ? undo() : redo();
+          },
+        }),
         cmPlaceholder(t.regex_input_placeholder()),
         onUpdate,
-        singleLine,
         EditorView.lineWrapping,
         highlightField,
         inspectionField,
@@ -404,11 +423,19 @@ export function RegexInput({
 
   useRevealRange(viewRef, inspectionRanges?.[0], revealRequest);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(`/${pattern}/${flagString}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }, [pattern, flagString]);
+  const handleCopy = useCallback(async () => {
+    const source =
+      engine === 'javascript'
+        ? escapePattern(pattern || '(?:)', 'javascript')
+        : escapeUnescaped(pattern, '/');
+    try {
+      await navigator.clipboard.writeText(`/${source}/${flagString}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }, [pattern, flagString, engine]);
 
   return (
     <div className="space-y-2.5">
@@ -492,6 +519,7 @@ export function RegexInput({
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity px-1">
             <button
               onClick={handleCopy}
+              aria-label={t.regex_input_copy()}
               className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               {copied ? (
@@ -502,6 +530,7 @@ export function RegexInput({
             </button>
             <button
               onClick={() => onPatternChange('')}
+              aria-label={t.regex_input_clear()}
               className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />

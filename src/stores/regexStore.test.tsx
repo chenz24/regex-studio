@@ -28,6 +28,47 @@ async function renderDerived() {
   return view;
 }
 
+describe('shared workspace restoration', () => {
+  it('resets omitted fields to fresh-tab defaults and restores all fields atomically', () => {
+    const store = useRegexStore.getState();
+    store.loadShare({
+      v: 3,
+      e: 'pcre2',
+      p: 'a',
+      f: 'ix',
+      t: 'aaa',
+      r: 'X',
+      sr: true,
+      c: 'python',
+      lf: 'x',
+      tc: [{ id: 'x', label: 'Test', input: 'a', expect: 'match' }],
+    });
+    store.setPattern('ab');
+    store.setHoveredNodeId('old-node');
+    const updates: string[] = [];
+    const unsubscribe = useRegexStore.subscribe((state) => updates.push(state.pattern));
+    store.loadShare({ v: 3, e: 'javascript', p: 'b', f: '' });
+    unsubscribe();
+    expect(updates).toEqual(['b']);
+    expect(useRegexStore.getState()).toMatchObject({
+      engine: 'javascript',
+      pattern: 'b',
+      testText: initial.testText,
+      replacement: '',
+      showReplace: false,
+      testCases: [],
+      compatibilityTarget: null,
+      legacyTargetFlags: '',
+      patternPast: [],
+      patternFuture: [],
+      hoveredNodeId: null,
+    });
+    expect(useRegexStore.getState().flags.some((flag) => flag.enabled)).toBe(false);
+    store.loadShare({ v: 3, e: 'javascript', p: 'c', f: 'g', t: '' });
+    expect(useRegexStore.getState().testText).toBe('');
+  });
+});
+
 describe('useRegexDerived', () => {
   it('changes compatibility warnings without changing execution, flags or results', async () => {
     act(() => {

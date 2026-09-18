@@ -14,11 +14,9 @@ export function generateRust(ctx: CodeGenContext): CodeGenResult {
   // Rust uses inline flags
   const fullPattern = flagMapping.inlinePrefix + pattern;
 
-  // Use raw string if possible
-  const useRawString = !fullPattern.includes('"#');
-  const patternStr = useRawString
-    ? `r#"${fullPattern}"#`
-    : `"${fullPattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+  // Source line-ending normalization must not change the regex's CR/CRLF.
+  const useRawString = !fullPattern.includes('"#') && !fullPattern.includes('\r');
+  const patternStr = useRawString ? `r#"${fullPattern}"#` : escapeTestString(fullPattern, 'rust');
 
   const testStr = escapeTestString(testText, 'rust');
   const replaceStr = escapeReplacement(replaceText, 'rust', pattern);

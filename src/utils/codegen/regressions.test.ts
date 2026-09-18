@@ -13,6 +13,33 @@ const defaults: CodeGenContext = {
   operation: 'test',
 };
 
+describe('Python compatibility notes', () => {
+  it.each([
+    String.raw`\w+`,
+    String.raw`\bword\b`,
+    String.raw`[\d\s]`,
+  ])('identifies Unicode class differences in %s', (pattern) => {
+    const result = generateCode({ ...defaults, language: 'python', pattern });
+    expect(result.warnings.join(' ')).toContain('different Unicode rules');
+    expect(result.code).toContain('# Compatibility note:');
+  });
+  it('does not mistake escaped shorthand text for a character class', () => {
+    const result = generateCode({ ...defaults, language: 'python', pattern: String.raw`\\w` });
+    expect(result.warnings).toEqual([]);
+  });
+  it('identifies case folding and astral matching differences', () => {
+    const result = generateCode({
+      ...defaults,
+      language: 'python',
+      pattern: '.',
+      flags: 'i',
+      testText: '😀',
+    });
+    expect(result.warnings.join(' ')).toContain('case-folding');
+    expect(result.warnings.join(' ')).toContain('UTF-16');
+  });
+});
+
 function run(input: Partial<CodeGenContext>) {
   const { code } = generateCode({ ...defaults, ...input });
   const executable =

@@ -11,7 +11,7 @@ import {
   highlightWhitespace,
 } from '@codemirror/view';
 import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
-import { defaultKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, isolateHistory } from '@codemirror/commands';
 import type { MatchInfo } from '../../types/regex';
 import {
   inspectionField,
@@ -292,10 +292,12 @@ export function TestArea({
     const state = EditorState.create({
       doc: initialTextRef.current,
       extensions: [
+        EditorState.lineSeparator.of('\n'),
         testAreaTheme,
         themeCompartment.current.of(isDark ? darkTheme : lightTheme),
         whitespaceCompartment.current.of([]),
-        keymap.of(defaultKeymap),
+        history(),
+        keymap.of([...historyKeymap, ...defaultKeymap]),
         cmPlaceholder(t.testarea_placeholder()),
         matchField,
         inspectionField,
@@ -356,6 +358,7 @@ export function TestArea({
       isExternalUpdate.current = true;
       view.dispatch({
         changes: { from: 0, to: currentDoc.length, insert: text },
+        annotations: isolateHistory.of('full'),
       });
       isExternalUpdate.current = false;
     }

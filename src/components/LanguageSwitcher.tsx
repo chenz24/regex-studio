@@ -2,6 +2,7 @@ import { Check, Languages } from 'lucide-react';
 import { useLocation } from '@tanstack/react-router';
 import { localizedPath, splitLocalePath, setLocaleAndNavigate, useLocale, useT } from '@/lib/i18n';
 import type { Locale } from '@/paraglide/runtime';
+import { HTML_LANG } from '@/lib/localeMetadata';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,11 +10,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-type LocaleLabelKey = 'language_english' | 'language_chinese';
+type LocaleLabelKey = 'language_english' | 'language_chinese' | 'language_japanese';
 
 const LOCALES: Array<{ code: Locale; labelKey: LocaleLabelKey; short: string }> = [
   { code: 'en', labelKey: 'language_english', short: 'EN' },
   { code: 'zh', labelKey: 'language_chinese', short: '中' },
+  { code: 'ja', labelKey: 'language_japanese', short: 'JA' },
 ];
 
 export function LanguageSwitcher() {
@@ -44,8 +46,8 @@ export function LanguageSwitcher() {
             >
               <a
                 href={`${localizedPath(rest, code)}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`}
-                hrefLang={code === 'zh' ? 'zh-CN' : 'en'}
-                lang={code === 'zh' ? 'zh-CN' : 'en'}
+                hrefLang={HTML_LANG[code]}
+                lang={HTML_LANG[code]}
                 onClick={(event) => {
                   if (
                     event.button !== 0 ||

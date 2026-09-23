@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-const localized = (path: string, locale: 'en' | 'zh') =>
-  locale === 'en' ? path : `/zh${path === '/' ? '' : path}`;
+const localized = (path: string, locale: 'en' | 'zh' | 'ja') =>
+  locale === 'en' ? path : `/${locale}${path === '/' ? '' : path}`;
 
-for (const locale of ['en', 'zh'] as const) {
+for (const locale of ['en', 'zh', 'ja'] as const) {
   test(`${locale}: all tutorials and challenges are readable and discoverable without JavaScript`, async ({
     browser,
     baseURL,
@@ -15,8 +15,16 @@ for (const locale of ['en', 'zh'] as const) {
     const page = await context.newPage();
     const entries: { path: string; heading: string }[] = [
       { path: '/', heading: 'RegexStudio' },
-      { path: '/learn', heading: locale === 'en' ? 'Regex tutorials' : '正则表达式教程' },
-      { path: '/challenges', heading: locale === 'en' ? 'Regex challenges' : '正则表达式挑战' },
+      {
+        path: '/learn',
+        heading: { en: 'Regex tutorials', zh: '正则表达式教程', ja: '正規表現チュートリアル' }[
+          locale
+        ],
+      },
+      {
+        path: '/challenges',
+        heading: { en: 'Regex challenges', zh: '正则表达式挑战', ja: '正規表現チャレンジ' }[locale],
+      },
     ];
     for (const [directory, count] of [
       ['/learn', 21],
@@ -28,7 +36,7 @@ for (const locale of ['en', 'zh'] as const) {
       for (const link of await links.all()) {
         const href = (await link.getAttribute('href'))!;
         entries.push({
-          path: locale === 'zh' ? href.slice(3) : href,
+          path: locale === 'en' ? href : href.slice(locale.length + 1),
           heading: (await link.locator('h3, h2').textContent())!,
         });
       }
@@ -38,7 +46,10 @@ for (const locale of ['en', 'zh'] as const) {
       const path = localized(entry.path, locale);
       const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
       expect(response?.status(), path).toBe(200);
-      await expect(page.locator('html')).toHaveAttribute('lang', locale === 'en' ? 'en' : 'zh-CN');
+      await expect(page.locator('html')).toHaveAttribute(
+        'lang',
+        locale === 'zh' ? 'zh-CN' : locale,
+      );
       await expect(page.locator('h1')).toHaveText(entry.heading);
       const title = await page.title();
       expect(titles.has(title), title).toBe(false);
@@ -55,6 +66,10 @@ for (const locale of ['en', 'zh'] as const) {
       await expect(page.locator('link[hreflang="zh-CN"]')).toHaveAttribute(
         'href',
         `https://regexstudio.com${localized(entry.path, 'zh')}`,
+      );
+      await expect(page.locator('link[hreflang=ja]')).toHaveAttribute(
+        'href',
+        `https://regexstudio.com${localized(entry.path, 'ja')}`,
       );
       await expect(page.locator('link[hreflang=x-default]')).toHaveAttribute(
         'href',
@@ -73,7 +88,7 @@ for (const locale of ['en', 'zh'] as const) {
       if (entry.path.startsWith('/challenges/')) {
         await expect(
           page.getByRole('heading', {
-            name: locale === 'en' ? 'Test cases' : '测试用例',
+            name: { en: 'Test cases', zh: '测试用例', ja: 'テストケース' }[locale],
             exact: true,
           }),
         ).toBeVisible();
@@ -87,14 +102,15 @@ for (const locale of ['en', 'zh'] as const) {
     expect(urls.sort()).toEqual(
       entries
         .flatMap(({ path }) =>
-          ['en', 'zh'].map(
-            (language) => `https://regexstudio.com${localized(path, language as 'en' | 'zh')}`,
+          ['en', 'zh', 'ja'].map(
+            (language) =>
+              `https://regexstudio.com${localized(path, language as 'en' | 'zh' | 'ja')}`,
           ),
         )
         .sort(),
     );
     for (const block of blocks) {
-      for (const language of ['en', 'zh-CN', 'x-default'])
+      for (const language of ['en', 'zh-CN', 'ja', 'x-default'])
         expect(block).toContain(`hreflang="${language}"`);
     }
     await context.close();
@@ -112,11 +128,16 @@ test('unknown paths are real 404s without canonical metadata', async ({ browser,
     '/zh/learn/missing',
     '/challenges/missing',
     '/zh/challenges/missing',
+    '/ja/missing',
+    '/ja/learn/missing',
+    '/ja/challenges/missing',
     '/de/learn',
     '/de/challenges/email-find',
   ]) {
     const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
     expect(response?.status(), path).toBe(404);
+    if (path.startsWith('/ja/'))
+      await expect(page.locator('h1')).toHaveText('ページが見つかりません');
     await expect(page.locator('meta[name=robots]')).toHaveAttribute('content', 'noindex,follow');
     await expect(page.locator('link[rel=canonical], link[rel=alternate]')).toHaveCount(0);
   }
@@ -130,6 +151,8 @@ test('aliases redirect permanently to the shared content', async ({ request }) =
     ['/learn/greedy-vs-lazy', '/learn/quantifiers-greedy'],
     ['/zh/learn/capture-groups', '/zh/learn/groups-capturing'],
     ['/patterns/email', '/learn/practical-email'],
+    ['/ja/patterns/email', '/ja/learn/practical-email'],
+    ['/ja/learn/greedy-vs-lazy', '/ja/learn/quantifiers-greedy'],
   ]) {
     const response = await request.get(from, { maxRedirects: 0 });
     expect(response.status()).toBe(308);

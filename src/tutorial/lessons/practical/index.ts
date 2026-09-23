@@ -19,6 +19,10 @@ export function createPracticalTrack(locale?: Locale): Track {
         title: 'Practical · 实战',
         description: '用前面学的所有工具解决真实场景：邮箱、URL、日志、Markdown 链接、CSV。',
       },
+      ja: {
+        title: '実践',
+        description: '学んだ構文を、メール・URL・ログ・Markdown リンク・CSV の処理に応用します。',
+      },
     },
     locale,
   );

@@ -18,6 +18,11 @@ export function createGroupsTrack(locale?: Locale): Track {
         title: 'Groups · 分组',
         description: '捕获组、命名组、反向引用、非捕获组与 `|`。',
       },
+      ja: {
+        title: 'グループ',
+        description:
+          'キャプチャ・名前付きグループ・後方参照・非キャプチャグループと `|` を学びます。',
+      },
     },
     locale,
   );

@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '@/types/regex';
 import type { RegexEngine, ExecutionEngine } from '@/types/engineTypes';
 
@@ -109,6 +110,7 @@ export interface StepFlavorCompare {
 }
 
 export interface ValidationContext {
+  locale?: Locale;
   pattern: string;
   /** Flag string as displayed (target-engine view). */
   flagString: string;

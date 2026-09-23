@@ -17,6 +17,11 @@ export function createQuantifiersTrack(locale?: Locale): Track {
         title: 'Quantifiers · 量词',
         description: '深入贪婪、懒惰、精确次数与回溯陷阱。',
       },
+      ja: {
+        title: '量指定子',
+        description:
+          '貪欲一致・最短一致・回数指定と、バックトラッキングの落とし穴を詳しく学びます。',
+      },
     },
     locale,
   );

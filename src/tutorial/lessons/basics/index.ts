@@ -19,6 +19,10 @@ export function createBasicsTrack(locale?: Locale): Track {
         title: 'Basics · 基础',
         description: '从最简单的字面量开始，逐步认识字符类、量词和锚点。',
       },
+      ja: {
+        title: '基礎',
+        description: '通常の文字から始めて、文字クラス・量指定子・アンカーを順に学びます。',
+      },
     },
     locale,
   );

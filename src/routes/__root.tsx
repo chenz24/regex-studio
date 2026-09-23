@@ -9,8 +9,16 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { getAnalyticsScripts, trackPageView } from '@/lib/analytics';
-import { isLocale, LocaleProvider, localizedPath, splitLocalePath, useT } from '@/lib/i18n';
+import {
+  isLocale,
+  LocaleProvider,
+  localizedPath,
+  splitLocalePath,
+  useLocale,
+  useT,
+} from '@/lib/i18n';
 import { m } from '@/paraglide/messages';
+import { HTML_LANG, OG_LOCALE } from '@/lib/localeMetadata';
 import { baseLocale, type Locale, locales } from '@/paraglide/runtime';
 import type { PublicPageMeta } from '@/content/publicCatalog';
 import appCss from '../index.css?url';
@@ -20,16 +28,6 @@ const SITE_URL =
     | string
     | undefined) ?? 'https://regexstudio.com';
 const SITE_NAME = 'RegexStudio';
-
-const HTML_LANG: Record<Locale, string> = {
-  en: 'en',
-  zh: 'zh-CN',
-};
-
-const OG_LOCALE: Record<Locale, string> = {
-  en: 'en_US',
-  zh: 'zh_CN',
-};
 
 export const Route = createRootRoute({
   beforeLoad: async ({
@@ -189,30 +187,35 @@ function RootDocument({ children }: { children: ReactNode }) {
 
 function RootNotFound() {
   const { locale } = Route.useRouteContext();
-  const t = useT();
   return (
     <LocaleProvider value={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
-        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm font-medium uppercase tracking-wide text-teal-600 dark:text-teal-400">
-            {t.not_found_eyebrow()}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t.not_found_title()}
-          </h1>
-          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-            {t.not_found_description()}
-          </p>
-          <div className="mt-6">
-            <Link
-              to={localizedPath('/', locale)}
-              className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
-            >
-              {t.not_found_back_home()}
-            </Link>
-          </div>
+      <NotFoundContent />
+    </LocaleProvider>
+  );
+}
+
+function NotFoundContent() {
+  const locale = useLocale();
+  const t = useT();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <p className="text-sm font-medium uppercase tracking-wide text-teal-600 dark:text-teal-400">
+          {t.not_found_eyebrow()}
+        </p>
+        <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {t.not_found_title()}
+        </h1>
+        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{t.not_found_description()}</p>
+        <div className="mt-6">
+          <Link
+            to={localizedPath('/', locale)}
+            className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+          >
+            {t.not_found_back_home()}
+          </Link>
         </div>
       </div>
-    </LocaleProvider>
+    </div>
   );
 }

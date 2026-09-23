@@ -53,6 +53,9 @@ export function Footer() {
           >
             简体中文
           </a>
+          <a href={localizedPath(rest, 'ja')} hrefLang="ja" lang="ja" className="hover:underline">
+            日本語
+          </a>
         </nav>
         {/* SEO copy */}
         <section aria-labelledby="footer-about" className="max-w-3xl">

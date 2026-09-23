@@ -16,6 +16,10 @@ export function createLookaroundTrack(locale?: Locale): Track {
         title: 'Lookaround · 环视断言',
         description: '零宽的"看一眼前后"——`(?=)` `(?!)` `(?<=)` `(?<!)`。',
       },
+      ja: {
+        title: '先読み・後読み',
+        description: '文字を消費せず前後を確認する `(?=)`、`(?!)`、`(?<=)`、`(?<!)` を学びます。',
+      },
     },
     locale,
   );

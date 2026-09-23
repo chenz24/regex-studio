@@ -4,420 +4,735 @@
     <loc>https://regexstudio.com/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/basics-literals</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-literals"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-literals"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-literals"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-literals"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/basics-literals</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-literals"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-literals"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-literals"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-literals"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/basics-literals</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-literals"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-literals"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-literals"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-literals"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/basics-classes</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-classes"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-classes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-classes"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-classes"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/basics-classes</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-classes"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-classes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-classes"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-classes"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/basics-classes</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-classes"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-classes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-classes"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-classes"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/basics-dot-and-escapes</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-dot-and-escapes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-dot-and-escapes"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/basics-dot-and-escapes</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-dot-and-escapes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-dot-and-escapes"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/basics-dot-and-escapes</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-dot-and-escapes"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-dot-and-escapes"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-dot-and-escapes"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/basics-anchors</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-anchors"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-anchors"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-anchors"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-anchors"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/basics-anchors</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-anchors"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-anchors"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-anchors"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-anchors"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/basics-anchors</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-anchors"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-anchors"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-anchors"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-anchors"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/basics-quantifiers</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-quantifiers"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-quantifiers"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-quantifiers"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-quantifiers"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/basics-quantifiers</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-quantifiers"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-quantifiers"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-quantifiers"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-quantifiers"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/basics-quantifiers</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/basics-quantifiers"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/basics-quantifiers"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/basics-quantifiers"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/basics-quantifiers"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/quantifiers-greedy</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-greedy"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-greedy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-greedy"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-greedy"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/quantifiers-greedy</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-greedy"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-greedy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-greedy"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-greedy"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/quantifiers-greedy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-greedy"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-greedy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-greedy"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-greedy"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/quantifiers-lazy</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-lazy"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-lazy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-lazy"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-lazy"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/quantifiers-lazy</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-lazy"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-lazy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-lazy"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-lazy"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/quantifiers-lazy</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-lazy"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-lazy"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-lazy"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-lazy"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/quantifiers-counted</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-counted"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-counted"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-counted"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-counted"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/quantifiers-counted</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-counted"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-counted"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-counted"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-counted"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/quantifiers-counted</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-counted"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-counted"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-counted"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-counted"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/quantifiers-backtracking</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-backtracking"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-backtracking"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/quantifiers-backtracking</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-backtracking"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-backtracking"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/quantifiers-backtracking</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/quantifiers-backtracking"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/quantifiers-backtracking"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/quantifiers-backtracking"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/groups-capturing</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-capturing"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-capturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-capturing"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-capturing"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/groups-capturing</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-capturing"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-capturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-capturing"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-capturing"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/groups-capturing</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-capturing"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-capturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-capturing"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-capturing"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/groups-alternation</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-alternation"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-alternation"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-alternation"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-alternation"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/groups-alternation</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-alternation"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-alternation"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-alternation"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-alternation"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/groups-alternation</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-alternation"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-alternation"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-alternation"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-alternation"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/groups-backreferences</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-backreferences"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-backreferences"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-backreferences"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-backreferences"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/groups-backreferences</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-backreferences"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-backreferences"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-backreferences"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-backreferences"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/groups-backreferences</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-backreferences"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-backreferences"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-backreferences"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-backreferences"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/groups-named-and-noncapturing</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-named-and-noncapturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-named-and-noncapturing"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/groups-named-and-noncapturing</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-named-and-noncapturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-named-and-noncapturing"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/groups-named-and-noncapturing</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/groups-named-and-noncapturing"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/groups-named-and-noncapturing"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/groups-named-and-noncapturing"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/lookaround-lookahead</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookahead"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookahead"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookahead"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/lookaround-lookahead</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookahead"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookahead"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/lookaround-lookahead</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookahead"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookahead"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/lookaround-negative-lookahead</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-negative-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-negative-lookahead"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/lookaround-negative-lookahead</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-negative-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-negative-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/lookaround-negative-lookahead</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-negative-lookahead"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-negative-lookahead"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-negative-lookahead"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/lookaround-lookbehind</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookbehind"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookbehind"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/lookaround-lookbehind</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookbehind"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookbehind"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/lookaround-lookbehind</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/lookaround-lookbehind"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/lookaround-lookbehind"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/lookaround-lookbehind"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/practical-email</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-email"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-email"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-email"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-email"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/practical-email</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-email"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-email"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-email"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-email"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/practical-email</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-email"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-email"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-email"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-email"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/practical-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/practical-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-url"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-url"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/practical-url</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-url"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/practical-log</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-log"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-log"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-log"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-log"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/practical-log</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-log"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-log"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-log"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-log"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/practical-log</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-log"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-log"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-log"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-log"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/practical-markdown-link</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-markdown-link"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-markdown-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-markdown-link"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-markdown-link"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/practical-markdown-link</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-markdown-link"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-markdown-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-markdown-link"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-markdown-link"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/practical-markdown-link</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-markdown-link"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-markdown-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-markdown-link"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-markdown-link"/>
   </url>
   <url>
     <loc>https://regexstudio.com/learn/practical-csv</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-csv"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-csv"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-csv"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-csv"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/learn/practical-csv</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-csv"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-csv"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-csv"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-csv"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/learn/practical-csv</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/learn/practical-csv"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/learn/practical-csv"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/learn/practical-csv"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/learn/practical-csv"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/email-find</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/email-find"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/email-find"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/email-find"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/email-find"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/email-find</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/email-find"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/email-find"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/email-find"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/email-find"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/email-find</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/email-find"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/email-find"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/email-find"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/email-find"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/https-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/https-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/https-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/https-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/https-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/https-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/https-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/https-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/https-url"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/https-url"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/https-url</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/https-url"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/https-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/https-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/https-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/ipv4</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/ipv4"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/ipv4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/ipv4"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/ipv4"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/ipv4</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/ipv4"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/ipv4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/ipv4"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/ipv4"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/ipv4</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/ipv4"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/ipv4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/ipv4"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/ipv4"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/hex-color</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/hex-color"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/hex-color"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/hex-color"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/hex-color"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/hex-color</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/hex-color"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/hex-color"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/hex-color"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/hex-color"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/hex-color</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/hex-color"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/hex-color"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/hex-color"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/hex-color"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/iso-date</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/iso-date"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/iso-date"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/iso-date"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/iso-date"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/iso-date</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/iso-date"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/iso-date"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/iso-date"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/iso-date"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/iso-date</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/iso-date"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/iso-date"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/iso-date"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/iso-date"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/strong-password</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/strong-password"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/strong-password"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/strong-password"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/strong-password"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/strong-password</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/strong-password"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/strong-password"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/strong-password"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/strong-password"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/strong-password</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/strong-password"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/strong-password"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/strong-password"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/strong-password"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/phone-na</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/phone-na"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/phone-na"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/phone-na"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/phone-na"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/phone-na</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/phone-na"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/phone-na"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/phone-na"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/phone-na"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/phone-na</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/phone-na"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/phone-na"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/phone-na"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/phone-na"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/slug-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/slug-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/slug-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/slug-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/slug-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/slug-url</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/slug-url"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/slug-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/slug-url"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/slug-url"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/slug-url</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/slug-url"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/slug-url"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/slug-url"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/slug-url"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/extract-md-link</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/extract-md-link"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/extract-md-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/extract-md-link"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/extract-md-link"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/extract-md-link</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/extract-md-link"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/extract-md-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/extract-md-link"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/extract-md-link"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/extract-md-link</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/extract-md-link"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/extract-md-link"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/extract-md-link"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/extract-md-link"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/css-class</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/css-class"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/css-class"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/css-class"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/css-class"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/css-class</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/css-class"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/css-class"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/css-class"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/css-class"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/css-class</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/css-class"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/css-class"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/css-class"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/css-class"/>
   </url>
   <url>
     <loc>https://regexstudio.com/challenges/uuid-v4</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/uuid-v4"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/uuid-v4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/uuid-v4"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/uuid-v4"/>
   </url>
   <url>
     <loc>https://regexstudio.com/zh/challenges/uuid-v4</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/uuid-v4"/>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/uuid-v4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/uuid-v4"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/uuid-v4"/>
+  </url>
+  <url>
+    <loc>https://regexstudio.com/ja/challenges/uuid-v4</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://regexstudio.com/challenges/uuid-v4"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://regexstudio.com/zh/challenges/uuid-v4"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://regexstudio.com/ja/challenges/uuid-v4"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://regexstudio.com/challenges/uuid-v4"/>
   </url>
 </urlset>

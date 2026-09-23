@@ -7,14 +7,14 @@ const lessons = [
   ['practical-email', 6],
 ] as const;
 
-test('the four polished lessons contain complete worked examples without JavaScript in both languages', async ({
+test('the four polished lessons contain complete worked examples without JavaScript in all languages', async ({
   browser,
   baseURL,
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   await context.route('https://**/*', (route) => route.abort());
   const page = await context.newPage();
-  for (const prefix of ['', '/zh']) {
+  for (const prefix of ['', '/zh', '/ja']) {
     for (const [id, count] of lessons) {
       const response = await page.goto(`${prefix}/learn/${id}`, { waitUntil: 'domcontentloaded' });
       expect(response?.status()).toBe(200);
@@ -24,7 +24,12 @@ test('the four polished lessons contain complete worked examples without JavaScr
       );
       await expect(
         page.getByRole('heading', {
-          name: prefix ? '参考资料与延伸阅读' : 'Sources and further reading',
+          name:
+            prefix === '/ja'
+              ? '出典と参考資料'
+              : prefix
+                ? '参考资料与延伸阅读'
+                : 'Sources and further reading',
         }),
       ).toBeVisible();
       expect(

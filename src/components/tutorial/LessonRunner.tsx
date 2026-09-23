@@ -8,10 +8,11 @@ import { MarkdownLite } from './MarkdownLite';
 import { GoalCard } from './GoalCard';
 import { HintList } from './HintList';
 import { FlavorCompareBlock } from './FlavorCompareBlock';
-import { useT } from '@/lib/i18n';
+import { useLocale, useT } from '@/lib/i18n';
 
 export function LessonRunner() {
   const t = useT();
+  const locale = useLocale();
   const lessonId = useTutorialStore((s) => s.currentLessonId);
   const stepIndex = useTutorialStore((s) => s.currentStepIndex);
   const lastResult = useTutorialStore((s) => s.lastResult);
@@ -77,6 +78,7 @@ export function LessonRunner() {
       .map((f) => f.key)
       .join('');
     return {
+      locale,
       pattern,
       flagString,
       jsFlagString: derived.jsFlagString,
@@ -89,7 +91,7 @@ export function LessonRunner() {
       testCaseResults: derived.testResults,
       hasFlag: (key: string) => flags.some((f) => f.key === key && f.enabled),
     };
-  }, [pattern, flags, testText, engine, testCases, derived, lesson]);
+  }, [pattern, flags, testText, engine, testCases, derived, lesson, locale]);
 
   // Run validation whenever the context changes.
   useEffect(() => {

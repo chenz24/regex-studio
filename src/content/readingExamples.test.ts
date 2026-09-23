@@ -8,7 +8,7 @@ const editedLessons = [
   'practical-email',
 ];
 
-for (const locale of ['en', 'zh'] as const) {
+for (const locale of ['en', 'zh', 'ja'] as const) {
   const lessons = getTracks(locale)
     .flatMap((track) => track.lessons)
     .filter((lesson) => editedLessons.includes(lesson.id));

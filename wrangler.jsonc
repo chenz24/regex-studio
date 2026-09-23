@@ -23,5 +23,5 @@
 	"vars": {
 		"VITE_GA_MEASUREMENT_ID": "G-Q62XMBLRYV"
 	},
-	"workers_dev": true
+	"workers_dev": false
 }

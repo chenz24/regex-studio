@@ -30,9 +30,9 @@ const TEXTS = {
       '- **JavaScript**: full variable-length lookbehind',
       '- **PCRE2 10.43+**: bounded variable-length lookbehind, e.g. `(?<=a{1,3})`; unbounded `(?<=a+)` is rejected',
       '- **Python `re`**: only **fixed-width** — even branches must match equal lengths; the third-party `regex` package unlocks variable-length',
-      '- **Java**: requires a computable upper bound',
+      '- **Java**: support depends on the Java version and pattern; verify against the target runtime',
       '',
-      'The widget below switches flavors for live comparison.',
+      'Practice mode includes an interactive flavor comparison.',
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript fully supports variable-length lookbehind since ES2018.',
@@ -79,9 +79,9 @@ const TEXTS = {
       '- **JavaScript**：完整支持变长后行断言',
       '- **PCRE2 10.43+**：支持有上界的变长后行，如 `(?<=a{1,3})`；不支持无上界的 `(?<=a+)`',
       '- **Python `re`**：只接受**固定宽度**——`(?<=foo|bar)` 在某些版本下也只放行长度一致的分支；用第三方 `regex` 包可解锁变长',
-      '- **Java**：要求宽度可推算上界',
+      '- **Java**：支持情况取决于版本和模式，应在目标运行时验证',
       '',
-      '下面这个小部件可以实时切换 Flavor 对比。',
+      '可以在练习模式中切换 Flavor 进行交互对比。',
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript 从 ES2018 开始完整支持变长后行断言。',
@@ -98,7 +98,7 @@ const TEXTS = {
       '- `(?<=...)` `(?<!...)` —— 后行断言',
       '- 全部**零宽**，匹配结果不包含断言内容',
       '',
-      '下一阶段（敬请期待）：Flavor 差异、Challenges 关卡、以及把这些工具拼成实战正则。',
+      '接下来可通过挑战关卡练习，并将这些工具组合成实用正则。',
     ].join('\n'),
   },
   ja: {
@@ -116,7 +116,7 @@ const TEXTS = {
     s2_hint: '`(?<!...)` は左側が指定のパターンに一致しないことを確認します。',
     s3_title: 'エンジンによる違い',
     s3_body:
-      '可変長の後読みへの対応はエンジンによって異なります。\n\n- **JavaScript**: 可変長の後読みに対応\n- **PCRE2 10.43 以降**: `(?<=a{1,3})` のように上限のある可変長に対応。`(?<=a+)` のような上限なしは不可\n- **Python `re`**: **固定長**のみで、選択肢も同じ長さが必要。外部の `regex` パッケージなら可変長も可能\n- **Java**: バージョンとパターンによる違いに注意\n\n下の比較欄で対象を切り替えて確認できます。',
+      '可変長の後読みへの対応はエンジンによって異なります。\n\n- **JavaScript**: 可変長の後読みに対応\n- **PCRE2 10.43 以降**: `(?<=a{1,3})` のように上限のある可変長に対応。`(?<=a+)` のような上限なしは不可\n- **Python `re`**: **固定長**のみで、選択肢も同じ長さが必要。外部の `regex` パッケージなら可変長も可能\n- **Java**: バージョンとパターンによる違いに注意\n\n練習モードの比較欄で対象を切り替えられます。',
     s3_compare: {
       javascript:
         'JavaScript の ES2018 で可変長の後読みが導入されました。利用できるかはブラウザーの対応状況にも依存します。',

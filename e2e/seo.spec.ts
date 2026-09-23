@@ -77,7 +77,27 @@ for (const locale of ['en', 'zh', 'ja'] as const) {
       );
       await expect(page.locator('meta[name=description]')).toHaveAttribute('content', /.+/);
       await expect(page.locator('meta[name=robots]')).toHaveCount(0);
+      const structuredScripts = page.locator('script[type="application/ld+json"]');
+      await expect(structuredScripts).toHaveCount(1);
+      const structured = JSON.parse((await structuredScripts.textContent())!);
+      expect(structured['@context']).toBe('https://schema.org');
+      if (entry.path === '/') {
+        expect(structured['@graph'].map((item: { '@type': string }) => item['@type'])).toEqual([
+          'WebSite',
+          'WebApplication',
+        ]);
+        expect(structured['@graph'][1].url).toBe(`https://regexstudio.com${path}`);
+      } else {
+        expect(structured['@type']).toBe('BreadcrumbList');
+        const crumbs = structured.itemListElement;
+        expect(crumbs).toHaveLength(entry.path.split('/').length);
+        expect(crumbs.at(-1).item).toBe(`https://regexstudio.com${path}`);
+        expect(crumbs.map((item: { position: number }) => item.position)).toEqual(
+          crumbs.map((_: unknown, index: number) => index + 1),
+        );
+      }
       if (entry.path.startsWith('/learn/')) {
+        expect(await page.getByTestId('reading-example').count()).toBeGreaterThan(0);
         const steps = page.locator('article > section');
         expect(await steps.count()).toBeGreaterThan(0);
         for (const step of await steps.all()) {
@@ -86,6 +106,9 @@ for (const locale of ['en', 'zh', 'ja'] as const) {
         }
       }
       if (entry.path.startsWith('/challenges/')) {
+        expect(
+          await page.locator(`article aside a[href^="${localized('/learn', locale)}/"]`).count(),
+        ).toBeGreaterThan(0);
         await expect(
           page.getByRole('heading', {
             name: { en: 'Test cases', zh: '测试用例', ja: 'テストケース' }[locale],
@@ -110,6 +133,9 @@ for (const locale of ['en', 'zh', 'ja'] as const) {
         .sort(),
     );
     for (const block of blocks) {
+      const lastmod = block.match(/<lastmod>(.*?)<\/lastmod>/)?.[1];
+      expect(lastmod).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Date.parse(lastmod!)).toBeLessThanOrEqual(Date.now());
       for (const language of ['en', 'zh-CN', 'ja', 'x-default'])
         expect(block).toContain(`hreflang="${language}"`);
     }
@@ -140,12 +166,17 @@ test('unknown paths are real 404s without canonical metadata', async ({ browser,
       await expect(page.locator('h1')).toHaveText('ページが見つかりません');
     await expect(page.locator('meta[name=robots]')).toHaveAttribute('content', 'noindex,follow');
     await expect(page.locator('link[rel=canonical], link[rel=alternate]')).toHaveCount(0);
+    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
   }
   await context.close();
 });
 
 test('aliases redirect permanently to the shared content', async ({ request }) => {
   for (const [from, to] of [
+    ['/ja/?source=guide', '/ja?source=guide'],
+    ['/learn/', '/learn'],
+    ['/zh/learn/', '/zh/learn'],
+    ['/ja/challenges/email-find/', '/ja/challenges/email-find'],
     ['/en?lesson=groups-capturing', '/?lesson=groups-capturing'],
     ['/en/learn/quantifiers-greedy?source=guide', '/learn/quantifiers-greedy?source=guide'],
     ['/learn/greedy-vs-lazy', '/learn/quantifiers-greedy'],
@@ -159,6 +190,23 @@ test('aliases redirect permanently to the shared content', async ({ request }) =
     const target = new URL(response.headers().location, response.url());
     expect(target.pathname + target.search).toBe(to);
   }
+});
+
+test('reading and practice pages render without remote font downloads', async ({ page }) => {
+  const fontRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.resourceType() === 'font' || /fonts\.(googleapis|gstatic)\.com/.test(request.url()))
+      fontRequests.push(request.url());
+  });
+  for (const path of ['/ja', '/zh/learn/groups-capturing', '/learn/groups-capturing']) {
+    await page.goto(path);
+    await expect(page.locator('h1')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  }
+  expect(fontRequests).toEqual([]);
 });
 
 test('top-right launchers offer both catalogue display modes', async ({ page }) => {

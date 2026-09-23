@@ -48,7 +48,7 @@ describe('ChallengeRunner', () => {
     expect(container.textContent).toContain('Evaluating');
     expect(useChallengeStore.getState().completion['https-url']).toBeUndefined();
     await act(async () => finish());
-    expect(container.textContent).toContain('2 / 6');
+    expect(container.textContent).toContain('0 / 13');
     expect(useChallengeStore.getState().completion['https-url']).toBeUndefined();
   });
   it.each([
@@ -60,14 +60,14 @@ describe('ChallengeRunner', () => {
     await act(async () => {
       useRegexStore.getState().loadPattern('@', 'g');
     });
-    await waitFor(() => expect(container.textContent).toContain('3 / 5'));
+    await waitFor(() => expect(container.textContent).toContain('1 / 5'));
     await act(async () => {
       for (const id of ['email-find__3', 'email-find__4']) {
         if (action === 'delete') useRegexStore.getState().removeTestCase(id);
         else useRegexStore.getState().updateTestCase(id, { input: 'no email here' });
       }
     });
-    expect(container.textContent).toContain('3 / 5');
+    expect(container.textContent).toContain('1 / 5');
     expect(useChallengeStore.getState().completion[challenge.id]).toBeUndefined();
   });
   it('renders the challenge it was given', async () => {

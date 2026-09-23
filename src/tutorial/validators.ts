@@ -151,6 +151,34 @@ const allTestCasesPass = (): Validator => (ctx) => {
 /** Always passes — useful for "informational" steps that just need user click-through. */
 const always = (): Validator => () => ({ pass: true, checks: [] });
 
+/** Verify the documented complete matches and captures, not only a hit count. */
+const matchedResultsAre =
+  (expected: Array<{ text: string; groups: string[] }>): Validator =>
+  (ctx) => {
+    const values = matchedValuesAre(expected.map((item) => item.text))(ctx);
+    const capturesMatch =
+      ctx.matches.length === expected.length &&
+      ctx.matches.every(
+        (match, i) =>
+          match.match === expected[i].text &&
+          JSON.stringify(match.groups.map((group) => group.value)) ===
+            JSON.stringify(expected[i].groups),
+      );
+    return {
+      pass: values.pass && capturesMatch,
+      checks: [
+        ...values.checks,
+        {
+          label:
+            m.reading_whole_match({}, options(ctx)) +
+            ' / ' +
+            m.reading_group({ number: '1…' }, options(ctx)),
+          pass: capturesMatch,
+        },
+      ],
+    };
+  };
+
 export const v = {
   all,
   any,
@@ -160,6 +188,7 @@ export const v = {
   matchesAtLeast,
   matchesExactly,
   matchedValuesAre,
+  matchedResultsAre,
   flagEnabled,
   flagDisabled,
   engineIs,

@@ -21,7 +21,7 @@
   "share_label": "Share",
   "share_copied": "Copied",
   "footer_about_heading": "About RegexStudio — Online Regular Expression Tester & Visualizer",
-  "footer_about_p1": "RegexStudio is a free, browser-based regex tester, debugger and visualizer that helps developers build, understand and optimize regular expressions. Write a pattern and instantly see real-time matches, capture groups, an interactive railroad diagram, an AST tree view, replacement previews and detailed explanations — all running locally in your browser with zero data sent to any server.",
+  "footer_about_p1": "RegexStudio is a free browser-based regex tester, debugger and visualizer. Match patterns, inspect capture groups, explore railroad diagrams and preview replacements. Regex matching and replacement run locally in your browser. The website uses analytics to understand visits and usage.",
   "footer_about_p2_prefix": "Whether you are learning regex syntax, debugging a tricky pattern, or validating emails, URLs, phone numbers, dates, IP addresses or log lines, RegexStudio runs JavaScript and PCRE2 locally. Python, Java, Go, .NET and Rust are optional static compatibility checks. Execution flags include ",
   "footer_about_p2_suffix": ".",
   "footer_col_features": "Features",
@@ -45,7 +45,7 @@
   "footer_col_project": "Project",
   "footer_project_github": "GitHub",
   "footer_project_client_side": "100% client-side",
-  "footer_project_no_tracking": "No tracking, no ads",
+  "footer_project_no_tracking": "No ads; uses website analytics",
   "footer_project_oss": "Free & open source",
   "footer_copyright": "© {year} RegexStudio. All rights reserved.",
   "footer_built_with_prefix": "Built with",
@@ -678,5 +678,8 @@
   "tut_check_engine": "Engine is `{engine}`",
   "tut_check_cases": "All test cases pass",
   "tut_check_no_cases": "No test cases defined",
-  "tut_check_case_progress": "{passed}/{total} passing"
+  "tut_check_case_progress": "{passed}/{total} passing",
+  "content_related_lessons": "Learn the techniques",
+  "content_related_challenges": "Practice this topic",
+  "content_expected_matches": "Expected matches (in order)"
 }

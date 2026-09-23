@@ -9,6 +9,7 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { getAnalyticsScripts, trackPageView } from '@/lib/analytics';
+import { getStructuredData, serializeStructuredData } from '@/lib/structuredData';
 import {
   isLocale,
   LocaleProvider,
@@ -140,6 +141,15 @@ export const Route = createRootRoute({
     }
 
     const scripts = getAnalyticsScripts();
+    const structuredData = isKnown
+      ? getStructuredData({ origin: SITE_URL, locale, basePath, description, page })
+      : undefined;
+    if (structuredData) {
+      scripts.push({
+        type: 'application/ld+json',
+        children: serializeStructuredData(structuredData),
+      });
+    }
 
     return { meta, links, scripts };
   },

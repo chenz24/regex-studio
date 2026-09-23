@@ -1,0 +1,422 @@
+{
+  "/": {
+    "hash": "3c259634f6220cb22b44cfbb62ea18effb328f1ab0f2cd0a12c935cf499a8c98",
+    "lastmod": "2026-09-23"
+  },
+  "/learn": {
+    "hash": "ee33cc557a7bb4e5c5b089fbf6926d8185fa08064eeda48dc6c906f45888de5e",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges": {
+    "hash": "2b1cdac6212519ceeccf9a3ce51590c9730dba155bd54d88adf4b132782e4cb5",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/basics-literals": {
+    "hash": "d433c68737e3df9ec346f14723184ee5cdc7af2191937aa0e441fc8e81a3db17",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/basics-classes": {
+    "hash": "d66ab61855f6bc44f97d69147e3e7a324725c241165d99b4b789edb19ca3fb0c",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/basics-dot-and-escapes": {
+    "hash": "7758ec3d25494286dcca9e3cf787d92856821a00a51ee405329099486fb5fe0a",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/basics-anchors": {
+    "hash": "389d334b08c050bb941a6c6c87b6057b4a68750a632750f33e9c9551bde630f8",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/basics-quantifiers": {
+    "hash": "e0e1a7b382c98538b434f42221d3eb3e497f063ba3539247bccc9c546c947897",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/quantifiers-greedy": {
+    "hash": "8e1b283df8e1d17996dab6a905181b4f1b883f5d422b56af1bbaee9f428cb394",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/quantifiers-lazy": {
+    "hash": "d99e2508c4a242115ed491d9883e1628609bac098409003729964f1c0e5b6c48",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/quantifiers-counted": {
+    "hash": "81be6136584dfd946a95629fce2bf0b6827b47b4756da14c6c3818e82b4c1e24",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/quantifiers-backtracking": {
+    "hash": "54017baffbde892ef62a2f14fffb981be00e8b995881063426cdcc408f56788e",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/groups-capturing": {
+    "hash": "5c60cad1d8cfe213421fe79058d8ae0e781dc886202c0b03e7bfeda10fc3dccb",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/groups-alternation": {
+    "hash": "3dd28980d5edb6f1b0038c9cdaa5c4fca889a501d3341f71eee77b696512879f",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/groups-backreferences": {
+    "hash": "5dcfcba7be2717f81185fdbe85e1fc7cacd4f0139dd3c525098d7090f4072d22",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/groups-named-and-noncapturing": {
+    "hash": "f9e52a5c2dbe50f9c3317923056daa1fc0ea75fda6794c9bc835364777bbb6e8",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/lookaround-lookahead": {
+    "hash": "53c1feba7709bcea7f2a6e453ab5f7d99633829b035675a342c0256657750908",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/lookaround-negative-lookahead": {
+    "hash": "603e9fb3f66b81e3be1d1d57b593dd18bc962d67dea298e20fc499c9545baf56",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/lookaround-lookbehind": {
+    "hash": "12a32460937864927c19084577dc5f697feca134cf2135f01c512c477fdf4772",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/practical-email": {
+    "hash": "7aa5534834c91296c2ac65767399bd5d7e1d592846880269c892b460844beb48",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/practical-url": {
+    "hash": "d4969ba492e48309a091e6e7e80505f4491826ea50fb7fb6afd1a21206922023",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/practical-log": {
+    "hash": "a95b3873c1917d46675b8c74366b15b2c04b3150f9a18482e8f745bbea526944",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/practical-markdown-link": {
+    "hash": "4ec020272b77e1e31328e5617f7244042a0425fbbeb068c40cf10162262303f9",
+    "lastmod": "2026-09-23"
+  },
+  "/learn/practical-csv": {
+    "hash": "ca8d315941ad16c97985799db047a4984bf4631a3c910e8dbf39f353d4b98df9",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/email-find": {
+    "hash": "939eafdcb172050a44935afa0970ef2234a264d65044daad8723015fd1fdba68",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/https-url": {
+    "hash": "daafb2f8e8239144db248c2f8b40311303634b1a305a35d40e5a8f29f5e1fd6b",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/ipv4": {
+    "hash": "8e9f462e2bdf77d37ad89a11338e9caf5437d85c2f89e530d41ebe7c10287281",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/hex-color": {
+    "hash": "ec95867ffb14b8c0ce18f9bbc29e0cfe0b8963179b52f0d6fcfba03d2f73b015",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/iso-date": {
+    "hash": "db3803999ec76be4c1691d26937ba537ffd85ad756f8e656342d8ad598c7a36a",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/strong-password": {
+    "hash": "87bd73f0c2d43cd7cebc82cbfef9a07bfc2af67601a103bd48aba02d6690e55b",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/phone-na": {
+    "hash": "3fd19c310fe013ed9fe4a7ea7aca0202b2dbb60687aa805887cd0fbe19013a2f",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/slug-url": {
+    "hash": "57898375eccedf0c2774ae61b25141f86a6d2b9039e040925d364bd18806f93a",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/extract-md-link": {
+    "hash": "22b782234bc3f5ed96156311b979161d7cf935edf5783e858076691dd0c02911",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/css-class": {
+    "hash": "8e1f479a0e5583f43ca168bbcebfeafc901963959030d0308c59b53fce15487d",
+    "lastmod": "2026-09-23"
+  },
+  "/challenges/uuid-v4": {
+    "hash": "4907c36348836779107f051c54fae904ea8986367d11b0aa78b1541467604092",
+    "lastmod": "2026-09-23"
+  },
+  "/zh": {
+    "hash": "59bbf12c7c8ff6b30057d3f773700b5c3cac6db47f6453447652341c61076578",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn": {
+    "hash": "5adfa988306a981f71d1d59d12e7130fac06d47fda02122704a977365c1dc7c4",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges": {
+    "hash": "ae7ad0e0ad6c47b900de913eefadc5a448f9a996046fe411a2852920b5d4fc0f",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/basics-literals": {
+    "hash": "63cfac6ac99b442adb286e9f531451d618fe5aa1eba78048fc3fcfa9206b5bbe",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/basics-classes": {
+    "hash": "962eac4a2f62d607fddfab0fd7dd78f6a01b6328942cc0ec0e35213e85166799",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/basics-dot-and-escapes": {
+    "hash": "843b6e63acb152d5599bb5d5a108093a3f25f5d0e70c17cc758b77420393dfc7",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/basics-anchors": {
+    "hash": "a20749da726b207785859f6c46bf4cc3a4a1ac61f75f83d7f2d1722c7cc1382a",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/basics-quantifiers": {
+    "hash": "860990a1a8d59110b355626c989ca601d470f4833c5bebb7ef4538f8b361b337",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/quantifiers-greedy": {
+    "hash": "2abdeb7dd65e62cc168225691238543ec76165e5f9237507e42d1f7d8b958cec",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/quantifiers-lazy": {
+    "hash": "7653b8078e8ace86092ab5cd69920961f6d4718cc80ffc6279259fd132677974",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/quantifiers-counted": {
+    "hash": "4932b69966759b901da30b2b3527e1592112767b2c643b374d6e5da7f0ece245",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/quantifiers-backtracking": {
+    "hash": "3aa80c3d89daad6758e4cdfe37ed4eb958839a5e01d4cca791e6dfb25b3d4e2c",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/groups-capturing": {
+    "hash": "26cc23cf302bd8315bc8b6fabf8f6192189c0deea92ef1511b2b1d529118b675",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/groups-alternation": {
+    "hash": "a1d4e7c66d38589136661fb67742fa79e8aa62993ad69bfc97a99ef82db1e2f0",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/groups-backreferences": {
+    "hash": "0be55b36e68cd2484b894c09c336f0928319be1c37bbd9af8c1c0601ee34ae87",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/groups-named-and-noncapturing": {
+    "hash": "5b07582621091d237f66abaff5190da9d9372abc62d11509d3748e581df16fd8",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/lookaround-lookahead": {
+    "hash": "ea72bd206503da685a87679c06ce20d15c6b777f8fbfe724abcb40a108c66edb",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/lookaround-negative-lookahead": {
+    "hash": "452124257d94cae86dd7e7dc262b89c14510f2d1cce94e612901e092cf3c9af2",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/lookaround-lookbehind": {
+    "hash": "9f537a5dc48c0a1be2a6b7aca82844f079a7c183110402216638086cb754e0f3",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/practical-email": {
+    "hash": "d5463f02dffb0e453a11569d434323c8f842bdfef31a07337ddf437922c44437",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/practical-url": {
+    "hash": "c0cb530f81033d65c21d4ccce5e23e990aaca4b1f32dabe0907f6fb221616595",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/practical-log": {
+    "hash": "cc9a0dde69c0cc4143d4f5bf511a4f655f93ee8e09aefb8ebc0bba4ed6b89220",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/practical-markdown-link": {
+    "hash": "0d1c0a24e0b460706bf73656cfe48a029f6a56e63fb377b7dea1a16c15c5866d",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/learn/practical-csv": {
+    "hash": "43ffdf155f53b9e42a742680033d2b8d06f35de7cae9d752ab31c2ead81ad1f2",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/email-find": {
+    "hash": "11ef1015d62225f74bfc5d1c34f2e1bc0610ad8d409a24f274fef4b07deaa666",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/https-url": {
+    "hash": "7bde9bde49221b3e5067949843fbccf7653b04b1a94487d6131eaecca991ef26",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/ipv4": {
+    "hash": "4a70158214c23ecd9cc0e496f7c684b903f52bcb07cc1db31974cd3ddae5e8ed",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/hex-color": {
+    "hash": "52d06a3b5e3c6f106ba7e74010ba0d09370af889143762bcd339d0aeaf8c82e2",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/iso-date": {
+    "hash": "ff2adb584447414aaca2c88ed92971e95463709f2d1904fc9ed5b133eaeea66f",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/strong-password": {
+    "hash": "c666400c409317ccb25b5b195f9ee5ab8002a78ea93c312840e939fdb9884a25",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/phone-na": {
+    "hash": "d9cb3098d03216ee6fe2df0f17eab0bc72b0b637b9407d04e98f9e9f6250e399",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/slug-url": {
+    "hash": "b904f8864716b5a3f51d7123cc50f2c4f1eee03697063601f98722ae5e0ca42b",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/extract-md-link": {
+    "hash": "9828a39d8622899a23c7d80e9614b0de4e2ff882df33652325fc0a10e7186260",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/css-class": {
+    "hash": "554bf3d4dd18756bfdf7efb2818c6bdde010a73f2d6b8090b6f57ab07f3d4452",
+    "lastmod": "2026-09-23"
+  },
+  "/zh/challenges/uuid-v4": {
+    "hash": "20ee1c2ae2ce591b7e04aaad380eb1ef180d5458ab55c516852fb786c7249015",
+    "lastmod": "2026-09-23"
+  },
+  "/ja": {
+    "hash": "f58330dec017953f824e808d1b4c5163548692892b07f1e8cc72cecf39b11156",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn": {
+    "hash": "8f86692f0ec1df93aad293cf610e74e55a3b1917c662a56d8f68a322e7036392",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges": {
+    "hash": "3f5d03cade3460dac52c824afaf148c939fe73b678e6d182799f780888f71e3e",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/basics-literals": {
+    "hash": "9beda232877ae8916b7bbe85179ee36d2947f222f98d76d24ac6452dcad849ed",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/basics-classes": {
+    "hash": "4baf96e3cd64ac6fe06d695ad01adbc150b16340a97f2f90de5612fa499ed162",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/basics-dot-and-escapes": {
+    "hash": "17dcc88432fc28c07aab9cc6934cb9723f8364363271844d154d17050ba8c6b6",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/basics-anchors": {
+    "hash": "5482271059a415ae916d799d50b91258911f1269d5637b1f2263a6258cb49c6c",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/basics-quantifiers": {
+    "hash": "8d22a97500d4fddd2bc78cf2ee09e8391d2e8354ff0434f1fabe2dc9a3a12197",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/quantifiers-greedy": {
+    "hash": "eee288dd7574b890041ce81abeec2d9319839037ebe7c8d65984cba0a367b183",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/quantifiers-lazy": {
+    "hash": "8c70dd350d510fa675d60f44ea6f1cef4f869f116c31efd94c40e74875b78bb4",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/quantifiers-counted": {
+    "hash": "862742bcc56112e83d22ab8a53870c0aefaf4ceb9472152a58cae36dbd5070ac",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/quantifiers-backtracking": {
+    "hash": "2e1a8064f2f4b86c1ad157e90fd1a60ecd776fce150407dbe94d89a943018722",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/groups-capturing": {
+    "hash": "e39221063939145aff41204eccb0249e4a2a77eea1523a0a2dd2f84f8d448750",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/groups-alternation": {
+    "hash": "6bee6331410e6bb25b7c0dbf6bbe4c9b1b8e006fda6390dcdd5169cf2f8072a7",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/groups-backreferences": {
+    "hash": "53b89eb1e341ec49b1cdd9ab5c8e08e7a11f7f6ad93620a05065693f4af63032",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/groups-named-and-noncapturing": {
+    "hash": "8fb9f336cc1f4a1e2a25f8d422c72d91ca24a6aa656a0e67c707bf7dbb63d4d1",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/lookaround-lookahead": {
+    "hash": "3b2bbc55a3ee52c67d13aedef6631c27b2f746f979babe2c577b5995cc79f63e",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/lookaround-negative-lookahead": {
+    "hash": "794a9b06e9bf4f0d5f756b47d2120d3c76caa99ee8f044e5ca44c65489ec8867",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/lookaround-lookbehind": {
+    "hash": "3669f85d0e60a6d8ef76860d92053bd21ebb2a9d5e90394501964cdbea3eafd9",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/practical-email": {
+    "hash": "1ffaafa422f156e78870b28ac707259152af23c7ba09f2a93d6fc39bcd20b683",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/practical-url": {
+    "hash": "d74087e2aa399175bcf473c0c6f689fcec1284559382d15ea7309514b8e91d38",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/practical-log": {
+    "hash": "40f68058ebb703a8894e8d187b25731d58aaa29e0ecef1928c674beb1271aacf",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/practical-markdown-link": {
+    "hash": "d143c7a5c0375a0efd25ad8abdeeea65b6b4685f51f7eae2fcc8abb5d97ccd26",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/learn/practical-csv": {
+    "hash": "fb1878862d5c428bb0b5bfdb6ba67f521819f253d3aad37017176f252a231920",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/email-find": {
+    "hash": "f72221baba403da3e0094db9dacdf6255951c2a1b05fd2b3f81d2f843d4f9919",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/https-url": {
+    "hash": "e0096e1ecbd83edc82b09001e1674db472b731e623cc7f8e5b783e139d36e6c5",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/ipv4": {
+    "hash": "553f8b282e5727f32b7b00de04374c98c4783727853ddf7fa3f2de0e2f1a2c23",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/hex-color": {
+    "hash": "a41b4f14f8e26a623f0ba64872073fb1bd4397ed5749567f9ad4666a7e25f6ca",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/iso-date": {
+    "hash": "c441528d6eeffad817af5d4fd55ae734a388cb705d77bb963bd558adc2513959",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/strong-password": {
+    "hash": "833c17636024fd41575f592ba471b5946e968d76be4643806d3192f00b6b58b5",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/phone-na": {
+    "hash": "451ea7c5931890e55ee16bfe59b5f96395082bbc35b7f840f79997ad212e9bcc",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/slug-url": {
+    "hash": "e1aa288641c8c95a0263e32fe744e2614e296c48df6c4cd56412eec0c6a84ca6",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/extract-md-link": {
+    "hash": "7d1e65a576c15332cc445e0a67e1a48c46f948b1cb826240b0a8a1b1a44dffcd",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/css-class": {
+    "hash": "21e8dfc28a5258f8a3192ce46a2035558821b27f39465bf246d42fd5d2d7827b",
+    "lastmod": "2026-09-23"
+  },
+  "/ja/challenges/uuid-v4": {
+    "hash": "bc8ceca9a2d05d0ec52cbeb16b2b4b429cec645e99fb2d0570d0e9ee63ce68fd",
+    "lastmod": "2026-09-23"
+  }
+}

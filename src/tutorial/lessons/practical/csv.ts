@@ -18,7 +18,7 @@ const TEXTS = {
     s1_hint: '`[^,]+` reads until the next comma.',
     s2_title: 'Problem: a comma inside quotes was treated as a separator',
     s2_body: [
-      'You should see ≥ 7 matches, but the **correct** field count is 5.',
+      'You should see 6 matches, but the **correct** field count is 5.',
       '',
       'The `,` inside `"Wonderland, NJ"` is field content, not a separator — but `[^,]+` does not know that.',
       '',
@@ -76,7 +76,7 @@ const TEXTS = {
     s1_hint: '`[^,]+` 一直读到下一个逗号为止。',
     s2_title: '问题：引号里的逗号被错切了',
     s2_body: [
-      '匹配数应该 ≥ 7，但**正确**的字段数其实是 5。',
+      '匹配数应该 6，但**正确**的字段数其实是 5。',
       '',
       '`"Wonderland, NJ"` 里的 `,` 是字段内容的一部分，不应该作为分隔符，但 `[^,]+` 不知道这件事。',
       '',
@@ -130,7 +130,7 @@ const TEXTS = {
     s1_hint: '`[^,]+` は次のカンマまで読み進めます。',
     s2_title: '問題: 引用符の中のカンマまで区切ってしまう',
     s2_body:
-      '7 件以上一致しますが、**正しい**フィールド数は 5 です。\n\n`"Wonderland, NJ"` の中のカンマは内容の一部なのに、`[^,]+` は区切りとみなします。\n\nまず**引用符付きフィールド**をひとまとまりで取り、それ以外を `[^,]+` で扱いましょう。`|` で 2 つの形式を分ける方法です。',
+      '6 件一致しますが、**正しい**フィールド数は 5 です。\n\n`"Wonderland, NJ"` の中のカンマは内容の一部なのに、`[^,]+` は区切りとみなします。\n\nまず**引用符付きフィールド**をひとまとまりで取り、それ以外を `[^,]+` で扱いましょう。`|` で 2 つの形式を分ける方法です。',
     s3_title: '引用符付きの分岐を追加する',
     s3_body:
       '`"[^"]*"|[^,]+` と書きましょう。\n\n- 左側 `"[^"]*"`: 引用符の組と、その中の引用符以外の文字\n- 右側 `[^,]+`: 通常のフィールド\n\n`|` は左から試し、左で成功すれば右には進みません。',
@@ -173,7 +173,11 @@ export function createCsvLesson(locale?: Locale): Lesson {
         id: 's1',
         title: t.s1_title,
         body: t.s1_body,
-        validate: v.all(v.patternEquals('[^,]+'), v.matchesAtLeast(7)),
+        validate: v.all(
+          v.patternEquals('[^,]+'),
+          v.matchedValuesAre(['alice', '42', '"Wonderland', ' NJ"', 'engineer', '"says ""hi"""']),
+        ),
+        solution: { pattern: '[^,]+' },
         hints: [t.s1_hint],
         spotlight: { patternSubstrings: ['[^,]+'], openPanel: 'matches' },
       },
@@ -187,7 +191,18 @@ export function createCsvLesson(locale?: Locale): Lesson {
         id: 's3',
         title: t.s3_title,
         body: t.s3_body,
-        validate: v.all(v.patternEquals('"[^"]*"|[^,]+'), v.matchesAtLeast(5)),
+        validate: v.all(
+          v.patternEquals('"[^"]*"|[^,]+'),
+          v.matchedValuesAre([
+            'alice',
+            '42',
+            '"Wonderland, NJ"',
+            'engineer',
+            '"says "',
+            '"hi"',
+            '""',
+          ]),
+        ),
         hints: t.s3_hints,
         solution: {
           pattern: '"[^"]*"|[^,]+',
@@ -199,7 +214,10 @@ export function createCsvLesson(locale?: Locale): Lesson {
         id: 's4',
         title: t.s4_title,
         body: t.s4_body,
-        validate: v.all(v.patternEquals('"(?:[^"]|"")*"|[^,]+'), v.matchesExactly(5)),
+        validate: v.all(
+          v.patternEquals('"(?:[^"]|"")*"|[^,]+'),
+          v.matchedValuesAre(['alice', '42', '"Wonderland, NJ"', 'engineer', '"says ""hi"""']),
+        ),
         hints: t.s4_hints,
         solution: {
           pattern: '"(?:[^"]|"")*"|[^,]+',

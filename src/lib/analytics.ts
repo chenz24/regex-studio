@@ -14,7 +14,7 @@
 type Env = Record<string, string | undefined>;
 
 function readEnv(): Env {
-  return ((import.meta as unknown as { env?: Env }).env ?? {}) as Env;
+  return import.meta.env;
 }
 
 export interface AnalyticsConfig {
@@ -55,6 +55,8 @@ export function getAnalyticsScripts(): Array<Record<string, unknown>> {
       src: config.umami.src,
       defer: true,
       'data-website-id': config.umami.websiteId,
+      'data-exclude-search': 'true',
+      'data-exclude-hash': 'true',
     });
   }
 
@@ -65,7 +67,7 @@ export function getAnalyticsScripts(): Array<Record<string, unknown>> {
       async: true,
     });
     scripts.push({
-      children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${id}',{send_page_view:false});`,
+      children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(id).replace(/</g, '\\u003c')},{send_page_view:false,page_location:location.origin+location.pathname,page_referrer:document.referrer.split(/[?#]/)[0]});`,
     });
   }
 
@@ -89,23 +91,26 @@ function getWin(): AnalyticsWindow | undefined {
 /**
  * Track a SPA page view across configured providers.
  * - GA4: emits a manual `page_view` event (auto page_view is disabled above).
- * - Umami: auto-tracks history changes; we only call its API as a fallback
- *   in case auto-tracking is disabled by the user's instance.
+ * - Umami: auto-tracks history changes with search/hash excluded above.
+ * Share URLs can contain regex inputs, so only report the page's pathname.
  */
 export function trackPageView(path: string, title?: string): void {
   const win = getWin();
   if (!win) return;
 
   const config = getAnalyticsConfig();
-  const url = path || (typeof location !== 'undefined' ? location.pathname + location.search : '/');
+  const url = (path || location.pathname).split(/[?#]/)[0];
   const pageTitle = title ?? (typeof document !== 'undefined' ? document.title : undefined);
 
   if (config.ga && typeof win.gtag === 'function') {
-    win.gtag('event', 'page_view', {
+    const page = {
       page_path: url,
-      page_location: typeof location !== 'undefined' ? location.href : undefined,
+      page_location: location.origin + url,
+      page_referrer: document.referrer.split(/[?#]/)[0],
       page_title: pageTitle,
-    });
+    };
+    win.gtag('set', page);
+    win.gtag('event', 'page_view', page);
   }
   // Umami auto-tracks on history changes; no manual call needed by default.
 }

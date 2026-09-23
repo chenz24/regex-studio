@@ -23,7 +23,7 @@ const TEXTS = {
     s2_body: [
       'Backreferences also enforce "matching open/close symbols".',
       '',
-      'Switch the test text. Write `(["\\\'])(.*?)\\1` — group 1 captures a quote (`"` or `\'`), `.+?` matches anything in the middle lazily, then `\\1` requires the **same** quote to close.',
+      'Switch the test text. Write `(["\\\'])(.*?)\\1` — group 1 captures a quote (`"` or `\'`), `.*?` matches the middle lazily, including empty content, then `\\1` requires the **same** quote to close.',
     ].join('\n'),
     s2_hints: [
       "`'` does not need escaping inside a character class, but a JS string literal needs `\\'`.",

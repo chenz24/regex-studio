@@ -1,5 +1,7 @@
 import { findMatches, isValidRegex } from '../utils/regexMatcher';
 import type { Challenge } from './types';
+import type { TestCaseResult } from '@/types/regex';
+import { gradeTestCase } from '@/utils/testCaseGrader';
 
 export interface ChallengeCaseResult {
   index: number;
@@ -24,10 +26,9 @@ export interface ChallengeEvaluation {
 /**
  * Evaluate a challenge against the user's current pattern + flags.
  *
- * For each test case: a `match` expectation means findMatches must return at
- * least one hit; `noMatch` means it must return zero. The user is responsible
- * for anchoring with `^...$` when the challenge requires whole-string
- * validation — this is documented in the challenge description.
+ * Checks presence and the case's exact assertions. Extraction challenges
+ * require complete ordered results; validators require the entire input.
+ * The interactive runner uses worker results via evaluateChallengeFromResults.
  */
 export function evaluateChallenge(
   challenge: Challenge,
@@ -74,8 +75,15 @@ export function evaluateChallenge(
 
   const results = challenge.testCases.map((tc, i) => {
     const matches = findMatches(pattern, flags, tc.input);
-    const has = matches.length > 0;
-    const pass = tc.expect === 'match' ? has : !has;
+    const { pass } = gradeTestCase(
+      { ...tc, id: challengeCaseId(challenge.id, i) },
+      {
+        matches,
+        matchCount: matches.length,
+        truncated: false,
+        detailsTruncated: false,
+      },
+    );
     return {
       index: i,
       label: tc.label,
@@ -97,21 +105,23 @@ export function evaluateChallenge(
 }
 
 /**
- * Same verdict as `evaluateChallenge`, but from match counts that have
- * already been computed for the original challenge inputs. Missing counts
- * are inconclusive, never evidence that a noMatch expectation was satisfied.
+ * Grade existing worker executions without running user regexes on the UI
+ * thread. Counts alone can only grade legacy presence-only cases. Missing or
+ * incomplete executions never satisfy an exact assertion.
  */
 export function evaluateChallengeFromResults(
   challenge: Challenge,
   pattern: string,
   validation: { valid: boolean; error?: string },
-  matchCountByCaseId: ReadonlyMap<string, number>,
+  resultsByCaseId: ReadonlyMap<string, number | TestCaseResult>,
 ): ChallengeEvaluation {
   const total = challenge.testCases.length;
   const invalid = Boolean(pattern) && !validation.valid;
 
   const results = challenge.testCases.map((tc, i) => {
-    const count = matchCountByCaseId.get(challengeCaseId(challenge.id, i));
+    const id = challengeCaseId(challenge.id, i);
+    const result = resultsByCaseId.get(id);
+    const count = typeof result === 'number' ? result : result?.matchCount;
     const matchCount = count ?? 0;
     const hasMatch = !invalid && Boolean(pattern) && matchCount > 0;
     return {
@@ -123,7 +133,9 @@ export function evaluateChallengeFromResults(
         count !== undefined &&
         !invalid &&
         Boolean(pattern) &&
-        (tc.expect === 'match' ? hasMatch : !hasMatch),
+        (typeof result === 'object'
+          ? gradeTestCase({ ...tc, id }, result.actual, result).pass
+          : !tc.assertions && (tc.expect === 'match' ? hasMatch : !hasMatch)),
       matchCount,
     };
   });

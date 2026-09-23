@@ -1,26 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { getTracks } from '@/tutorial/registry';
 
-const editedLessons = [
-  'quantifiers-greedy',
-  'quantifiers-lazy',
-  'groups-capturing',
-  'practical-email',
-];
-
 for (const locale of ['en', 'zh', 'ja'] as const) {
-  const lessons = getTracks(locale)
-    .flatMap((track) => track.lessons)
-    .filter((lesson) => editedLessons.includes(lesson.id));
+  const lessons = getTracks(locale).flatMap((track) => track.lessons);
   describe(`${locale} standalone lesson examples`, () => {
-    it('includes a complete reading explanation for each step of the four edited lessons', () => {
-      expect(lessons).toHaveLength(4);
+    it('includes a complete reading explanation for every published lesson', () => {
+      expect(lessons).toHaveLength(21);
       for (const lesson of lessons) {
         expect(lesson.reading?.introduction).toBeTruthy();
         for (const step of lesson.steps) {
           expect(step.reading?.body, `${lesson.id}/${step.id}`).toBeTruthy();
-          expect(step.reading?.examples?.length, `${lesson.id}/${step.id}`).toBeGreaterThan(0);
         }
+        expect(lesson.steps.flatMap((step) => step.reading?.examples ?? []).length).toBeGreaterThan(
+          0,
+        );
       }
     });
     for (const lesson of lessons) {

@@ -4,6 +4,9 @@ import { MarkdownLite } from '@/components/tutorial/MarkdownLite';
 import { plainTitle } from '@/content/publicCatalog';
 import { LearnLayout } from './LearnLayout';
 import { ModeSwitch } from './ModeSwitch';
+import { RelatedLearning } from './RelatedLearning';
+import { similarChallengeIds } from '@/content/relatedLearning';
+import { ExpectedMatches } from '@/components/challenges/ExpectedMatches';
 
 export function ChallengePage({ id }: { id: string }) {
   const locale = useLocale();
@@ -52,6 +55,7 @@ export function ChallengePage({ id }: { id: string }) {
                 <pre className="mt-3 whitespace-pre-wrap break-words text-sm text-gray-600 dark:text-gray-400">
                   {item.input || t.chal_runner_empty_input()}
                 </pre>
+                <ExpectedMatches texts={item.assertions?.texts} />
               </li>
             ))}
           </ul>
@@ -84,26 +88,29 @@ export function ChallengePage({ id }: { id: string }) {
         >
           {t.content_start_challenge()} &rarr;
         </a>
-        <nav
-          aria-label={t.learn_related()}
-          className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800"
-        >
-          <h2 className="mb-4 font-semibold">{t.content_more_challenges()}</h2>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {challenges
-              .filter((item) => item.id !== id)
-              .map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={localizedPath(`/challenges/${item.id}`, locale)}
-                    className="text-teal-700 hover:underline dark:text-teal-300"
-                  >
-                    {plainTitle(item.title)}
-                  </a>
-                </li>
-              ))}
-          </ul>
-        </nav>
+        <RelatedLearning kind="challenge" id={id} />
+        {similarChallengeIds(id).length > 0 && (
+          <nav
+            aria-label={t.learn_related()}
+            className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800"
+          >
+            <h2 className="mb-4 font-semibold">{t.content_more_challenges()}</h2>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {challenges
+                .filter((item) => similarChallengeIds(id).includes(item.id))
+                .map((item) => (
+                  <li key={item.id}>
+                    <a
+                      href={localizedPath(`/challenges/${item.id}`, locale)}
+                      className="text-teal-700 hover:underline dark:text-teal-300"
+                    >
+                      {plainTitle(item.title)}
+                    </a>
+                  </li>
+                ))}
+            </ul>
+          </nav>
+        )}
       </article>
     </LearnLayout>
   );

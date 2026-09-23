@@ -21,7 +21,7 @@
   "share_label": "分享",
   "share_copied": "已复制",
   "footer_about_heading": "关于 RegexStudio — 在线正则表达式测试与可视化工具",
-  "footer_about_p1": "RegexStudio 是一款免费的、运行在浏览器中的正则表达式测试、调试与可视化工具,帮助开发者构建、理解并优化正则表达式。输入模式即可实时查看匹配结果、捕获组、交互式铁路图、AST 语法树、替换预览及详细解释——一切都在你的浏览器本地运行,不向任何服务器发送数据。",
+  "footer_about_p1": "RegexStudio 是免费的浏览器正则表达式测试、调试与可视化工具，可查看匹配结果、捕获组、铁路图和替换预览。正则匹配与替换在浏览器本地执行；网站使用访问统计了解访问与使用情况。",
   "footer_about_p2_prefix": "无论是学习正则语法、调试棘手的模式,还是校验邮箱、URL、电话号码、日期、IP 地址或日志行,RegexStudio 均使用 JavaScript 或 PCRE2 在本地执行。Python、Java、Go、.NET、Rust 提供可选的静态兼容性检查。执行标志包括 ",
   "footer_about_p2_suffix": " 等标志位。",
   "footer_col_features": "功能",
@@ -45,7 +45,7 @@
   "footer_col_project": "项目",
   "footer_project_github": "GitHub",
   "footer_project_client_side": "100% 浏览器端",
-  "footer_project_no_tracking": "无追踪、无广告",
+  "footer_project_no_tracking": "无广告；使用访问统计",
   "footer_project_oss": "免费开源",
   "footer_copyright": "© {year} RegexStudio。保留所有权利。",
   "footer_built_with_prefix": "用",
@@ -678,5 +678,8 @@
   "tut_check_engine": "引擎为 `{engine}`",
   "tut_check_cases": "所有测试用例通过",
   "tut_check_no_cases": "尚未设置测试用例",
-  "tut_check_case_progress": "{passed}/{total} 通过"
+  "tut_check_case_progress": "{passed}/{total} 通过",
+  "content_related_lessons": "学习相关知识",
+  "content_related_challenges": "练习这个主题",
+  "content_expected_matches": "预期完整匹配（按顺序）"
 }

@@ -5,6 +5,7 @@ import { createGroupsTrack } from './lessons/groups';
 import { createLookaroundTrack } from './lessons/lookaround';
 import { createPracticalTrack } from './lessons/practical';
 import type { Lesson, PersistedProgress, Track } from './types';
+import { addStandaloneReading } from './readingGuides';
 
 export function getTracks(locale?: Locale): Track[] {
   return [
@@ -13,7 +14,12 @@ export function getTracks(locale?: Locale): Track[] {
     createGroupsTrack(locale),
     createLookaroundTrack(locale),
     createPracticalTrack(locale),
-  ].sort((a, b) => a.order - b.order);
+  ]
+    .sort((a, b) => a.order - b.order)
+    .map((track) => ({
+      ...track,
+      lessons: track.lessons.map((lesson) => addStandaloneReading(lesson, locale)),
+    }));
 }
 
 export const TRACKS = getTracks();

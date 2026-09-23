@@ -7,6 +7,7 @@ import { plainTitle } from '@/content/publicCatalog';
 import { LearnLayout } from './LearnLayout';
 import { ModeSwitch } from './ModeSwitch';
 import { ReadingExample } from './ReadingExample';
+import { RelatedLearning } from './RelatedLearning';
 
 export function LessonPage({ id }: { id: string }) {
   const locale = useLocale();
@@ -154,6 +155,7 @@ export function LessonPage({ id }: { id: string }) {
             </ul>
           </aside>
         )}
+        <RelatedLearning kind="lesson" id={id} />
         <nav
           aria-label={t.learn_related()}
           className="mt-10 flex flex-wrap justify-between gap-4 border-t border-gray-200 pt-6 dark:border-gray-800"

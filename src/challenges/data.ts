@@ -8,13 +8,9 @@ export function getChallenges(locale?: Locale): Challenge[] {
       en: {
         c1_title: 'Find emails in text',
         c1_summary: 'Extract every email address from a paragraph.',
-        c1_description: [
-          '**Goal**: write a pattern that finds every email-like string in **plain text**.',
-          '',
-          'Each test passes if at least one match is found (or zero, for noMatch cases).',
-          '',
-          'Common shape: `local@host.tld`, where local may contain letters, digits, `.`, `_`, `+`, `-`; host is `domain.tld`.',
-        ].join('\n'),
+        c1_description:
+          '**Goal**: extract every complete email-like address in the input, in order. The tests check both the number and full text of the matches. Use `g`. This exercise covers ASCII local parts and dot-separated domains, including subdomains; it is not complete email validation.',
+
         c1_cases: [
           'Two emails in a paragraph',
           'Plus alias / subdomain',
@@ -23,19 +19,21 @@ export function getChallenges(locale?: Locale): Challenge[] {
           'Just an @ sign',
         ],
         c1_hints: [
-          'Use `\\b` boundaries to avoid bleeding into neighbors.',
-          'Local part `[\\w.+-]+`; host `[\\w-]+`; TLD at least 2 letters `[a-zA-Z]{2,}`.',
+          'Use \\b boundaries and g for all matches.',
+          'Local part [\\w.+-]+; repeat domain labels with (?:[\\w-]+\\.)+ before the final [a-zA-Z]{2,}.',
         ],
-        c1_explanation: '`\\b` boundaries + local + `@` + host + TLD with at least 2 letters.',
 
-        c2_title: 'Strict HTTPS URL',
+        c1_explanation:
+          'Repeat the domain-label-and-dot group so subdomains remain part of the full address. Compare every complete match with the expected output.',
+
+        c2_title: 'HTTPS URL format (ASCII domains)',
+
         c2_summary:
-          'Whole-string check that the input is a valid `https://` URL (no other protocols).',
-        c2_description: [
-          '**Goal**: validate that the **whole** string is a valid `https://...` URL.',
-          '',
-          '⚠️ This is **whole-string** validation: anchor with `^...$`, otherwise `https://example.com` inside `http://example.com` etc. would pass by accident.',
-        ].join('\n'),
+          'Check a limited HTTPS format with an ASCII domain, optional port, path, query and fragment.',
+
+        c2_description:
+          '**Goal**: match the whole string using `^...$`. This exercise accepts lowercase `https://`, ASCII domain labels without leading/trailing hyphens, a letter-only suffix of at least two letters, an optional 1–5 digit port, and an optional suffix starting with `/`, `?` or `#` without whitespace. It does not check port ranges, DNS existence, IPv6, credentials or every URL syntax rule. Use a URL parser for general URL handling.',
+
         c2_cases: [
           'Minimal https URL',
           'Subdomain + path + query',
@@ -45,12 +43,13 @@ export function getChallenges(locale?: Locale): Challenge[] {
           'Bare host',
         ],
         c2_hints: [
-          'Start with `^https:\\/\\/`.',
-          'Host must contain at least one `.` and length ≥ 1.',
-          'Optional path/query: `(?:\\/.*)?`.',
+          'Start with ^https:\\/\\/.',
+          'Repeat domain labels ending in a dot, then a letter-only suffix.',
+          'Optional port: (?::\\d{1,5})?; optional suffix: (?:[/?#][^\\s]*)?.',
         ],
+
         c2_explanation:
-          '`^https:\\/\\/` locks the protocol; host has dot + TLD; optional path with `(?:\\/[^\\s]*)?` and final `$`.',
+          'Validate the declared ASCII-domain subset. A query or fragment may follow the host directly, without a slash; a port is optional.',
 
         c3_title: 'IPv4 address (lenient)',
         c3_summary: 'Match four dot-separated decimal segments (no 0–255 range check).',
@@ -115,16 +114,12 @@ export function getChallenges(locale?: Locale): Challenge[] {
         ],
         c5_hints: ['Year `\\d{4}`, month/day `\\d{2}` each, joined by `-`.'],
 
-        c6_title: 'Strong password (lookahead)',
+        c6_title: 'Password conditions (lookahead)',
+
         c6_summary: 'At least 8 chars, must contain **both** a letter and a digit.',
-        c6_description: [
-          '**Goal**: validate a strong password:',
-          '',
-          '- length ≥ 8',
-          '- must contain **both** at least one letter and one digit',
-          '',
-          '💡 Multiple independent conditions like this are cleanest with **lookahead**: each `(?=...)` checks one without consuming the cursor.',
-        ].join('\n'),
+        c6_description:
+          '**Goal**: check a format rule: at least 8 characters, including at least one ASCII letter and one digit. This exercise checks those conditions only; it does not measure password strength. Each lookahead checks one condition without consuming text.',
+
         c6_cases: [
           'Letter + digit mix',
           'Long with digit',
@@ -144,18 +139,9 @@ export function getChallenges(locale?: Locale): Challenge[] {
 
         c7_title: 'North American phone number',
         c7_summary: 'Accept the four common formats: parens, dashes, dots, optional country code.',
-        c7_description: [
-          '**Goal**: validate a North American phone number. Common shapes:',
-          '',
-          '- `(415) 555-2671`',
-          '- `415-555-2671`',
-          '- `415.555.2671`',
-          '- `415 555 2671`',
-          '- `4155552671`',
-          '- Optional `+1 ` or `+1-` prefix',
-          '',
-          '⚠️ Whole-string validation: anchor with `^...$`.',
-        ].join('\n'),
+        c7_description:
+          '**Goal**: check a simplified North American phone format: ten digits, an optional +1 prefix, optional spaces/dashes/dots between digit groups, and either a bare or fully parenthesized area code. Parentheses must be paired. Anchor the whole string. This checks formatting, not whether the number is assigned.',
+
         c7_cases: [
           'Parens + dashes',
           'Dash separators',
@@ -168,12 +154,13 @@ export function getChallenges(locale?: Locale): Challenge[] {
           'Empty string',
         ],
         c7_hints: [
-          'Optional country code: `(?:\\+1[ -]?)?`',
-          'Area code: `\\(?\\d{3}\\)?` (parens optional)',
-          'Separators: `[ .-]?`',
+          'Optional prefix: (?:\\+1[ -]?)?',
+          'Area code: (?:\\(\\d{3}\\)|\\d{3}) ensures paired parentheses.',
+          'Optional separators: [ .-]?',
         ],
+
         c7_explanation:
-          'Optional country code + 3-digit area code + optional separator + 3 + optional separator + 4. This pattern cannot enforce paired parens but blocks most misalignments.',
+          'Choose either a complete parenthesized area code or three bare digits. This prevents accepting a lone opening or closing parenthesis.',
 
         c8_title: 'URL slug',
         c8_summary:
@@ -207,13 +194,9 @@ export function getChallenges(locale?: Locale): Challenge[] {
 
         c9_title: 'Extract Markdown links',
         c9_summary: 'Find every `[text](url)` link in the text.',
-        c9_description: [
-          '**Goal**: extract every `[text](url)` Markdown link from a paragraph.',
-          '',
-          'find-mode: a test passes if at least one match is found; if no valid link exists, the result must be empty (noMatch).',
-          '',
-          "⚠️ Don't accept unclosed lookalikes (e.g. `[bad](still here`).",
-        ].join('\n'),
+        c9_description:
+          '**Goal**: extract all complete `[text](url)` links, in order. Tests compare the full matched strings and count, so missing or truncated links fail. This simplified exercise excludes nested brackets, parentheses in destinations, escaped delimiters and titles; use a Markdown parser for full Markdown.',
+
         c9_cases: [
           'One link',
           'Two adjacent links',
@@ -295,27 +278,24 @@ export function getChallenges(locale?: Locale): Challenge[] {
       zh: {
         c1_title: '在文本里抓邮箱',
         c1_summary: '从一段段落中提取所有邮箱地址。',
-        c1_description: [
-          '**目标**：写一个 pattern，**从一段普通文本里**找出所有看起来像邮箱的字符串。',
-          '',
-          '只要每个测试输入里至少抓到一个匹配（或者根本没匹配，对应 noMatch），就算过。',
-          '',
-          '常见结构：`local@host.tld`，其中 local 可能含字母数字 / `.` / `_` / `+` / `-`，host 是 `域.顶级`。',
-        ].join('\n'),
+        c1_description:
+          '**目标**：按顺序提取输入中所有完整的形似邮箱的地址。测试会核对匹配数量和完整文本，请使用 `g`。本题覆盖 ASCII 本地段和点分域名（含子域名），不代表完整邮箱合法性校验。',
+
         c1_cases: ['段落里两个邮箱', '加号 / 子域名', '完全没有邮箱', '缺少顶级域', '只有 @'],
         c1_hints: [
-          '用 `\\b` 加边界，避免漏抓或多抓。',
-          '本地部分可用 `[\\w.+-]+`，域名段用 `[\\w-]+`，顶级域至少 2 字母 `[a-zA-Z]{2,}`。',
+          '使用 \\b 边界和 g 标志获取全部匹配。',
+          '本地段用 [\\w.+-]+；域名标签与点用 (?:[\\w-]+\\.)+ 重复，最后接 [a-zA-Z]{2,}。',
         ],
-        c1_explanation: '`\\b` 边界 + 本地段 + `@` + 主机段 + 至少 2 字母的 TLD。',
 
-        c2_title: '严格 HTTPS URL',
-        c2_summary: '判断整串是不是合法的 https:// 开头 URL（不允许其它协议）。',
-        c2_description: [
-          '**目标**：判断**整串**是否为合法的 `https://...` URL。',
-          '',
-          '⚠️ 这是**全串校验**：请使用 `^...$` 锚点，否则 `http://example.com` 里的 `https://example.com` 之类就会"误伤"。',
-        ].join('\n'),
+        c1_explanation: '重复“域名标签 + 点”以保留完整子域名，并核对每一项匹配的完整内容。',
+
+        c2_title: 'HTTPS URL 格式（ASCII 域名）',
+
+        c2_summary: '校验限定的 HTTPS 格式：ASCII 域名、可选端口、路径、查询参数与片段。',
+
+        c2_description:
+          '**目标**：使用 `^...$` 匹配整串。本题接受小写 `https://`、首尾不是短横线的 ASCII 域名标签、至少两个英文字母的域名后缀、可选的 1–5 位数字端口，以及以 `/`、`?` 或 `#` 开始且不含空白的可选后缀。不检查端口范围、域名是否存在、IPv6、用户凭证或全部 URL 语法。通用 URL 处理应使用 URL 解析器。',
+
         c2_cases: [
           '最简 https URL',
           '带子域 + 路径 + 查询串',
@@ -325,12 +305,13 @@ export function getChallenges(locale?: Locale): Challenge[] {
           '裸主机',
         ],
         c2_hints: [
-          '需要 `^https:\\/\\/` 开头。',
-          '主机段至少要包含一个 `.`，长度 ≥ 1。',
-          '路径 / 查询串可选，可用 `(?:\\/.*)?`。',
+          '以 ^https:\\/\\/ 开始。',
+          '重复以点结尾的域名标签，最后接字母后缀。',
+          '可选端口为 (?::\\d{1,5})?，可选后缀为 (?:[/?#][^\\s]*)?。',
         ],
+
         c2_explanation:
-          '`^https:\\/\\/` 锁定协议，主机段含点和 TLD，可选路径用 `(?:\\/[^\\s]*)?`，结尾 `$`。',
+          '按题目声明的 ASCII 域名子集验证。查询参数或片段可直接跟在主机后，不必先出现斜杠；端口可选。',
 
         c3_title: 'IPv4 地址（宽松版）',
         c3_summary: '识别四段点分十进制（不要求 0–255 范围）。',
@@ -380,16 +361,12 @@ export function getChallenges(locale?: Locale): Challenge[] {
         c5_cases: ['正常日期', '世纪初', '单位数月份', '斜杠分隔', '后面有杂物', '空串'],
         c5_hints: ['年份是 `\\d{4}`，月日各 `\\d{2}`，中间 `-`。'],
 
-        c6_title: '强密码（lookahead 实战）',
+        c6_title: '密码条件检查（先行断言）',
+
         c6_summary: '至少 8 字符，必须**同时**含字母和数字。',
-        c6_description: [
-          '**目标**：判断整串是不是合格的强密码：',
-          '',
-          '- 长度 ≥ 8',
-          '- 必须**同时**包含至少一个字母和至少一个数字',
-          '',
-          '💡 这种"多个独立条件都得满足"的需求，用 **lookahead** 最干净——一组 `(?=...)` 验证一个条件，不消耗指针。',
-        ].join('\n'),
+        c6_description:
+          '**目标**：检查一个格式规则：至少 8 个字符，同时含有 ASCII 英文字母和数字。本题仅检查这些条件，不评估密码的实际安全强度。每个先行断言检查一个条件而不消耗文本。',
+
         c6_cases: [
           '字母+数字混合',
           '长串带数字',
@@ -408,18 +385,9 @@ export function getChallenges(locale?: Locale): Challenge[] {
 
         c7_title: '北美电话号码',
         c7_summary: '常见 4 种格式都接受：括号、横线、点、加国家码。',
-        c7_description: [
-          '**目标**：判断**整串**是不是合法的北美电话号码。常见写法：',
-          '',
-          '- `(415) 555-2671`',
-          '- `415-555-2671`',
-          '- `415.555.2671`',
-          '- `415 555 2671`',
-          '- `4155552671`',
-          '- 可选前缀 `+1 ` 或 `+1-`',
-          '',
-          '⚠️ 整串校验，请加 `^...$`。',
-        ].join('\n'),
+        c7_description:
+          '**目标**：检查简化的北美电话号码格式：10 位数字、可选 +1 前缀、数字组间可选空格/短横线/点；区号可以不带括号，或带一对完整括号。括号必须配对，并使用锚点匹配整串。本题只检查格式，不判断号码是否已分配。',
+
         c7_cases: [
           '括号 + 横线',
           '横线分隔',
@@ -432,12 +400,12 @@ export function getChallenges(locale?: Locale): Challenge[] {
           '空串',
         ],
         c7_hints: [
-          '可选国家码：`(?:\\+1[ -]?)?`',
-          '区号：`\\(?\\d{3}\\)?`（左右括号都可选）',
-          '中间分隔符：`[ .-]?`',
+          '可选国家码为 (?:\\+1[ -]?)?。',
+          '区号用 (?:\\(\\d{3}\\)|\\d{3}) 保证括号成对。',
+          '可选分隔符为 [ .-]?。',
         ],
-        c7_explanation:
-          '把"可选国家码 + 3 位区号 + 可选分隔符 + 3 位 + 可选分隔符 + 4 位"串起来。注意这个 pattern 对"括号必须配对"做不到——但能挡住绝大多数错位。',
+
+        c7_explanation: '区号只接受完整的括号分支或纯数字分支，避免单独的左括号或右括号被接受。',
 
         c8_title: 'URL Slug',
         c8_summary: '只能小写字母 / 数字 / 单个 `-`，不许首尾或连续短横线。',
@@ -470,13 +438,9 @@ export function getChallenges(locale?: Locale): Challenge[] {
 
         c9_title: '抽取 Markdown 链接',
         c9_summary: '在文本里找出所有 `[text](url)` 形式的链接。',
-        c9_description: [
-          '**目标**：从一段文本里**抽取**所有 Markdown 链接 `[text](url)`。',
-          '',
-          'find-mode：每个测试输入只要找到至少一个匹配就算 match；如果原本没有合法链接，则应一个都不匹配（noMatch）。',
-          '',
-          '⚠️ "看起来像但没闭合"的写法不算（比如 `[bad](still here`）。',
-        ].join('\n'),
+        c9_description:
+          '**目标**：按顺序提取所有完整的 `[text](url)` 链接。测试核对完整文本和匹配数量，遗漏或截断链接都会失败。本题是简化格式，不覆盖嵌套括号、目标中的圆括号、转义分隔符和标题；完整 Markdown 应使用专门解析器。',
+
         c9_cases: [
           '一条链接',
           '两条相邻',
@@ -558,7 +522,8 @@ export function getChallenges(locale?: Locale): Challenge[] {
         c1_title: 'テキスト内のメールアドレスを探す',
         c1_summary: '段落からメールアドレスらしい文字列を抽出します。',
         c1_description:
-          '**目標**: **通常のテキスト**からメールアドレスらしい文字列を見つけるパターンを書きましょう。\n\n各テストは 1 件以上一致すれば成功します（一致しないケースでは 0 件が必要）。\n\n基本形は `local@host.tld`。local は英数字・`.`・`_`・`+`・`-`、host は `domain.tld` の形です。',
+          '**目標**: 入力中のメールアドレスらしい文字列を、順序どおりにすべて抽出します。テストは一致件数と一致全体の文字列を照合します。`g` を使用してください。ASCII のローカル部とサブドメインを含むドット区切りのドメインを扱う練習で、メールアドレスの完全な検証ではありません。',
+
         c1_cases: [
           '段落内に 2 つのアドレス',
           'プラスの別名 / サブドメイン',
@@ -567,15 +532,21 @@ export function getChallenges(locale?: Locale): Challenge[] {
           '@ だけ',
         ],
         c1_hints: [
-          '`\\b` で単語境界を指定してみましょう。',
-          'ローカル部は `[\\w.+-]+`、ホストは `[\\w-]+`、TLD は英字 2 文字以上の `[a-zA-Z]{2,}`。',
+          '\\b と g を使ってすべての一致を取得します。',
+          'ローカル部は [\\w.+-]+、ドメインは (?:[\\w-]+\\.)+、最後に [a-zA-Z]{2,} を使います。',
         ],
+
         c1_explanation:
-          '`\\b` + ローカル部 + `@` + ホスト + 英字 2 文字以上の TLD + 境界を組み合わせます。',
-        c2_title: 'HTTPS URL の検証',
-        c2_summary: '入力全体が `https://` の URL 形式かを確認し、ほかのプロトコルを除外します。',
+          'ドメインのラベルとドットを繰り返し、サブドメインを含むアドレス全体を取得します。各一致の全文を確認します。',
+
+        c2_title: 'HTTPS URL の形式（ASCII ドメイン）',
+
+        c2_summary:
+          'ASCII ドメインと任意のポート・パス・クエリー・フラグメントを持つ限定形式を検証します。',
+
         c2_description:
-          '**目標**: 文字列**全体**が `https://...` の形式かを確認しましょう。\n\n`^...$` で全体を検証してください。部分一致のままだと、無関係な文字の中にある HTTPS URL まで受け入れてしまいます。',
+          '**目標**: `^...$` で文字列全体を検証します。小文字の https://、先頭と末尾がハイフンでない ASCII ドメインラベル、英字2文字以上の末尾ラベル、任意の1〜5桁のポート、/・?・# で始まる空白を含まない任意の末尾部分を許可します。ポートの範囲、ドメインの存在、IPv6、認証情報、URL の全構文は検証しません。一般的な URL 処理には URL パーサーを使ってください。',
+
         c2_cases: [
           '最小の HTTPS URL',
           'サブドメイン + パス + クエリ',
@@ -585,12 +556,14 @@ export function getChallenges(locale?: Locale): Challenge[] {
           'ホスト名だけ',
         ],
         c2_hints: [
-          '`^https:\\/\\/` から始めます。',
-          'ホストにはドットと、空でないラベルが必要です。',
-          'パスやクエリは `(?:\\/.*)?` で省略可能にできます。',
+          '^https:\\/\\/ で開始します。',
+          'ドットで終わるドメインラベルを繰り返し、末尾は英字にします。',
+          '任意のポートは (?::\\d{1,5})?、末尾は (?:[/?#][^\\s]*)? です。',
         ],
+
         c2_explanation:
-          '`^https:\\/\\/` でプロトコルを固定し、ホストと TLD、任意のパス `(?:\\/[^\\s]*)?`、最後の `$` を組み合わせます。',
+          '宣言した ASCII ドメインの形式を検証します。クエリーやフラグメントはスラッシュなしでホストに続けられます。ポートは任意です。',
+
         c3_title: 'IPv4 アドレス（簡易版）',
         c3_summary: 'ドットで区切られた 4 つの数字列に一致させます。0〜255 の範囲は確認しません。',
         c3_description:
@@ -640,9 +613,11 @@ export function getChallenges(locale?: Locale): Challenge[] {
         ],
         c5_hints: ['年は `\\d{4}`、月と日は `\\d{2}` で、`-` でつなぎます。'],
         c6_title: 'パスワードの条件チェック（先読み）',
+
         c6_summary: '8 文字以上で、英字と数字の両方を含むか確認します。',
         c6_description:
-          '**目標**: 次のパスワード条件を検証しましょう。\n\n- 8 文字以上\n- 英字と数字を**それぞれ** 1 文字以上含む\n\n複数の独立した条件には**先読み**が便利です。各 `(?=...)` が文字を消費せずに 1 つの条件を確認します。',
+          '**目標**: 8文字以上で、ASCII 英字と数字をそれぞれ含むという形式条件を確認します。パスワードの実際の強度を評価するものではありません。各先読みが文字を消費せずに条件を確認します。',
+
         c6_cases: [
           '英字と数字の混在',
           '数字を含む長い文字列',
@@ -662,7 +637,8 @@ export function getChallenges(locale?: Locale): Challenge[] {
         c7_title: '北米の電話番号',
         c7_summary: '括弧・ハイフン・ドット・空白などの形式と、省略可能な国番号を扱います。',
         c7_description:
-          '**目標**: 北米の電話番号の形式を検証しましょう。\n\n- `(415) 555-2671`\n- `415-555-2671`\n- `415.555.2671`\n- `415 555 2671`\n- `4155552671`\n- 先頭の `+1 ` または `+1-` は省略可能\n\n`^...$` で文字列全体を検証します。',
+          '**目標**: 北米の電話番号の簡略形式を確認します。10桁の数字、任意の +1、数字群の間の任意のスペース・ハイフン・ドットを許可します。市外局番の括弧は省略するか必ず対にします。文字列全体を検証しますが、実際に割り当てられた番号かは判定しません。',
+
         c7_cases: [
           '括弧とハイフン',
           'ハイフン区切り',
@@ -675,12 +651,14 @@ export function getChallenges(locale?: Locale): Challenge[] {
           '空文字列',
         ],
         c7_hints: [
-          '省略可能な国番号: `(?:\\+1[ -]?)?`',
-          '市外局番: `\\(?\\d{3}\\)?`（括弧は省略可能）',
-          '区切り: `[ .-]?`',
+          '任意の国番号は (?:\\+1[ -]?)? です。',
+          '市外局番は (?:\\(\\d{3}\\)|\\d{3}) で括弧を対にします。',
+          '任意の区切りは [ .-]? です。',
         ],
+
         c7_explanation:
-          '任意の国番号 + 3 桁の市外局番 + 任意の区切り + 3 桁 + 任意の区切り + 4 桁です。この簡略パターンは括弧の対応までは検証しません。',
+          '市外局番は括弧が対応した分岐か数字だけの分岐に限定し、片方だけの括弧を拒否します。',
+
         c8_title: 'URL スラッグ',
         c8_summary: '小文字・数字・単一の `-` を許可し、先頭・末尾・連続するハイフンを禁止します。',
         c8_description:
@@ -705,7 +683,8 @@ export function getChallenges(locale?: Locale): Challenge[] {
         c9_title: 'Markdown リンクを抽出する',
         c9_summary: 'テキスト内の `[text](url)` 形式のリンクを探します。',
         c9_description:
-          '**目標**: 段落から `[text](url)` 形式の Markdown リンクを抽出しましょう。\n\n検索モードでは 1 件以上一致すれば成功です。有効なリンクがないケースでは一致なしが必要です。\n\n`[bad](still here` のように括弧が閉じていない文字列は許可しません。',
+          '**目標**: すべての `[text](url)` リンクを順序どおりに抽出します。テストは一致全文と件数を照合するため、途中で切れたリンクや取りこぼしは失敗します。この簡略形式は括弧の入れ子、URL 内の丸括弧、区切りのエスケープ、タイトルを扱いません。完全な Markdown には専用パーサーを使ってください。',
+
         c9_cases: [
           'リンク 1 つ',
           '隣り合う 2 つのリンク',
@@ -771,7 +750,7 @@ export function getChallenges(locale?: Locale): Challenge[] {
     locale,
   );
 
-  return [
+  const challenges: Challenge[] = [
     {
       id: 'email-find',
       title: TEXTS.c1_title,
@@ -801,7 +780,7 @@ export function getChallenges(locale?: Locale): Challenge[] {
       ],
       hints: TEXTS.c1_hints,
       idealSolution: {
-        pattern: '\\b[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}\\b',
+        pattern: '\\b[\\w.+-]+@(?:[\\w-]+\\.)+[a-zA-Z]{2,}\\b',
         flags: 'g',
         explanation: TEXTS.c1_explanation,
       },
@@ -825,10 +804,22 @@ export function getChallenges(locale?: Locale): Challenge[] {
         { label: TEXTS.c2_cases[3], input: 'ftp://example.com', expect: 'noMatch' },
         { label: TEXTS.c2_cases[4], input: 'https://', expect: 'noMatch' },
         { label: TEXTS.c2_cases[5], input: 'example.com', expect: 'noMatch' },
+        ...[
+          'https://example.com?x=1',
+          'https://example.com:8443/path',
+          'https://example.com#intro',
+        ].map((input) => ({ label: input, input, expect: 'match' as const })),
+        ...[
+          'https://-bad.com',
+          'https://bad-.com',
+          'https://example.com:abc',
+          'https://example.com/a b',
+        ].map((input) => ({ label: input, input, expect: 'noMatch' as const })),
       ],
       hints: TEXTS.c2_hints,
       idealSolution: {
-        pattern: '^https:\\/\\/[\\w.-]+\\.[a-zA-Z]{2,}(?:\\/[^\\s]*)?$',
+        pattern:
+          '^https:\\/\\/(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,}(?::\\d{1,5})?(?:[/?#][^\\s]*)?$',
         explanation: TEXTS.c2_explanation,
       },
     },
@@ -939,10 +930,15 @@ export function getChallenges(locale?: Locale): Challenge[] {
         { label: TEXTS.c7_cases[6], input: '415 555 26710', expect: 'noMatch' },
         { label: TEXTS.c7_cases[7], input: 'abc-def-ghij', expect: 'noMatch' },
         { label: TEXTS.c7_cases[8], input: '', expect: 'noMatch' },
+        ...['(415 555-2671', '415) 555-2671'].map((input) => ({
+          label: input,
+          input,
+          expect: 'noMatch' as const,
+        })),
       ],
       hints: TEXTS.c7_hints,
       idealSolution: {
-        pattern: '^(?:\\+1[ -]?)?\\(?\\d{3}\\)?[ .-]?\\d{3}[ .-]?\\d{4}$',
+        pattern: '^(?:\\+1[ -]?)?(?:\\(\\d{3}\\)|\\d{3})[ .-]?\\d{3}[ .-]?\\d{4}$',
         explanation: TEXTS.c7_explanation,
       },
     },
@@ -1079,6 +1075,31 @@ export function getChallenges(locale?: Locale): Challenge[] {
       },
     },
   ];
+  const extractionOutputs: Record<string, string[][]> = {
+    'email-find': [
+      ['hello@example.com', 'sales@example.org'],
+      ['alice+filter@mail.sub.example.io'],
+      [],
+      [],
+      [],
+    ],
+    'extract-md-link': [
+      ['[docs](https://example.com)'],
+      ['[a](http://x)', '[b](http://y)'],
+      ['[维基百科](https://wiki.example/regex)'],
+      [],
+      [],
+      [],
+    ],
+  };
+  return challenges.map((challenge) => ({
+    ...challenge,
+    testCases: challenge.testCases.map((tc, index) => {
+      const texts =
+        extractionOutputs[challenge.id]?.[index] ?? (tc.expect === 'match' ? [tc.input] : []);
+      return { ...tc, assertions: { count: texts.length, texts } };
+    }),
+  }));
 }
 
 export const CHALLENGES = getChallenges();

@@ -20,7 +20,7 @@
   "share_label": "共有",
   "share_copied": "コピーしました",
   "footer_about_heading": "RegexStudio について — オンライン正規表現テスター・可視化ツール",
-  "footer_about_p1": "RegexStudio は、正規表現の作成・理解・最適化に役立つ、無料のブラウザー用テスター・デバッガー・可視化ツールです。パターンを入力すると、一致箇所、キャプチャグループ、操作できるレールロード図、AST 構文木、置換プレビュー、詳しい解説をすぐに確認できます。すべてブラウザー内で実行され、入力データがサーバーに送られることはありません。",
+  "footer_about_p1": "RegexStudio は無料のブラウザー用正規表現テスター・デバッガー・可視化ツールです。一致結果、キャプチャグループ、レールロード図、置換結果を確認できます。正規表現の一致と置換はブラウザー内で実行されます。サイトでは利用状況を把握するためアクセス解析を使用します。",
   "footer_about_p2_prefix": "正規表現の学習、複雑なパターンのデバッグ、メールアドレス・URL・電話番号・日付・IP アドレス・ログの検証に使えます。JavaScript と PCRE2 はローカルで実行されます。Python、Java、Go、.NET、Rust には任意の静的互換性チェックを提供しています。実行フラグは ",
   "footer_about_p2_suffix": " などに対応しています。",
   "footer_col_features": "機能",
@@ -44,7 +44,7 @@
   "footer_col_project": "プロジェクト",
   "footer_project_github": "GitHub",
   "footer_project_client_side": "すべてクライアント側で実行",
-  "footer_project_no_tracking": "追跡・広告なし",
+  "footer_project_no_tracking": "広告なし・アクセス解析を使用",
   "footer_project_oss": "無料・オープンソース",
   "footer_copyright": "© {year} RegexStudio. All rights reserved.",
   "footer_built_with_prefix": "正規表現を愛する開発者のために、",
@@ -678,5 +678,8 @@
   "tut_check_engine": "エンジンが `{engine}`",
   "tut_check_cases": "すべてのテストケースが成功",
   "tut_check_no_cases": "テストケースがありません",
-  "tut_check_case_progress": "{passed}/{total} 成功"
+  "tut_check_case_progress": "{passed}/{total} 成功",
+  "content_related_lessons": "関連する構文を学ぶ",
+  "content_related_challenges": "このテーマを練習する",
+  "content_expected_matches": "期待する一致全体（順序どおり）"
 }

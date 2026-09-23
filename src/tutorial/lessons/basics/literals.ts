@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -83,62 +84,65 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createLiteralsLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-literals',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 3,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'cat sat on the mat. The cat was black. Concatenate.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('cat'), v.matchesAtLeast(1)),
+        hints: [t.s1_hint],
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.matchesExactly(3),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\bcat\\b'), v.matchesExactly(2)),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '\\bcat\\b',
+          explanation: t.s3_explanation,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: {
+          testText: 'cat sat on the mat. The Cat was black. Concatenate.',
+        },
+        validate: v.all(v.flagEnabled('i'), v.matchesExactly(2)),
+        hints: [t.s4_hint],
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-classes',
+  };
+}
 
-export const literalsLesson: Lesson = {
-  id: 'basics-literals',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 3,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'cat sat on the mat. The cat was black. Concatenate.',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('cat'), v.matchesAtLeast(1)),
-      hints: [t.s1_hint],
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.matchesExactly(3),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('\\bcat\\b'), v.matchesExactly(2)),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '\\bcat\\b',
-        explanation: t.s3_explanation,
-      },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: {
-        testText: 'cat sat on the mat. The Cat was black. Concatenate.',
-      },
-      validate: v.all(v.flagEnabled('i'), v.matchesExactly(2)),
-      hints: [t.s4_hint],
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-classes',
-};
+export const literalsLesson = createLiteralsLesson();

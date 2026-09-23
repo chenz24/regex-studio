@@ -4,10 +4,12 @@ import { useChallengeStore } from '@/stores/challengeStore';
 import { ChallengeCatalog } from './ChallengeCatalog';
 import { ChallengeRunner } from './ChallengeRunner';
 import { useT } from '@/lib/i18n';
+import { ModeSwitch } from '@/components/learn/ModeSwitch';
 
 export function ChallengesDrawer() {
   const t = useT();
   const view = useChallengeStore((s) => s.view);
+  const challengeId = useChallengeStore((s) => s.currentChallengeId);
   const close = useChallengeStore((s) => s.close);
   const completion = useChallengeStore((s) => s.completion);
   const resetAll = useChallengeStore((s) => s.resetAll);
@@ -73,6 +75,15 @@ export function ChallengesDrawer() {
         </div>
       )}
 
+      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800">
+        <ModeSwitch
+          mode="practice"
+          readingPath={
+            view === 'challenge' && challengeId ? `/challenges/${challengeId}` : '/challenges'
+          }
+          practiceQuery="catalog=challenges"
+        />
+      </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {view === 'catalog' && (
           <div className="h-full overflow-y-auto custom-scrollbar">

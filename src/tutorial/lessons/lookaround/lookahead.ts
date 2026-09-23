@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -16,10 +17,14 @@ const TEXTS = {
       '`(?=...)` is a **zero-width** assertion — it checks the right side without moving the cursor.',
       'The match therefore contains **digits only**, not " dollars".',
     ],
-    s1_explanation: 'Matches "5" and "50". The match length is just the digits — " dollars" is not counted.',
-    s1_compare_go: '⚠️ **Go (RE2) does not support lookahead.** RE2 uses an NFA to guarantee linear-time matching at the cost of lookaround and backreferences.',
-    s1_compare_rust: '⚠️ Rust\'s standard `regex` crate is also RE2-based and **does not support lookahead**. Use `fancy-regex` if you need it.',
-    s1_compare_python: 'Python `re` fully supports `(?=...)` / `(?!...)`, behaving like JavaScript.',
+    s1_explanation:
+      'Matches "5" and "50". The match length is just the digits — " dollars" is not counted.',
+    s1_compare_go:
+      '⚠️ **Go (RE2) does not support lookahead.** RE2 uses an NFA to guarantee linear-time matching at the cost of lookaround and backreferences.',
+    s1_compare_rust:
+      "⚠️ Rust's standard `regex` crate is also RE2-based and **does not support lookahead**. Use `fancy-regex` if you need it.",
+    s1_compare_python:
+      'Python `re` fully supports `(?=...)` / `(?!...)`, behaving like JavaScript.',
     s2_title: 'Recap',
     s2_body: [
       'Key points:',
@@ -45,8 +50,10 @@ const TEXTS = {
       '这意味着匹配结果**只包含数字**，不会把 " dollars" 算进去。',
     ],
     s1_explanation: '匹配的是 "5" 和 "50"，长度只有数字部分，` dollars` 不计入匹配。',
-    s1_compare_go: '⚠️ **Go (RE2) 不支持 lookahead**。RE2 用 NFA 保证线性时间匹配，代价就是放弃了 lookaround / 反向引用这类需要回溯的特性。',
-    s1_compare_rust: '⚠️ Rust 标准 `regex` crate 也基于 RE2，**不支持 lookahead**。需要的话用 `fancy-regex`。',
+    s1_compare_go:
+      '⚠️ **Go (RE2) 不支持 lookahead**。RE2 用 NFA 保证线性时间匹配，代价就是放弃了 lookaround / 反向引用这类需要回溯的特性。',
+    s1_compare_rust:
+      '⚠️ Rust 标准 `regex` crate 也基于 RE2，**不支持 lookahead**。需要的话用 `fancy-regex`。',
     s1_compare_python: 'Python `re` 完整支持 `(?=...)` / `(?!...)`，跟 JavaScript 行为一致。',
     s2_title: '小结',
     s2_body: [
@@ -61,52 +68,55 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const lookaheadLesson: Lesson = {
-  id: 'lookaround-lookahead',
-  trackId: 'lookaround',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: '5 dollars and 10 euros and 50 dollars',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d+(?= dollars)'), v.matchesExactly(2)),
-      hints: t.s1_hints,
-      solution: {
-        pattern: '\\d+(?= dollars)',
-        explanation: t.s1_explanation,
-      },
-      spotlight: {
-        patternSubstrings: ['(?= dollars)'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-      flavorCompare: {
-        flavors: ['javascript', 'python', 'go', 'rust'],
-        commentary: {
-          go: t.s1_compare_go,
-          rust: t.s1_compare_rust,
-          python: t.s1_compare_python,
+export function createLookaheadLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'lookaround-lookahead',
+    trackId: 'lookaround',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: '5 dollars and 10 euros and 50 dollars',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d+(?= dollars)'), v.matchesExactly(2)),
+        hints: t.s1_hints,
+        solution: {
+          pattern: '\\d+(?= dollars)',
+          explanation: t.s1_explanation,
+        },
+        spotlight: {
+          patternSubstrings: ['(?= dollars)'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+        flavorCompare: {
+          flavors: ['javascript', 'python', 'go', 'rust'],
+          commentary: {
+            go: t.s1_compare_go,
+            rust: t.s1_compare_rust,
+            python: t.s1_compare_python,
+          },
         },
       },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'lookaround-negative-lookahead',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'lookaround-negative-lookahead',
+  };
+}
+
+export const lookaheadLesson = createLookaheadLesson();

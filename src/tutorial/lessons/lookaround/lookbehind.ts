@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -102,63 +103,66 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createLookbehindLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'lookaround-lookbehind',
+    trackId: 'lookaround',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Code A1, Item $5, Floor 7',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(?<=\\$)\\d+'), v.matchesExactly(1)),
+        hints: [t.s1_hint],
+        solution: {
+          pattern: '(?<=\\$)\\d+',
+          explanation: t.s1_explanation,
+        },
+        spotlight: {
+          patternSubstrings: ['(?<=\\$)'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('(?<!\\$)\\d+'), v.matchesExactly(2)),
+        hints: [t.s2_hint],
+        spotlight: { patternSubstrings: ['(?<!\\$)'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { pattern: '(?<=foo|barbaz)\\w+', flags: 'g', testText: 'foobar barbazquux' },
+        validate: v.always(),
+        flavorCompare: {
+          flavors: ['javascript', 'pcre2', 'python', 'java', 'go'],
+          commentary: t.s3_compare,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-email',
+  };
+}
 
-export const lookbehindLesson: Lesson = {
-  id: 'lookaround-lookbehind',
-  trackId: 'lookaround',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Code A1, Item $5, Floor 7',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(?<=\\$)\\d+'), v.matchesExactly(1)),
-      hints: [t.s1_hint],
-      solution: {
-        pattern: '(?<=\\$)\\d+',
-        explanation: t.s1_explanation,
-      },
-      spotlight: {
-        patternSubstrings: ['(?<=\\$)'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('(?<!\\$)\\d+'), v.matchesExactly(2)),
-      hints: [t.s2_hint],
-      spotlight: { patternSubstrings: ['(?<!\\$)'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { pattern: '(?<=foo|barbaz)\\w+', flags: 'g', testText: 'foobar barbazquux' },
-      validate: v.always(),
-      flavorCompare: {
-        flavors: ['javascript', 'pcre2', 'python', 'java', 'go'],
-        commentary: t.s3_compare,
-      },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-email',
-};
+export const lookbehindLesson = createLookbehindLesson();

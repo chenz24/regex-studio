@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -16,10 +17,11 @@ const TEXTS = {
       '`(?!...)` is also zero-width — failure abandons this match position.',
       'Like positive lookahead, the match does **not** include " dollars".',
     ],
-    s1_explanation: '"5 dollars" is excluded because " dollars" follows; "10 euros" and "7 yen" pass.',
+    s1_explanation:
+      '"5 dollars" is excluded because " dollars" follows; "10 euros" and "7 yen" pass.',
     s2_title: 'A common pitfall',
     s2_body: [
-      '`(?!...)` is a zero-width check; it doesn\'t change the greedy behavior of `\\d+`.',
+      "`(?!...)` is a zero-width check; it doesn't change the greedy behavior of `\\d+`.",
       '',
       'For `\\d+(?! dollars)` against `"50 dollars"`:',
       '',
@@ -81,45 +83,48 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const negativeLookaheadLesson: Lesson = {
-  id: 'lookaround-negative-lookahead',
-  trackId: 'lookaround',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: '5 dollars and 10 euros and 7 yen',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d+(?! dollars)'), v.matchesExactly(2)),
-      hints: t.s1_hints,
-      solution: {
-        pattern: '\\d+(?! dollars)',
-        explanation: t.s1_explanation,
+export function createNegativeLookaheadLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'lookaround-negative-lookahead',
+    trackId: 'lookaround',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: '5 dollars and 10 euros and 7 yen',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d+(?! dollars)'), v.matchesExactly(2)),
+        hints: t.s1_hints,
+        solution: {
+          pattern: '\\d+(?! dollars)',
+          explanation: t.s1_explanation,
+        },
       },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'lookaround-lookbehind',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'lookaround-lookbehind',
+  };
+}
+
+export const negativeLookaheadLesson = createNegativeLookaheadLesson();

@@ -1,17 +1,22 @@
-import { basicsTrack } from './lessons/basics';
-import { quantifiersTrack } from './lessons/quantifiers';
-import { groupsTrack } from './lessons/groups';
-import { lookaroundTrack } from './lessons/lookaround';
-import { practicalTrack } from './lessons/practical';
+import type { Locale } from '@/paraglide/runtime';
+import { createBasicsTrack } from './lessons/basics';
+import { createQuantifiersTrack } from './lessons/quantifiers';
+import { createGroupsTrack } from './lessons/groups';
+import { createLookaroundTrack } from './lessons/lookaround';
+import { createPracticalTrack } from './lessons/practical';
 import type { Lesson, PersistedProgress, Track } from './types';
 
-export const TRACKS: Track[] = [
-  basicsTrack,
-  quantifiersTrack,
-  groupsTrack,
-  lookaroundTrack,
-  practicalTrack,
-].sort((a, b) => a.order - b.order);
+export function getTracks(locale?: Locale): Track[] {
+  return [
+    createBasicsTrack(locale),
+    createQuantifiersTrack(locale),
+    createGroupsTrack(locale),
+    createLookaroundTrack(locale),
+    createPracticalTrack(locale),
+  ].sort((a, b) => a.order - b.order);
+}
+
+export const TRACKS = getTracks();
 
 export const ALL_LESSONS: Lesson[] = TRACKS.flatMap((t) => t.lessons);
 

@@ -167,7 +167,7 @@ export function buildShareUrl(payload: SharePayload): string {
 /** Entry links launch a lesson/challenge once; a workspace URL saves the editor. */
 function workspacePath(): string {
   const params = new URLSearchParams(window.location.search);
-  for (const key of ['lesson', 'step', 'challenge']) params.delete(key);
+  for (const key of ['lesson', 'step', 'challenge', 'catalog']) params.delete(key);
   const query = params.toString();
   return `${window.location.pathname}${query ? `?${query}` : ''}`;
 }

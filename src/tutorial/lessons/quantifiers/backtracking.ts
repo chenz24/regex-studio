@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -27,7 +28,8 @@ const TEXTS = {
       'It expresses the same intent: "one or more `a`, then `b`".',
     ].join('\n'),
     s3_hint: 'There is no `b` in the text so the match count is 0 — but it is constant time.',
-    s3_explanation: 'No nested quantifier means the engine no longer tries multiple partitions of the same run.',
+    s3_explanation:
+      'No nested quantifier means the engine no longer tries multiple partitions of the same run.',
     s4_title: 'Recap',
     s4_body: [
       'Spot dangerous patterns:',
@@ -89,52 +91,55 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const backtrackingLesson: Lesson = {
-  id: 'quantifiers-backtracking',
-  trackId: 'quantifiers',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '(a+)+b',
-    flags: '',
-    testText: 'aaaaab',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(a+)+b'), v.matchesAtLeast(1)),
+export function createBacktrackingLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'quantifiers-backtracking',
+    trackId: 'quantifiers',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '(a+)+b',
+      flags: '',
+      testText: 'aaaaab',
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'aaaaaaaaaaaaaaaaaaaa' },
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('a+b'), v.matchesExactly(0)),
-      hints: [t.s3_hint],
-      solution: {
-        pattern: 'a+b',
-        explanation: t.s3_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(a+)+b'), v.matchesAtLeast(1)),
       },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-capturing',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'aaaaaaaaaaaaaaaaaaaa' },
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('a+b'), v.matchesExactly(0)),
+        hints: [t.s3_hint],
+        solution: {
+          pattern: 'a+b',
+          explanation: t.s3_explanation,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-capturing',
+  };
+}
+
+export const backtrackingLesson = createBacktrackingLesson();

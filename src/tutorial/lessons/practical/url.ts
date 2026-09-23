@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -12,7 +13,8 @@ const TEXT = [
 const TEXTS = {
   en: {
     title: 'Extract URLs from text',
-    summary: 'A real-world mix of lazy quantifiers, negated character classes, and capturing groups.',
+    summary:
+      'A real-world mix of lazy quantifiers, negated character classes, and capturing groups.',
     s1_title: 'Simple `https?://\\S+`',
     s1_body: [
       '`https?` — the `?` makes the `s` optional, covering both `http` and `https`.',
@@ -28,7 +30,10 @@ const TEXTS = {
       '',
       'Change the pattern to `https?://[^\\s.,);]+`.',
     ].join('\n'),
-    s2_hints: ['Prefix a character class with `^` to negate it.', 'Exclude `.` `,` `)` `;` — common trailing punctuation.'],
+    s2_hints: [
+      'Prefix a character class with `^` to negate it.',
+      'Exclude `.` `,` `)` `;` — common trailing punctuation.',
+    ],
     s3_title: 'Capture protocol, host, and path separately',
     s3_body: [
       'Need protocol / host / path **individually** in code? Use three capturing groups:',
@@ -84,10 +89,7 @@ const TEXTS = {
       '- group 2：主机（到第一个 `/` 之前）',
       '- group 3：路径（可选，必须以 `/` 开头）',
     ].join('\n'),
-    s3_hints: [
-      '主机段用 `[^/\\s]+`——不能是 `/` 也不能是空白。',
-      '路径用 `(/...)? ` 让它可选。',
-    ],
+    s3_hints: ['主机段用 `[^/\\s]+`——不能是 `/` 也不能是空白。', '路径用 `(/...)? ` 让它可选。'],
     s3_explanation: '匹配数和上一题一样，但下面"匹配结果"会列出 3 个 group。',
     s4_title: '小结',
     s4_body: [
@@ -102,63 +104,63 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const urlLesson: Lesson = {
-  id: 'practical-url',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 6,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: TEXT,
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('https?://\\S+'), v.matchesExactly(3)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['s?'], openPanel: 'explanation' },
+export function createUrlLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-url',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 6,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: TEXT,
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(
-        v.patternEquals('https?://[^\\s.,);]+'),
-        v.matchesExactly(3),
-      ),
-      hints: t.s2_hints,
-      solution: { pattern: 'https?://[^\\s.,);]+' },
-      spotlight: { patternSubstrings: ['[^\\s.,);]+'], openPanel: 'matches' },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('(https?)://([^/\\s]+)(/[^\\s.,);]*)?'),
-        v.matchesExactly(3),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '(https?)://([^/\\s]+)(/[^\\s.,);]*)?',
-        explanation: t.s3_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('https?://\\S+'), v.matchesExactly(3)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['s?'], openPanel: 'explanation' },
       },
-      spotlight: { patternSubstrings: ['(https?)', '([^/\\s]+)'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-log',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('https?://[^\\s.,);]+'), v.matchesExactly(3)),
+        hints: t.s2_hints,
+        solution: { pattern: 'https?://[^\\s.,);]+' },
+        spotlight: { patternSubstrings: ['[^\\s.,);]+'], openPanel: 'matches' },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(
+          v.patternEquals('(https?)://([^/\\s]+)(/[^\\s.,);]*)?'),
+          v.matchesExactly(3),
+        ),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '(https?)://([^/\\s]+)(/[^\\s.,);]*)?',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['(https?)', '([^/\\s]+)'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-log',
+  };
+}
+
+export const urlLesson = createUrlLesson();

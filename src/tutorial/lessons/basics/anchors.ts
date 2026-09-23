@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -36,7 +37,8 @@ const TEXTS = {
       'We want a "cat" with **word characters on both sides**.',
       '`\\Bcat\\B` — note the capital `B` for the negation.',
     ],
-    s4_explanation: 'Only the "cat" inside "concatenation" has letters on both sides → `\\B` succeeds twice.',
+    s4_explanation:
+      'Only the "cat" inside "concatenation" has letters on both sides → `\\B` succeeds twice.',
     s5_title: 'Recap',
     s5_body: [
       'Key points:',
@@ -77,10 +79,7 @@ const TEXTS = {
       '',
       '在新的文本里，用 `\\Bcat\\B` 找到嵌在其它单词里的 "cat"。',
     ].join('\n'),
-    s4_hints: [
-      '我们要找的是**两侧都是单词字符**的 cat。',
-      '`\\Bcat\\B` —— 注意取反符是大写的 B。',
-    ],
+    s4_hints: ['我们要找的是**两侧都是单词字符**的 cat。', '`\\Bcat\\B` —— 注意取反符是大写的 B。'],
     s4_explanation: '只有 "concatenation" 里的 cat 两侧都是字母 → `\\B` 都成立。',
     s5_title: '小结',
     s5_body: [
@@ -95,67 +94,70 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createAnchorsLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-anchors',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'hello world\nfoo bar\nbaz qux',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('^\\w+'), v.matchesExactly(1)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['^'] },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('^\\w+'), v.flagEnabled('m'), v.matchesExactly(3)),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\w+$'), v.flagEnabled('m'), v.matchesExactly(3)),
+        hints: [t.s3_hint],
+        spotlight: { patternSubstrings: ['$'] },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: {
+          pattern: '',
+          flags: 'g',
+          testText: 'the cat is in concatenation. catalog. a cat.',
+        },
+        validate: v.all(v.patternEquals('\\Bcat\\B'), v.matchesExactly(1)),
+        hints: t.s4_hints,
+        solution: {
+          pattern: '\\Bcat\\B',
+          explanation: t.s4_explanation,
+        },
+        spotlight: { patternSubstrings: ['\\B'] },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-quantifiers',
+  };
+}
 
-export const anchorsLesson: Lesson = {
-  id: 'basics-anchors',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'hello world\nfoo bar\nbaz qux',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('^\\w+'), v.matchesExactly(1)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['^'] },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('^\\w+'), v.flagEnabled('m'), v.matchesExactly(3)),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('\\w+$'), v.flagEnabled('m'), v.matchesExactly(3)),
-      hints: [t.s3_hint],
-      spotlight: { patternSubstrings: ['$'] },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: {
-        pattern: '',
-        flags: 'g',
-        testText: 'the cat is in concatenation. catalog. a cat.',
-      },
-      validate: v.all(v.patternEquals('\\Bcat\\B'), v.matchesExactly(1)),
-      hints: t.s4_hints,
-      solution: {
-        pattern: '\\Bcat\\B',
-        explanation: t.s4_explanation,
-      },
-      spotlight: { patternSubstrings: ['\\B'] },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-quantifiers',
-};
+export const anchorsLesson = createAnchorsLesson();

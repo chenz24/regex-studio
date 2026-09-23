@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -91,63 +92,66 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const classesLesson: Lesson = {
-  id: 'basics-classes',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'apple banana cherry',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('[abc]'), v.matchesExactly(6)),
-      hints: [t.s1_hint],
+export function createClassesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-classes',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'apple banana cherry',
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('[a-e]'), v.matchesExactly(8)),
-      hints: [t.s2_hint],
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { testText: 'Order #2025-001 ships on day 7.' },
-      validate: v.all(v.patternEquals('\\d'), v.matchesExactly(8)),
-      hints: [t.s3_hint],
-      solution: { pattern: '\\d' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: { testText: 'education' },
-      validate: v.all(v.patternEquals('[^aeiou]'), v.matchesExactly(4)),
-      hints: [t.s4_hint],
-      solution: {
-        pattern: '[^aeiou]',
-        explanation: t.s4_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('[abc]'), v.matchesExactly(6)),
+        hints: [t.s1_hint],
       },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-dot-and-escapes',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('[a-e]'), v.matchesExactly(8)),
+        hints: [t.s2_hint],
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { testText: 'Order #2025-001 ships on day 7.' },
+        validate: v.all(v.patternEquals('\\d'), v.matchesExactly(8)),
+        hints: [t.s3_hint],
+        solution: { pattern: '\\d' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: { testText: 'education' },
+        validate: v.all(v.patternEquals('[^aeiou]'), v.matchesExactly(4)),
+        hints: [t.s4_hint],
+        solution: {
+          pattern: '[^aeiou]',
+          explanation: t.s4_explanation,
+        },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-dot-and-escapes',
+  };
+}
+
+export const classesLesson = createClassesLesson();

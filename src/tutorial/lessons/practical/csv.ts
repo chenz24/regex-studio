@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -33,10 +34,11 @@ const TEXTS = {
       '`|` tries branches in order; if the left side matches it never falls to the right.',
     ].join('\n'),
     s3_hints: [
-      'Without parens, `|`\'s scope is the **whole pattern** — exactly what we want.',
+      "Without parens, `|`'s scope is the **whole pattern** — exactly what we want.",
       '`"` does not need escaping inside a JS regex pattern.',
     ],
-    s3_explanation: '`"Wonderland, NJ"` is captured wholly by the left branch — its inner comma is no longer treated as a separator.',
+    s3_explanation:
+      '`"Wonderland, NJ"` is captured wholly by the left branch — its inner comma is no longer treated as a separator.',
     s4_title: 'A remaining edge case',
     s4_body: [
       'Look at the final match: `"says ""hi"""`.',
@@ -121,70 +123,67 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createCsvLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-csv',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'advanced',
+    estimatedMinutes: 7,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: ROW,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('[^,]+'), v.matchesAtLeast(7)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['[^,]+'], openPanel: 'matches' },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('"[^"]*"|[^,]+'), v.matchesAtLeast(5)),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '"[^"]*"|[^,]+',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['"[^"]*"'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.all(v.patternEquals('"(?:[^"]|"")*"|[^,]+'), v.matchesExactly(5)),
+        hints: t.s4_hints,
+        solution: {
+          pattern: '"(?:[^"]|"")*"|[^,]+',
+        },
+        spotlight: { patternSubstrings: ['(?:[^"]|"")*'], openPanel: 'explanation' },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+  };
+}
 
-export const csvLesson: Lesson = {
-  id: 'practical-csv',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'advanced',
-  estimatedMinutes: 7,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: ROW,
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('[^,]+'), v.matchesAtLeast(7)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['[^,]+'], openPanel: 'matches' },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('"[^"]*"|[^,]+'),
-        v.matchesAtLeast(5),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '"[^"]*"|[^,]+',
-        explanation: t.s3_explanation,
-      },
-      spotlight: { patternSubstrings: ['"[^"]*"'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.all(
-        v.patternEquals('"(?:[^"]|"")*"|[^,]+'),
-        v.matchesExactly(5),
-      ),
-      hints: t.s4_hints,
-      solution: {
-        pattern: '"(?:[^"]|"")*"|[^,]+',
-      },
-      spotlight: { patternSubstrings: ['(?:[^"]|"")*'], openPanel: 'explanation' },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-};
+export const csvLesson = createCsvLesson();

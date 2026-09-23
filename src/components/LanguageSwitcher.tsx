@@ -1,5 +1,6 @@
 import { Check, Languages } from 'lucide-react';
-import { setLocaleAndNavigate, useLocale, useT } from '@/lib/i18n';
+import { useLocation } from '@tanstack/react-router';
+import { localizedPath, splitLocalePath, setLocaleAndNavigate, useLocale, useT } from '@/lib/i18n';
 import type { Locale } from '@/paraglide/runtime';
 import {
   DropdownMenu,
@@ -18,6 +19,8 @@ const LOCALES: Array<{ code: Locale; labelKey: LocaleLabelKey; short: string }> 
 export function LanguageSwitcher() {
   const t = useT();
   const current = useLocale();
+  const location = useLocation();
+  const { rest } = splitLocalePath(location.pathname);
   const currentLocale = LOCALES.find((l) => l.code === current) ?? LOCALES[0];
 
   return (
@@ -36,13 +39,29 @@ export function LanguageSwitcher() {
           return (
             <DropdownMenuItem
               key={code}
-              onSelect={() => {
-                if (!active) setLocaleAndNavigate(code);
-              }}
+              asChild
               className="justify-between outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
             >
-              <span>{t[labelKey]()}</span>
-              {active && <Check className="w-3.5 h-3.5 text-teal-500" />}
+              <a
+                href={`${localizedPath(rest, code)}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`}
+                hrefLang={code === 'zh' ? 'zh-CN' : 'en'}
+                lang={code === 'zh' ? 'zh-CN' : 'en'}
+                onClick={(event) => {
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+                  event.preventDefault();
+                  if (!active) setLocaleAndNavigate(code);
+                }}
+              >
+                <span>{t[labelKey]()}</span>
+                {active && <Check className="w-3.5 h-3.5 text-teal-500" />}
+              </a>
             </DropdownMenuItem>
           );
         })}

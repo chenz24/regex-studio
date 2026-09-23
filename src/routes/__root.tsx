@@ -12,11 +12,13 @@ import { getAnalyticsScripts, trackPageView } from '@/lib/analytics';
 import { isLocale, LocaleProvider, localizedPath, splitLocalePath, useT } from '@/lib/i18n';
 import { m } from '@/paraglide/messages';
 import { baseLocale, type Locale, locales } from '@/paraglide/runtime';
+import type { PublicPageMeta } from '@/content/publicCatalog';
 import appCss from '../index.css?url';
 
 const SITE_URL =
-  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env
-    ?.VITE_SITE_URL as string | undefined) ?? 'https://regexstudio.com';
+  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SITE_URL as
+    | string
+    | undefined) ?? 'https://regexstudio.com';
 const SITE_NAME = 'RegexStudio';
 
 const HTML_LANG: Record<Locale, string> = {
@@ -30,33 +32,58 @@ const OG_LOCALE: Record<Locale, string> = {
 };
 
 export const Route = createRootRoute({
-  beforeLoad: ({ location }): { locale: Locale } => {
+  beforeLoad: async ({
+    location,
+  }): Promise<{ locale: Locale; seoPath: string; publicPage?: PublicPageMeta }> => {
     const seg = location.pathname.split('/').filter(Boolean)[0];
     // /en/... is not canonical — base locale has no prefix. Redirect to the
     // un-prefixed equivalent, preserving search + hash.
     if (seg === (baseLocale as string)) {
       const prefix = `/${seg}`;
-      const rest = location.href.startsWith(prefix)
-        ? location.href.slice(prefix.length) || '/'
-        : '/';
-      throw redirect({ href: rest, replace: true });
+      const rest = `/${location.pathname.slice(prefix.length).replace(/^\/+/, '')}`;
+      const suffix = location.searchStr + (location.hash ? `#${location.hash}` : '');
+      throw redirect({ href: rest + suffix, replace: true, statusCode: 308 });
     }
     const locale: Locale =
       seg && isLocale(seg) && seg !== (baseLocale as string)
         ? (seg as Locale)
         : (baseLocale as Locale);
-    return { locale };
+    const seoPath = location.pathname.replace(/\/+$/, '') || '/';
+    const { rest } = splitLocalePath(seoPath);
+    // Keep the lesson/challenge content out of the tool's initial bundle.
+    const publicPage = /^\/(learn|challenges)\/[^/]+$/.test(rest)
+      ? (await import('@/content/publicCatalog')).getPublicPage(rest, locale)
+      : undefined;
+    return { locale, seoPath, publicPage };
   },
   head: ({ match }) => {
     const locale =
       (match.context as { locale?: Locale } | undefined)?.locale ?? (baseLocale as Locale);
-    const pathname = (match as { pathname?: string }).pathname ?? '/';
+    // A root match always has pathname "/", even on an unknown URL. Use the
+    // request location captured in beforeLoad for page-specific metadata.
+    const pathname = (match.context as { seoPath?: string }).seoPath ?? '/';
     const { rest: basePath } = splitLocalePath(pathname);
-    const pageType: 'home' | 'unknown' = basePath === '/' ? 'home' : 'unknown';
-    const isKnown = pageType !== 'unknown';
+    const page = (match.context as { publicPage?: PublicPageMeta }).publicPage;
+    const isKnown = ['/', '/learn', '/challenges'].includes(basePath) || !!page;
 
-    const title = m.site_title({}, { locale });
-    const description = m.site_description({}, { locale });
+    const title = page
+      ? `${page.title} | ${SITE_NAME}`
+      : basePath === '/learn'
+        ? `${m.learn_title({}, { locale })} | ${SITE_NAME}`
+        : basePath === '/challenges'
+          ? `${m.content_challenges_title({}, { locale })} | ${SITE_NAME}`
+          : isKnown
+            ? m.site_title({}, { locale })
+            : `${m.not_found_title({}, { locale })} | ${SITE_NAME}`;
+    const description = page
+      ? page.description
+      : basePath === '/learn'
+        ? m.learn_description({}, { locale })
+        : basePath === '/challenges'
+          ? m.content_challenges_description({}, { locale })
+          : isKnown
+            ? m.site_description({}, { locale })
+            : m.not_found_description({}, { locale });
     const canonicalHref = `${SITE_URL}${localizedPath(basePath, locale)}`;
     const ogImage = `${SITE_URL}/og.png`;
 
@@ -73,11 +100,11 @@ export const Route = createRootRoute({
       meta.push({ name: 'robots', content: 'noindex,follow' });
     }
     meta.push(
-      { property: 'og:type', content: 'website' },
+      { property: 'og:type', content: page ? 'article' : 'website' },
       { property: 'og:site_name', content: SITE_NAME },
       { property: 'og:title', content: title },
       { property: 'og:description', content: description },
-      { property: 'og:url', content: canonicalHref },
+      ...(isKnown ? [{ property: 'og:url', content: canonicalHref }] : []),
       { property: 'og:locale', content: OG_LOCALE[locale] },
       ...(locales as readonly Locale[])
         .filter((l) => l !== locale)

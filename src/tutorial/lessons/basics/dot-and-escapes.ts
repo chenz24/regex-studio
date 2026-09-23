@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -5,7 +6,8 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Dot and escapes: `.` is not the dot you think',
-    summary: 'Understand what `.` really means, escape metacharacters with `\\`, and learn the `s` flag.',
+    summary:
+      'Understand what `.` really means, escape metacharacters with `\\`, and learn the `s` flag.',
     s1_title: '`.` matches any single character',
     s1_body: [
       '`.` is a metacharacter that by default matches any single character **except newline**.',
@@ -87,66 +89,69 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createDotAndEscapesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-dot-and-escapes',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'cat cot cut bat sit',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('c.t'), v.matchesExactly(3)),
+        hints: [t.s1_hint],
+        spotlight: {
+          patternSubstrings: ['.'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'version 1.2.3 build 4.5' },
+        validate: v.all(v.patternEquals('\\d\\.\\d'), v.matchesExactly(2)),
+        hints: t.s2_hints,
+        solution: { pattern: '\\d\\.\\d' },
+        spotlight: {
+          patternSubstrings: ['\\.'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: {
+          pattern: 'a.b',
+          flags: 'g',
+          testText: 'a\nb a b axb',
+        },
+        validate: v.all(v.patternEquals('a.b'), v.flagEnabled('s'), v.matchesAtLeast(3)),
+        hints: [t.s3_hint],
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-anchors',
+  };
+}
 
-export const dotAndEscapesLesson: Lesson = {
-  id: 'basics-dot-and-escapes',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'cat cot cut bat sit',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('c.t'), v.matchesExactly(3)),
-      hints: [t.s1_hint],
-      spotlight: {
-        patternSubstrings: ['.'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'version 1.2.3 build 4.5' },
-      validate: v.all(v.patternEquals('\\d\\.\\d'), v.matchesExactly(2)),
-      hints: t.s2_hints,
-      solution: { pattern: '\\d\\.\\d' },
-      spotlight: { patternSubstrings: ['\\.'], openPanel: 'explanation', scrollExplanation: true },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: {
-        pattern: 'a.b',
-        flags: 'g',
-        testText: 'a\nb a b axb',
-      },
-      validate: v.all(
-        v.patternEquals('a.b'),
-        v.flagEnabled('s'),
-        v.matchesAtLeast(3),
-      ),
-      hints: [t.s3_hint],
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-anchors',
-};
+export const dotAndEscapesLesson = createDotAndEscapesLesson();

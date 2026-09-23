@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -77,56 +78,59 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const quantifiersIntroLesson: Lesson = {
-  id: 'basics-quantifiers',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Order 2025 has 42 items.',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d+'), v.matchesExactly(2)),
-      hints: [t.s1_hint],
+export function createQuantifiersIntroLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-quantifiers',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Order 2025 has 42 items.',
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'color or colour' },
-      validate: v.all(v.patternEquals('colou?r'), v.matchesExactly(2)),
-      hints: [t.s2_hint],
-      solution: {
-        pattern: 'colou?r',
-        explanation: t.s2_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d+'), v.matchesExactly(2)),
+        hints: [t.s1_hint],
       },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { testText: 'color colour colouur' },
-      validate: v.all(v.patternEquals('colou*r'), v.matchesExactly(3)),
-      hints: [t.s3_hint],
-      solution: { pattern: 'colou*r' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'quantifiers-greedy',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'color or colour' },
+        validate: v.all(v.patternEquals('colou?r'), v.matchesExactly(2)),
+        hints: [t.s2_hint],
+        solution: {
+          pattern: 'colou?r',
+          explanation: t.s2_explanation,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { testText: 'color colour colouur' },
+        validate: v.all(v.patternEquals('colou*r'), v.matchesExactly(3)),
+        hints: [t.s3_hint],
+        solution: { pattern: 'colou*r' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'quantifiers-greedy',
+  };
+}
+
+export const quantifiersIntroLesson = createQuantifiersIntroLesson();

@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -11,7 +12,8 @@ const TEXT = [
 const TEXTS = {
   en: {
     title: 'Match Markdown links `[text](url)`',
-    summary: 'Pitfalls of lazy quantifiers, negated character classes, and why `[^\\]]+` is almost always safer.',
+    summary:
+      'Pitfalls of lazy quantifiers, negated character classes, and why `[^\\]]+` is almost always safer.',
     s1_title: 'A lazy attempt',
     s1_body: [
       'To grab `[text](url)` Markdown links, lazy quantifiers come to mind:',
@@ -41,7 +43,8 @@ const TEXTS = {
       '`]` inside `[^\\]]` must be escaped too.',
       '`)` inside `[^)]` does **not** need escaping (`(`/`)` are literal in a character class).',
     ],
-    s3_explanation: 'A negated class blocks "illegal" characters at the gate — more precise than `.+?`, and no backtracking required.',
+    s3_explanation:
+      'A negated class blocks "illegal" characters at the gate — more precise than `.+?`, and no backtracking required.',
     s4_title: 'Recap',
     s4_body: [
       'Key points:',
@@ -95,61 +98,58 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const markdownLinkLesson: Lesson = {
-  id: 'practical-markdown-link',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 6,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: TEXT,
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(
-        v.patternEquals('\\[(.+?)\\]\\((.+?)\\)'),
-        v.matchesAtLeast(3),
-      ),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['(.+?)'], openPanel: 'matches' },
+export function createMarkdownLinkLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-markdown-link',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 6,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: TEXT,
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-      spotlight: { patternSubstrings: ['(.+?)'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('\\[([^\\]]+)\\]\\(([^)]+)\\)'),
-        v.matchesExactly(3),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
-        explanation: t.s3_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\[(.+?)\\]\\((.+?)\\)'), v.matchesAtLeast(3)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['(.+?)'], openPanel: 'matches' },
       },
-      spotlight: { patternSubstrings: ['([^\\]]+)', '([^)]+)'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-csv',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+        spotlight: { patternSubstrings: ['(.+?)'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\[([^\\]]+)\\]\\(([^)]+)\\)'), v.matchesExactly(3)),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['([^\\]]+)', '([^)]+)'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-csv',
+  };
+}
+
+export const markdownLinkLesson = createMarkdownLinkLesson();

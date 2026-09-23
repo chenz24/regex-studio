@@ -1,8 +1,12 @@
 import { Github, Heart } from 'lucide-react';
-import { useT } from '@/lib/i18n';
+import { useLocation } from '@tanstack/react-router';
+import { localizedPath, splitLocalePath, useLocale, useT } from '@/lib/i18n';
 
 export function Footer() {
   const t = useT();
+  const locale = useLocale();
+  const { pathname } = useLocation();
+  const { rest } = splitLocalePath(pathname);
   const year = new Date().getFullYear();
 
   return (
@@ -11,6 +15,45 @@ export function Footer() {
       className="mt-8 border-t border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40"
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-10">
+        <nav
+          aria-label={t.learn_nav()}
+          className="mb-8 border-b border-gray-200 pb-6 dark:border-gray-800"
+        >
+          <a
+            href={localizedPath('/learn', locale)}
+            className="font-semibold text-teal-700 hover:underline dark:text-teal-300"
+          >
+            {t.learn_nav()} &rarr;
+          </a>
+          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600 dark:text-gray-400">
+            <li>
+              <a href={localizedPath('/learn', locale)} className="hover:underline">
+                {t.content_tutorials()}
+              </a>
+            </li>
+            <li>
+              <a href={localizedPath('/challenges', locale)} className="hover:underline">
+                {t.content_challenges()}
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <nav
+          aria-label={t.learn_language()}
+          className="mb-6 flex gap-4 text-sm text-teal-700 dark:text-teal-300"
+        >
+          <a href={localizedPath(rest, 'en')} hrefLang="en" lang="en" className="hover:underline">
+            English
+          </a>
+          <a
+            href={localizedPath(rest, 'zh')}
+            hrefLang="zh-CN"
+            lang="zh-CN"
+            className="hover:underline"
+          >
+            简体中文
+          </a>
+        </nav>
         {/* SEO copy */}
         <section aria-labelledby="footer-about" className="max-w-3xl">
           <h2

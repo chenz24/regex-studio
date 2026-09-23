@@ -1,30 +1,39 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Track } from '../../types';
 import { pickLocale } from '../../i18n';
-import { capturingGroupsLesson } from './capturing';
-import { alternationLesson } from './alternation';
-import { backreferencesLesson } from './backreferences';
-import { namedAndNonCapturingLesson } from './named-and-noncapturing';
+import { createCapturingGroupsLesson } from './capturing';
+import { createAlternationLesson } from './alternation';
+import { createBackreferencesLesson } from './backreferences';
+import { createNamedAndNonCapturingLesson } from './named-and-noncapturing';
 
-const t = pickLocale({
-  en: {
-    title: 'Groups',
-    description: 'Capturing groups, named groups, backreferences, non-capturing groups, and `|`.',
-  },
-  zh: {
-    title: 'Groups · 分组',
-    description: '捕获组、命名组、反向引用、非捕获组与 `|`。',
-  },
-});
+export function createGroupsTrack(locale?: Locale): Track {
+  const t = pickLocale(
+    {
+      en: {
+        title: 'Groups',
+        description:
+          'Capturing groups, named groups, backreferences, non-capturing groups, and `|`.',
+      },
+      zh: {
+        title: 'Groups · 分组',
+        description: '捕获组、命名组、反向引用、非捕获组与 `|`。',
+      },
+    },
+    locale,
+  );
 
-export const groupsTrack: Track = {
-  id: 'groups',
-  title: t.title,
-  description: t.description,
-  order: 3,
-  lessons: [
-    capturingGroupsLesson,
-    alternationLesson,
-    backreferencesLesson,
-    namedAndNonCapturingLesson,
-  ],
-};
+  return {
+    id: 'groups',
+    title: t.title,
+    description: t.description,
+    order: 3,
+    lessons: [
+      createCapturingGroupsLesson(locale),
+      createAlternationLesson(locale),
+      createBackreferencesLesson(locale),
+      createNamedAndNonCapturingLesson(locale),
+    ],
+  };
+}
+
+export const groupsTrack = createGroupsTrack();

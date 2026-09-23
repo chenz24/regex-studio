@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -12,7 +13,8 @@ const TEXTS = {
       '',
       'Pattern: `(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})`.',
     ].join('\n'),
-    s1_hint: 'Syntax is `(?<name>...)`. Names allow letters, digits, underscores, and must start with a letter.',
+    s1_hint:
+      'Syntax is `(?<name>...)`. Names allow letters, digits, underscores, and must start with a letter.',
     s1_explanation: 'In replacements use `$<year>`; in JS read `match.groups.year`.',
     s2_title: 'Non-capturing group `(?:...)`',
     s2_body: [
@@ -24,7 +26,8 @@ const TEXTS = {
       'Try `(?:Mrs|Mr|Ms)\\. \\w+` — `(?:...)` groups without capturing.',
       'Put `Mrs` first so `Mr` does not match-and-then-backtrack.',
     ],
-    s2_explanation: 'The matches panel shows **no group 1**, and the engine spends less bookkeeping.',
+    s2_explanation:
+      'The matches panel shows **no group 1**, and the engine spends less bookkeeping.',
     s3_title: 'Recap',
     s3_body: [
       'Key points:',
@@ -71,54 +74,57 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createNamedAndNonCapturingLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'groups-named-and-noncapturing',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Born 1990-05-15. Joined 2019-03-22.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(
+          v.patternEquals('(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})'),
+          v.matchesExactly(2),
+        ),
+        hints: [t.s1_hint],
+        solution: {
+          pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
+          explanation: t.s1_explanation,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'Hi Mr. Smith, Mrs. Jones, Ms. Doe today.' },
+        validate: v.all(v.patternEquals('(?:Mrs|Mr|Ms)\\. \\w+'), v.matchesExactly(3)),
+        hints: t.s2_hints,
+        solution: {
+          pattern: '(?:Mrs|Mr|Ms)\\. \\w+',
+          explanation: t.s2_explanation,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'lookaround-lookahead',
+  };
+}
 
-export const namedAndNonCapturingLesson: Lesson = {
-  id: 'groups-named-and-noncapturing',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Born 1990-05-15. Joined 2019-03-22.',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(
-        v.patternEquals('(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})'),
-        v.matchesExactly(2),
-      ),
-      hints: [t.s1_hint],
-      solution: {
-        pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
-        explanation: t.s1_explanation,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'Hi Mr. Smith, Mrs. Jones, Ms. Doe today.' },
-      validate: v.all(v.patternEquals('(?:Mrs|Mr|Ms)\\. \\w+'), v.matchesExactly(3)),
-      hints: t.s2_hints,
-      solution: {
-        pattern: '(?:Mrs|Mr|Ms)\\. \\w+',
-        explanation: t.s2_explanation,
-      },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'lookaround-lookahead',
-};
+export const namedAndNonCapturingLesson = createNamedAndNonCapturingLesson();

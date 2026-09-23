@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -21,7 +22,8 @@ const TEXTS = {
       'Try `(cat|dog)s?`. You should get **2** matches (cats, dogs).',
     ].join('\n'),
     s2_hint: '`(cat|dog)s?` — the parens scope `|` to cat/dog, with `s?` applying to the whole.',
-    s2_explanation: 'Without the parens, `s?` would only apply to dog: `cat|dogs?` means something completely different.',
+    s2_explanation:
+      'Without the parens, `s?` would only apply to dog: `cat|dogs?` means something completely different.',
     s3_title: 'Recap',
     s3_body: [
       'Key points:',
@@ -67,46 +69,49 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
-
-export const alternationLesson: Lesson = {
-  id: 'groups-alternation',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'I have a cat, a dog, and a bird.',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('cat|dog|bird'), v.matchesExactly(3)),
+export function createAlternationLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'groups-alternation',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'I have a cat, a dog, and a bird.',
     },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'I love cats and dogs equally.' },
-      validate: v.all(v.patternEquals('(cat|dog)s?'), v.matchesExactly(2)),
-      hints: [t.s2_hint],
-      solution: {
-        pattern: '(cat|dog)s?',
-        explanation: t.s2_explanation,
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('cat|dog|bird'), v.matchesExactly(3)),
       },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-backreferences',
-};
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'I love cats and dogs equally.' },
+        validate: v.all(v.patternEquals('(cat|dog)s?'), v.matchesExactly(2)),
+        hints: [t.s2_hint],
+        solution: {
+          pattern: '(cat|dog)s?',
+          explanation: t.s2_explanation,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-backreferences',
+  };
+}
+
+export const alternationLesson = createAlternationLesson();

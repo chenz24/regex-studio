@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -5,7 +6,8 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Backreferences: reuse what you captured',
-    summary: '`\\1` `\\2` refer to the actual text matched by the Nth group — useful for duplicate words, paired quotes, etc.',
+    summary:
+      '`\\1` `\\2` refer to the actual text matched by the Nth group — useful for duplicate words, paired quotes, etc.',
     s1_title: 'Find repeated adjacent words',
     s1_body: [
       '"the the" is a classic accidental repetition in writing.',
@@ -25,9 +27,10 @@ const TEXTS = {
     ].join('\n'),
     s2_hints: [
       "`'` does not need escaping inside a character class, but a JS string literal needs `\\'`.",
-      "The pattern is `(['\"])(.*?)\\1` (no spaces).",
+      'The pattern is `([\'"])(.*?)\\1` (no spaces).',
     ],
-    s2_explanation: 'Only same-quote pairs match: `"hi"` and `\'bye\'`. The mismatched `"mismatched\'` is left alone.',
+    s2_explanation:
+      'Only same-quote pairs match: `"hi"` and `\'bye\'`. The mismatched `"mismatched\'` is left alone.',
     s3_title: 'Recap',
     s3_body: [
       'Key points:',
@@ -60,7 +63,7 @@ const TEXTS = {
       '换一段文本，写 `(["\\\'])(.*?)\\1` —— 第一个组捕获引号字符（`"` 或 `\'`），中间懒惰匹配任意内容，末尾用 `\\1` 要求**同一种引号**收尾。',
     ].join('\n'),
     s2_hints: [
-      '字符类里 `\'` 不需要转义，但写成 JS 字符串时要 `\\\'`。',
+      "字符类里 `'` 不需要转义，但写成 JS 字符串时要 `\\'`。",
       'pattern 是 `(["\']) (.*?) \\1`（去掉空格）。',
     ],
     s2_explanation: '只匹配引号一致的两段：`"hi"` 和 `\'bye\'`。错配的 `"mismatched\'` 不会被吞。',
@@ -77,57 +80,60 @@ const TEXTS = {
   },
 };
 
-const t = pickLocale(TEXTS);
+export function createBackreferencesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'groups-backreferences',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'the the cat sat sat down.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(\\w+) \\1'), v.matchesExactly(2)),
+        hints: t.s1_hints,
+        solution: {
+          pattern: '(\\w+) \\1',
+          explanation: t.s1_explanation,
+        },
+        spotlight: {
+          patternSubstrings: ['\\1'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'He said "hi" and \'bye\' but said "mismatched\'.' },
+        validate: v.all(v.patternEquals('(["\'])(.*?)\\1'), v.matchesExactly(2)),
+        hints: t.s2_hints,
+        solution: {
+          pattern: '(["\'])(.*?)\\1',
+          explanation: t.s2_explanation,
+        },
+        spotlight: { patternSubstrings: ['\\1'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-named-and-noncapturing',
+  };
+}
 
-export const backreferencesLesson: Lesson = {
-  id: 'groups-backreferences',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'the the cat sat sat down.',
-  },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(\\w+) \\1'), v.matchesExactly(2)),
-      hints: t.s1_hints,
-      solution: {
-        pattern: '(\\w+) \\1',
-        explanation: t.s1_explanation,
-      },
-      spotlight: {
-        patternSubstrings: ['\\1'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'He said "hi" and \'bye\' but said "mismatched\'.' },
-      validate: v.all(v.patternEquals('(["\'])(.*?)\\1'), v.matchesExactly(2)),
-      hints: t.s2_hints,
-      solution: {
-        pattern: '(["\'])(.*?)\\1',
-        explanation: t.s2_explanation,
-      },
-      spotlight: { patternSubstrings: ['\\1'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-named-and-noncapturing',
-};
+export const backreferencesLesson = createBackreferencesLesson();

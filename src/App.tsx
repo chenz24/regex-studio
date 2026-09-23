@@ -21,7 +21,7 @@ import { resolveSpotlight } from './tutorial/spotlight';
 import type { ToolPanelTab } from './tutorial/types';
 import { ChallengesLauncher } from './components/challenges/ChallengesLauncher';
 import { useChallengeStore } from './stores/challengeStore';
-import { useT } from '@/lib/i18n';
+import { localizedPath, useLocale, useT } from '@/lib/i18n';
 import { useNarrowLayout } from './hooks/useNarrowLayout';
 import {
   inspectMatch,
@@ -61,6 +61,7 @@ type SidebarTab = 'reference' | 'library';
 
 function App() {
   const t = useT();
+  const locale = useLocale();
   // Subscribe field by field: reading the whole store re-rendered the entire
   // app on every hover over a diagram node.
   const engine = useRegexStore((s) => s.engine);
@@ -278,6 +279,10 @@ function App() {
     if (lessonId) {
       const stepIndex = stepParam ? Math.max(0, parseInt(stepParam, 10) - 1) : 0;
       void startLesson(lessonId, Number.isFinite(stepIndex) ? stepIndex : 0);
+    } else if (params.get('catalog') === 'tutorial') {
+      useTutorialStore.getState().openCatalog();
+    } else if (params.get('catalog') === 'challenges') {
+      openChallengeCatalog();
     }
   }, [hydrateTutorial, hydrateChallenges, startLesson, startChallenge, openChallengeCatalog]);
 
@@ -441,6 +446,15 @@ function App() {
           }`}
         >
           <div className="px-4 sm:px-6 py-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs sm:text-sm">
+              <p className="text-gray-600 dark:text-gray-400">{t.home_intro()}</p>
+              <a
+                href={localizedPath('/learn', locale)}
+                className="shrink-0 font-medium text-teal-700 hover:underline dark:text-teal-300"
+              >
+                {t.learn_nav()} &rarr;
+              </a>
+            </div>
             {/* Regex Input */}
             <div ref={patternSectionRef} tabIndex={-1} className="scroll-mt-20 outline-none">
               <RegexInput

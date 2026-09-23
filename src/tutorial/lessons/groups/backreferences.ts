@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -5,7 +6,8 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Backreferences: reuse what you captured',
-    summary: '`\\1` `\\2` refer to the actual text matched by the Nth group — useful for duplicate words, paired quotes, etc.',
+    summary:
+      '`\\1` `\\2` refer to the actual text matched by the Nth group — useful for duplicate words, paired quotes, etc.',
     s1_title: 'Find repeated adjacent words',
     s1_body: [
       '"the the" is a classic accidental repetition in writing.',
@@ -21,13 +23,14 @@ const TEXTS = {
     s2_body: [
       'Backreferences also enforce "matching open/close symbols".',
       '',
-      'Switch the test text. Write `(["\\\'])(.*?)\\1` — group 1 captures a quote (`"` or `\'`), `.+?` matches anything in the middle lazily, then `\\1` requires the **same** quote to close.',
+      'Switch the test text. Write `(["\\\'])(.*?)\\1` — group 1 captures a quote (`"` or `\'`), `.*?` matches the middle lazily, including empty content, then `\\1` requires the **same** quote to close.',
     ].join('\n'),
     s2_hints: [
       "`'` does not need escaping inside a character class, but a JS string literal needs `\\'`.",
-      "The pattern is `(['\"])(.*?)\\1` (no spaces).",
+      'The pattern is `([\'"])(.*?)\\1` (no spaces).',
     ],
-    s2_explanation: 'Only same-quote pairs match: `"hi"` and `\'bye\'`. The mismatched `"mismatched\'` is left alone.',
+    s2_explanation:
+      'Only same-quote pairs match: `"hi"` and `\'bye\'`. The mismatched `"mismatched\'` is left alone.',
     s3_title: 'Recap',
     s3_body: [
       'Key points:',
@@ -60,7 +63,7 @@ const TEXTS = {
       '换一段文本，写 `(["\\\'])(.*?)\\1` —— 第一个组捕获引号字符（`"` 或 `\'`），中间懒惰匹配任意内容，末尾用 `\\1` 要求**同一种引号**收尾。',
     ].join('\n'),
     s2_hints: [
-      '字符类里 `\'` 不需要转义，但写成 JS 字符串时要 `\\\'`。',
+      "字符类里 `'` 不需要转义，但写成 JS 字符串时要 `\\'`。",
       'pattern 是 `(["\']) (.*?) \\1`（去掉空格）。',
     ],
     s2_explanation: '只匹配引号一致的两段：`"hi"` 和 `\'bye\'`。错配的 `"mismatched\'` 不会被吞。',
@@ -75,59 +78,87 @@ const TEXTS = {
       '下一课：**命名组**和**非捕获组**。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const backreferencesLesson: Lesson = {
-  id: 'groups-backreferences',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'the the cat sat sat down.',
+  ja: {
+    title: '後方参照: キャプチャした内容を再利用',
+    summary:
+      '`\\1`、`\\2` は対応するグループが一致した実際のテキストを参照します。単語の重複や引用符の対応に使えます。',
+    s1_title: '隣り合う単語の重複を探す',
+    s1_body:
+      '「the the」のような重複は、文章でよくある入力ミスです。\n\n`(\\w+) \\1` と書いてみましょう。最初の `\\w+` が単語をキャプチャし、`\\1` がその直後に**同じ内容**を要求します。',
+    s1_hints: [
+      '`\\1` は数字の 1 ではなく、バックスラッシュと数字です。',
+      '`(\\w+) \\1` — 間のスペースも必要です。',
+    ],
+    s1_explanation: '`\\1` の内容は、**今回の一致で**グループ 1 がキャプチャしたテキストです。',
+    s2_title: '引用符の対応をそろえる',
+    s2_body:
+      '後方参照で開始・終了の引用符をそろえることもできます。\n\n新しいテキストで `([\'"])(.*?)\\1` と書きましょう。グループ 1 が引用符（`"` または `\'`）を保存し、`.*?` が中身に最短一致し、最後の `\\1` が**同じ引用符**を要求します。',
+    s2_hints: [
+      "文字クラス内の `'` にエスケープは不要ですが、JavaScript の単一引用符の文字列内では `\\'` が必要です。",
+      'パターンは `([\'"])(.*?)\\1` です（スペースなし）。',
+    ],
+    s2_explanation:
+      '同じ引用符の組である `"hi"` と `\'bye\'` だけに一致し、対応しない `"mismatched\'` は除外します。',
+    s3_title: 'まとめ',
+    s3_body:
+      '要点:\n\n- `\\1`、`\\2` などは対応するグループがキャプチャした**実際のテキスト**を参照\n- 置換文字列では `\\1` ではなく `$1`、`$2` を使用\n- 名前付きグループの後方参照は `\\k<name>`（次のレッスン）\n\n次は**名前付きグループ**と**非キャプチャグループ**です。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(\\w+) \\1'), v.matchesExactly(2)),
-      hints: t.s1_hints,
-      solution: {
-        pattern: '(\\w+) \\1',
-        explanation: t.s1_explanation,
-      },
-      spotlight: {
-        patternSubstrings: ['\\1'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'He said "hi" and \'bye\' but said "mismatched\'.' },
-      validate: v.all(v.patternEquals('(["\'])(.*?)\\1'), v.matchesExactly(2)),
-      hints: t.s2_hints,
-      solution: {
-        pattern: '(["\'])(.*?)\\1',
-        explanation: t.s2_explanation,
-      },
-      spotlight: { patternSubstrings: ['\\1'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-named-and-noncapturing',
 };
+
+export function createBackreferencesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'groups-backreferences',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'the the cat sat sat down.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(\\w+) \\1'), v.matchesExactly(2)),
+        hints: t.s1_hints,
+        solution: {
+          pattern: '(\\w+) \\1',
+          explanation: t.s1_explanation,
+        },
+        spotlight: {
+          patternSubstrings: ['\\1'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'He said "hi" and \'bye\' but said "mismatched\'.' },
+        validate: v.all(v.patternEquals('(["\'])(.*?)\\1'), v.matchesExactly(2)),
+        hints: t.s2_hints,
+        solution: {
+          pattern: '(["\'])(.*?)\\1',
+          explanation: t.s2_explanation,
+        },
+        spotlight: { patternSubstrings: ['\\1'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-named-and-noncapturing',
+  };
+}
+
+export const backreferencesLesson = createBackreferencesLesson();

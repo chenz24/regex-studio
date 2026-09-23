@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -27,7 +28,8 @@ const TEXTS = {
       'It expresses the same intent: "one or more `a`, then `b`".',
     ].join('\n'),
     s3_hint: 'There is no `b` in the text so the match count is 0 — but it is constant time.',
-    s3_explanation: 'No nested quantifier means the engine no longer tries multiple partitions of the same run.',
+    s3_explanation:
+      'No nested quantifier means the engine no longer tries multiple partitions of the same run.',
     s4_title: 'Recap',
     s4_body: [
       'Spot dangerous patterns:',
@@ -87,54 +89,78 @@ const TEXTS = {
       '🎉 Track 2 完结。继续学习其它 track 之前，可以打开 Debugger 面板亲手观察回溯过程。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const backtrackingLesson: Lesson = {
-  id: 'quantifiers-backtracking',
-  trackId: 'quantifiers',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '(a+)+b',
-    flags: '',
-    testText: 'aaaaab',
+  ja: {
+    title: 'バックトラッキングの落とし穴: 量指定子の入れ子',
+    summary:
+      '`(a+)+b` は最悪の場合、指数関数的なバックトラッキングを起こします。見分け方と回避方法を学びます。',
+    s1_title: '一見問題なさそうなパターン',
+    s1_body:
+      'パターン `(a+)+b` は `"aaaaab"` に問題なく一致します。\n\nこのステップでは、一致することを確認しましょう。',
+    s2_title: '`b` を取り除く',
+    s2_body:
+      '同じ長さで **`b` を含まない**文字列に切り替えます。\n\n`(a+)+b` は一致がないと判断するため、内側の `a+` と外側の `+` で連続した `a` のあらゆる**分割**を試します。バックトラッキングは O(2^n) に増える可能性があります。\n\n20 個程度なら処理できても、数が増えるとブラウザーが応答しなくなるおそれがあります。これが**破滅的バックトラッキング**です。',
+    s3_title: '修正: 量指定子の入れ子を避ける',
+    s3_body:
+      'パターンを `a+b` に変更しましょう。量指定子が 1 つになり、指数関数的な分割の試行を避けられます。\n\n意図は同じで、「1 個以上の `a` の後に `b`」です。',
+    s3_hint:
+      'テキストに `b` がないので一致は 0 件です。入れ子をなくすことで、同じ並びの分割を何度も試す処理を避けられます。',
+    s3_explanation:
+      '量指定子の入れ子がなくなり、同じ文字列をさまざまに分割して試す必要がなくなります。',
+    s4_title: 'まとめ',
+    s4_body:
+      '危険なパターンの例:\n\n- 同じ文字集合に対する量指定子の入れ子: `(a+)+`、`(a*)*`\n- 選択肢が重なる分岐: `(a|a)+`\n- 空文字列に一致できる部分式の繰り返し\n\n対処法:\n\n- 入れ子を平らにする: `(a+)+` → `a+`\n- **否定文字クラス**で区切りを明示する: `<[^>]+>`\n- 対応エンジンでは**アトミックグループ** `(?>...)` や**所有的量指定子** `a++` を使う\n\n🎉 量指定子コースは完了です。デバッガーでバックトラッキングの動きを追ってみましょう。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(a+)+b'), v.matchesAtLeast(1)),
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'aaaaaaaaaaaaaaaaaaaa' },
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('a+b'), v.matchesExactly(0)),
-      hints: [t.s3_hint],
-      solution: {
-        pattern: 'a+b',
-        explanation: t.s3_explanation,
-      },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-capturing',
 };
+
+export function createBacktrackingLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'quantifiers-backtracking',
+    trackId: 'quantifiers',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '(a+)+b',
+      flags: '',
+      testText: 'aaaaab',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(a+)+b'), v.matchesAtLeast(1)),
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'aaaaaaaaaaaaaaaaaaaa' },
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('a+b'), v.matchesExactly(0)),
+        hints: [t.s3_hint],
+        solution: {
+          pattern: 'a+b',
+          explanation: t.s3_explanation,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-capturing',
+  };
+}
+
+export const backtrackingLesson = createBacktrackingLesson();

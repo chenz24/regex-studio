@@ -1,4 +1,4 @@
-import type { MatchRequest, MatchResponse } from '../utils/matchEngine';
+import type { MatchRequest, WorkerResponse } from '../utils/matchEngine';
 import { executeJavascript } from '../utils/javascriptMatcher';
 
 /**
@@ -11,7 +11,7 @@ import { executeJavascript } from '../utils/javascriptMatcher';
  */
 interface WorkerScope {
   onmessage: ((event: MessageEvent<MatchRequest>) => void) | null;
-  postMessage(message: MatchResponse): void;
+  postMessage(message: WorkerResponse): void;
 }
 
 const ctx = self as unknown as WorkerScope;
@@ -19,3 +19,6 @@ const ctx = self as unknown as WorkerScope;
 ctx.onmessage = (event) => {
   ctx.postMessage({ id: event.data.id, ...executeJavascript(event.data) });
 };
+
+// Loading the worker module must not consume the pattern execution budget.
+ctx.postMessage({ type: 'ready' });

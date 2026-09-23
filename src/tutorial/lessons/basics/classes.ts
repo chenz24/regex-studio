@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -89,65 +90,93 @@ const TEXTS = {
       '下一课我们看 `.` 的真实语义和**转义**。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const classesLesson: Lesson = {
-  id: 'basics-classes',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'apple banana cherry',
+  ja: {
+    title: '文字クラス: 1 つの指定で複数の文字を扱う',
+    summary: '角括弧・範囲・定義済みの文字クラスで、文字の集合に一致させます。',
+    s1_title: '文字の集合 `[abc]`',
+    s1_body:
+      '角括弧の中にある**いずれか 1 文字**に一致します。パターンを `[abc]` に変え、一致数を数えましょう。\n\n**6** 件（`a` が 4 回、`b` と `c` が 1 回ずつ）一致します。',
+    s1_hint: '`[abc]` と入力してください。各文字に個別に一致します。',
+    s2_title: '範囲 `[a-e]`',
+    s2_body:
+      'ハイフンは範囲を表します。`[a-e]` は `[abcde]` と同じ意味を短く書いたものです。\nパターンを `[a-e]` に変えて一致数を確認しましょう。\n\n前の 6 件に `e` が 2 件加わり、**8** 件になります。',
+    s2_hint: '範囲の書き方は `[開始-終了]` です。',
+    s3_title: '定義済みの文字クラス `\\d`',
+    s3_body:
+      '`\\d` は**数字 1 文字**に一致し、`[0-9]` と同じ意味です。\n新しいテスト文字列ですべての数字に一致するパターンを書きましょう。',
+    s3_hint: '`\\d` は digit（数字）の略です。',
+    s4_title: '否定 `[^...]`',
+    s4_body:
+      '`[` の直後の `^` は集合を反転させ、含まれ**ない**文字に一致させます。\n新しいテスト文字列で、**母音以外**の文字に一致するパターンを書きましょう。',
+    s4_hint: '母音は `aeiou`、その否定は `[^aeiou]` です。',
+    s4_explanation:
+      '文字クラス内では、`[` の直後の `^` が否定を表します。それ以外の位置では通常の文字として扱います。',
+    s5_title: 'まとめ',
+    s5_body:
+      '学んだこと:\n\n- 集合 `[abc]`\n- 範囲 `[a-z]`\n- 定義済みクラス `\\d`（数字）、`\\w`（単語構成文字）、`\\s`（空白）\n- 否定 `[^...]`\n\n次は `.` の意味と、特殊文字の**エスケープ**を学びます。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('[abc]'), v.matchesExactly(6)),
-      hints: [t.s1_hint],
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('[a-e]'), v.matchesExactly(8)),
-      hints: [t.s2_hint],
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { testText: 'Order #2025-001 ships on day 7.' },
-      validate: v.all(v.patternEquals('\\d'), v.matchesExactly(8)),
-      hints: [t.s3_hint],
-      solution: { pattern: '\\d' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: { testText: 'education' },
-      validate: v.all(v.patternEquals('[^aeiou]'), v.matchesExactly(4)),
-      hints: [t.s4_hint],
-      solution: {
-        pattern: '[^aeiou]',
-        explanation: t.s4_explanation,
-      },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-dot-and-escapes',
 };
+
+export function createClassesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-classes',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'apple banana cherry',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('[abc]'), v.matchesExactly(6)),
+        hints: [t.s1_hint],
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('[a-e]'), v.matchesExactly(8)),
+        hints: [t.s2_hint],
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { testText: 'Order #2025-001 ships on day 7.' },
+        validate: v.all(v.patternEquals('\\d'), v.matchesExactly(8)),
+        hints: [t.s3_hint],
+        solution: { pattern: '\\d' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: { testText: 'education' },
+        validate: v.all(v.patternEquals('[^aeiou]'), v.matchesExactly(4)),
+        hints: [t.s4_hint],
+        solution: {
+          pattern: '[^aeiou]',
+          explanation: t.s4_explanation,
+        },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-dot-and-escapes',
+  };
+}
+
+export const classesLesson = createClassesLesson();

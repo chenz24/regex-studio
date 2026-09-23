@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -11,7 +12,8 @@ const TEXT = [
 const TEXTS = {
   en: {
     title: 'Match Markdown links `[text](url)`',
-    summary: 'Pitfalls of lazy quantifiers, negated character classes, and why `[^\\]]+` is almost always safer.',
+    summary:
+      'Pitfalls of lazy quantifiers, negated character classes, and why `[^\\]]+` is almost always safer.',
     s1_title: 'A lazy attempt',
     s1_body: [
       'To grab `[text](url)` Markdown links, lazy quantifiers come to mind:',
@@ -41,7 +43,8 @@ const TEXTS = {
       '`]` inside `[^\\]]` must be escaped too.',
       '`)` inside `[^)]` does **not** need escaping (`(`/`)` are literal in a character class).',
     ],
-    s3_explanation: 'A negated class blocks "illegal" characters at the gate — more precise than `.+?`, and no backtracking required.',
+    s3_explanation:
+      'A negated class blocks "illegal" characters at the gate — more precise than `.+?`, and no backtracking required.',
     s4_title: 'Recap',
     s4_body: [
       'Key points:',
@@ -93,63 +96,83 @@ const TEXTS = {
       '- 经验法则："如果你能把分隔符塞进 `[^...]` 里，就这么写"',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const markdownLinkLesson: Lesson = {
-  id: 'practical-markdown-link',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 6,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: TEXT,
+  ja: {
+    title: 'Markdown リンク `[text](url)` に一致させる',
+    summary: '最短一致の落とし穴と、否定文字クラスで区切りを守る方法を学びます。',
+    s1_title: '最短一致で試す',
+    s1_body:
+      '`[text](url)` 形式を取り出すため、最短一致を試してみましょう。\n\n`\\[(.+?)\\]\\((.+?)\\)`\n\n`.+?` は、後続が一致できる限り少ない文字を取り、`]` や `)` で止まろうとします。',
+    s1_hint: '`[`、`]`、`(`、`)` はすべてエスケープが必要です。',
+    s2_title: '3 行目を確認する',
+    s2_body:
+      '3 行目の `[bad text]still here](url)` も一致しています。text グループは `bad text]still here` となり、**`]` をまたいで**います。\n\n最短一致は短い長さから試すだけです。後続が失敗すると**戻って一致を伸ばす**ため、`.+?` では `]` をまたぐことを禁止できません。\n\n**否定文字クラス**で「ここに `]` は含めない」と指定しましょう。',
+    s3_title: '否定文字クラスを使う',
+    s3_body:
+      'text 部分を `[^\\]]+`（`]` 以外の 1 文字以上）、URL 部分を `[^)]+` にします。\n\n`\\[([^\\]]+)\\]\\(([^)]+)\\)`\n\n最初の `]` までしか許可されないため、3 行目の `bad text]still here` は一致しなくなります。',
+    s3_hints: [
+      '`[^\\]]` 内の `]` もエスケープします。',
+      '`[^)]` 内の `)` はエスケープ不要です。文字クラス内の丸括弧は通常の文字です。',
+    ],
+    s3_explanation:
+      '否定文字クラスは許可しない文字を直接除外するため、`.+?` より正確に区切りを表せます。',
+    s4_title: 'まとめ',
+    s4_body:
+      '要点:\n\n- 最短一致は「区切りをまたがない」ではなく、「短く試し、失敗したら伸ばす」\n- 文字を本当に禁止するには**否定文字クラス**を使う\n- 単純な区切りを `[^...]` で表せる場合は、その制約を明示する',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(
-        v.patternEquals('\\[(.+?)\\]\\((.+?)\\)'),
-        v.matchesAtLeast(3),
-      ),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['(.+?)'], openPanel: 'matches' },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-      spotlight: { patternSubstrings: ['(.+?)'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('\\[([^\\]]+)\\]\\(([^)]+)\\)'),
-        v.matchesExactly(3),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
-        explanation: t.s3_explanation,
-      },
-      spotlight: { patternSubstrings: ['([^\\]]+)', '([^)]+)'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-csv',
 };
+
+export function createMarkdownLinkLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-markdown-link',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 6,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: TEXT,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\[(.+?)\\]\\((.+?)\\)'), v.matchesAtLeast(3)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['(.+?)'], openPanel: 'matches' },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+        spotlight: { patternSubstrings: ['(.+?)'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\[([^\\]]+)\\]\\(([^)]+)\\)'), v.matchesExactly(3)),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['([^\\]]+)', '([^)]+)'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-csv',
+  };
+}
+
+export const markdownLinkLesson = createMarkdownLinkLesson();

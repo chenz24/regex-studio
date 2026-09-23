@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -5,7 +6,8 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Dot and escapes: `.` is not the dot you think',
-    summary: 'Understand what `.` really means, escape metacharacters with `\\`, and learn the `s` flag.',
+    summary:
+      'Understand what `.` really means, escape metacharacters with `\\`, and learn the `s` flag.',
     s1_title: '`.` matches any single character',
     s1_body: [
       '`.` is a metacharacter that by default matches any single character **except newline**.',
@@ -85,68 +87,93 @@ const TEXTS = {
       '下一课讲**锚点**：让正则只在特定位置匹配。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const dotAndEscapesLesson: Lesson = {
-  id: 'basics-dot-and-escapes',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'cat cot cut bat sit',
+  ja: {
+    title: 'ドットとエスケープ: `.` は普通の点ではない',
+    summary: '`.` の意味、`\\` による特殊文字のエスケープ、`s` フラグを学びます。',
+    s1_title: '`.` は任意の 1 文字に一致',
+    s1_body:
+      '`.` は特殊文字で、通常は**改行以外**の任意の 1 文字に一致します。\n\nパターンを `c.t` に変え、`cat`、`cot`、`cut` にまとめて一致させましょう。',
+    s1_hint: '`.` は 1 文字分の位置を占め、改行以外の文字に一致します。',
+    s2_title: '普通のドットにはエスケープを使う',
+    s2_body:
+      '「.」そのものに一致させるには `\\.` と書きます。そのままでは「任意の文字」です。\n\n新しいテキストで `\\d\\.\\d` を使い、「数字.数字」というバージョン番号の一部を見つけましょう。',
+    s2_hints: [
+      '`\\.` は普通のドット、`\\d` は数字です。',
+      '`1.2.3` では最初の一致が `1.2` を消費し、残りの `.3` から検索が再開します。',
+    ],
+    s3_title: '`s` フラグで `.` を改行にも一致させる',
+    s3_body:
+      '通常、`.` は改行に一致しません。`s`（dotAll）フラグを有効にすると `\\n` にも一致します。\n\n複数行のテキストで、`a.b` が `s` の有無によってどう変わるか確認しましょう。\n\n目標: `s` フラグを有効にする。',
+    s3_hint: 'フラグ欄の `s` をクリックしてください。',
+    s4_title: 'まとめ',
+    s4_body:
+      '要点:\n\n- `.` は**任意の 1 文字**（通常は改行を除く）\n- 特殊文字の前に `\\` を付けると通常の文字として扱える\n- 主な特殊文字: `. ^ $ * + ? ( ) [ ] { } \\ |`\n- `s` フラグで `.` が改行にも一致\n\n次は**アンカー**で一致する位置を指定します。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('c.t'), v.matchesExactly(3)),
-      hints: [t.s1_hint],
-      spotlight: {
-        patternSubstrings: ['.'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'version 1.2.3 build 4.5' },
-      validate: v.all(v.patternEquals('\\d\\.\\d'), v.matchesExactly(2)),
-      hints: t.s2_hints,
-      solution: { pattern: '\\d\\.\\d' },
-      spotlight: { patternSubstrings: ['\\.'], openPanel: 'explanation', scrollExplanation: true },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: {
-        pattern: 'a.b',
-        flags: 'g',
-        testText: 'a\nb a b axb',
-      },
-      validate: v.all(
-        v.patternEquals('a.b'),
-        v.flagEnabled('s'),
-        v.matchesAtLeast(3),
-      ),
-      hints: [t.s3_hint],
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-anchors',
 };
+
+export function createDotAndEscapesLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-dot-and-escapes',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'cat cot cut bat sit',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('c.t'), v.matchesExactly(3)),
+        hints: [t.s1_hint],
+        spotlight: {
+          patternSubstrings: ['.'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'version 1.2.3 build 4.5' },
+        validate: v.all(v.patternEquals('\\d\\.\\d'), v.matchesExactly(2)),
+        hints: t.s2_hints,
+        solution: { pattern: '\\d\\.\\d' },
+        spotlight: {
+          patternSubstrings: ['\\.'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: {
+          pattern: 'a.b',
+          flags: 'g',
+          testText: 'a\nb a b axb',
+        },
+        validate: v.all(v.patternEquals('a.b'), v.flagEnabled('s'), v.matchesAtLeast(3)),
+        hints: [t.s3_hint],
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-anchors',
+  };
+}
+
+export const dotAndEscapesLesson = createDotAndEscapesLesson();

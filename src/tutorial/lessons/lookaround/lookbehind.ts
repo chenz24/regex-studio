@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -29,9 +30,9 @@ const TEXTS = {
       '- **JavaScript**: full variable-length lookbehind',
       '- **PCRE2 10.43+**: bounded variable-length lookbehind, e.g. `(?<=a{1,3})`; unbounded `(?<=a+)` is rejected',
       '- **Python `re`**: only **fixed-width** — even branches must match equal lengths; the third-party `regex` package unlocks variable-length',
-      '- **Java**: requires a computable upper bound',
+      '- **Java**: support depends on the Java version and pattern; verify against the target runtime',
       '',
-      'The widget below switches flavors for live comparison.',
+      'Practice mode includes an interactive flavor comparison.',
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript fully supports variable-length lookbehind since ES2018.',
@@ -78,9 +79,9 @@ const TEXTS = {
       '- **JavaScript**：完整支持变长后行断言',
       '- **PCRE2 10.43+**：支持有上界的变长后行，如 `(?<=a{1,3})`；不支持无上界的 `(?<=a+)`',
       '- **Python `re`**：只接受**固定宽度**——`(?<=foo|bar)` 在某些版本下也只放行长度一致的分支；用第三方 `regex` 包可解锁变长',
-      '- **Java**：要求宽度可推算上界',
+      '- **Java**：支持情况取决于版本和模式，应在目标运行时验证',
       '',
-      '下面这个小部件可以实时切换 Flavor 对比。',
+      '可以在练习模式中切换 Flavor 进行交互对比。',
     ].join('\n'),
     s3_compare: {
       javascript: 'JavaScript 从 ES2018 开始完整支持变长后行断言。',
@@ -97,68 +98,101 @@ const TEXTS = {
       '- `(?<=...)` `(?<!...)` —— 后行断言',
       '- 全部**零宽**，匹配结果不包含断言内容',
       '',
-      '下一阶段（敬请期待）：Flavor 差异、Challenges 关卡、以及把这些工具拼成实战正则。',
+      '接下来可通过挑战关卡练习，并将这些工具组合成实用正则。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const lookbehindLesson: Lesson = {
-  id: 'lookaround-lookbehind',
-  trackId: 'lookaround',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Code A1, Item $5, Floor 7',
+  ja: {
+    title: '後読み `(?<=...)` と `(?<!...)`',
+    summary: '直前にある・ない内容を、文字を消費せずに確認します。',
+    s1_title: '肯定後読み `(?<=...)`',
+    s1_body:
+      '目標は `$` の後にある数字です。ほかの識別子に含まれる数字は除外します。\n\n`(?<=\\$)\\d+` と書きましょう。金額の **5** だけが一致します。',
+    s1_hint: '`(?<=...)` は検索位置の**左側**を幅ゼロで確認します。`$` 自体は一致に含まれません。',
+    s1_explanation:
+      '「$5」は条件を満たします。「A1」の前は「A」、「7」の前はスペースなので除外されます。',
+    s2_title: '否定後読み `(?<!...)`',
+    s2_body:
+      '逆に、`$` が直前に**ない**数字を探します。\n\n`(?<!\\$)\\d+` と書きましょう。A1 の 1 と Floor の後の 7 の **2** か所が一致します。',
+    s2_hint: '`(?<!...)` は左側が指定のパターンに一致しないことを確認します。',
+    s3_title: 'エンジンによる違い',
+    s3_body:
+      '可変長の後読みへの対応はエンジンによって異なります。\n\n- **JavaScript**: 可変長の後読みに対応\n- **PCRE2 10.43 以降**: `(?<=a{1,3})` のように上限のある可変長に対応。`(?<=a+)` のような上限なしは不可\n- **Python `re`**: **固定長**のみで、選択肢も同じ長さが必要。外部の `regex` パッケージなら可変長も可能\n- **Java**: バージョンとパターンによる違いに注意\n\n練習モードの比較欄で対象を切り替えられます。',
+    s3_compare: {
+      javascript:
+        'JavaScript の ES2018 で可変長の後読みが導入されました。利用できるかはブラウザーの対応状況にも依存します。',
+      pcre2:
+        'PCRE2 10.43 以降は上限付きの可変長後読みに対応します。(?<=a+) のような上限のない繰り返しは非対応です。',
+      python:
+        '⚠️ Python の `re` では後読みが**固定長**である必要があります。可変長には外部の `regex` パッケージを使ってください。',
+      java: '⚠️ この互換性チェックでは Java の後読みの上限を確認します。実際の対応状況は対象の Java バージョンでも検証してください。',
+      go: '❌ Go（RE2）は後読みに対応していません。',
+    },
+    s4_title: 'まとめ',
+    s4_body:
+      '🎉 先読み・後読みのコースは完了です。\n\n- `(?=...)` と `(?!...)` は先読み\n- `(?<=...)` と `(?<!...)` は後読み\n- すべて**幅ゼロ**で、確認した内容を一致に含めない\n\n次はエンジンの違いやチャレンジも活用しながら、実用的な正規表現を組み立てましょう。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('(?<=\\$)\\d+'), v.matchesExactly(1)),
-      hints: [t.s1_hint],
-      solution: {
-        pattern: '(?<=\\$)\\d+',
-        explanation: t.s1_explanation,
-      },
-      spotlight: {
-        patternSubstrings: ['(?<=\\$)'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('(?<!\\$)\\d+'), v.matchesExactly(2)),
-      hints: [t.s2_hint],
-      spotlight: { patternSubstrings: ['(?<!\\$)'] },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { pattern: '(?<=foo|barbaz)\\w+', flags: 'g', testText: 'foobar barbazquux' },
-      validate: v.always(),
-      flavorCompare: {
-        flavors: ['javascript', 'pcre2', 'python', 'java', 'go'],
-        commentary: t.s3_compare,
-      },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-email',
 };
+
+export function createLookbehindLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'lookaround-lookbehind',
+    trackId: 'lookaround',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Code A1, Item $5, Floor 7',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('(?<=\\$)\\d+'), v.matchesExactly(1)),
+        hints: [t.s1_hint],
+        solution: {
+          pattern: '(?<=\\$)\\d+',
+          explanation: t.s1_explanation,
+        },
+        spotlight: {
+          patternSubstrings: ['(?<=\\$)'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('(?<!\\$)\\d+'), v.matchesExactly(2)),
+        hints: [t.s2_hint],
+        spotlight: { patternSubstrings: ['(?<!\\$)'] },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { pattern: '(?<=foo|barbaz)\\w+', flags: 'g', testText: 'foobar barbazquux' },
+        validate: v.always(),
+        flavorCompare: {
+          flavors: ['javascript', 'pcre2', 'python', 'java', 'go'],
+          commentary: t.s3_compare,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-email',
+  };
+}
+
+export const lookbehindLesson = createLookbehindLesson();

@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { ASTNode, MatchInfo, TestCase, TestCaseResult } from '@/types/regex';
 import type { RegexEngine, ExecutionEngine } from '@/types/engineTypes';
 
@@ -25,6 +26,20 @@ export interface Lesson {
   steps: Step[];
   /** Recommended next lesson after completion. */
   nextLessonId?: string;
+  /** Context for standalone reading, kept with the interactive lesson. */
+  reading?: {
+    introduction: string;
+    references: Array<{ title: string; url: string }>;
+  };
+}
+
+/** Explicit expected output, verified against JavaScript by the content tests. */
+export interface ReadingExample {
+  pattern: string;
+  flags: string;
+  testText: string;
+  matches: Array<{ text: string; groups?: string[] }>;
+  replacement?: { template: string; result: string };
 }
 
 export interface LessonInitialState {
@@ -40,6 +55,8 @@ export interface Step {
   title: string;
   /** Markdown body. Rendered as plain prose with minimal inline formatting. */
   body: string;
+  /** Self-contained explanation; practice mode continues to use body. */
+  reading?: { title: string; body: string; examples?: ReadingExample[] };
   /** Optional patch applied to regex store when this step is entered. */
   setup?: Partial<LessonInitialState>;
   validate: (ctx: ValidationContext) => ValidationResult;
@@ -93,6 +110,7 @@ export interface StepFlavorCompare {
 }
 
 export interface ValidationContext {
+  locale?: Locale;
   pattern: string;
   /** Flag string as displayed (target-engine view). */
   flagString: string;

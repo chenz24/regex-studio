@@ -1,3 +1,5 @@
+import type { Locale } from '@/paraglide/runtime';
+import { NAME_SAMPLE } from '@/content/regexExamples';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -5,7 +7,8 @@ import { pickLocale } from '../../i18n';
 const TEXTS = {
   en: {
     title: 'Capturing groups: keep what you matched',
-    summary: '`(...)` is not just grouping — it also stores the matched substring into groups 1, 2, 3...',
+    summary:
+      '`(...)` is not just grouping — it also stores the matched substring into groups 1, 2, 3...',
     s1_title: 'Match "First Last" with `\\w+ \\w+`',
     s1_body: [
       'We want to grab 3 "first last" name pairs. Start with the most direct form: `\\w+ \\w+`.',
@@ -57,48 +60,172 @@ const TEXTS = {
       '下一课讲 `|` ——多选一。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const capturingGroupsLesson: Lesson = {
-  id: 'groups-capturing',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'John Smith, Jane Doe, Bob Wilson',
+  ja: {
+    title: 'キャプチャグループ: 一致した内容を保存する',
+    summary: '`(...)` はグループ化だけでなく、一致した部分文字列をグループ 1、2、3… に保存します。',
+    s1_title: '`\\w+ \\w+` で「名 姓」に一致させる',
+    s1_body:
+      '3 組の「名 姓」を取り出します。まずは `\\w+ \\w+` と書きましょう。\n\n**3** 件一致します。',
+    s2_title: '括弧を付けて名と姓を別々に保存する',
+    s2_body:
+      'パターンを `(\\w+) (\\w+)` に変えます。一致件数は同じですが、一致結果にグループ 1 と 2 が表示され、名と姓を個別に確認できます。\n\nこれが**キャプチャグループ**です。各 `()` に番号（1、2、3…）が付き、一致した部分文字列を置換・後方参照・コードで再利用できます。',
+    s2_hint: 'それぞれの `\\w+` を `()` で囲んでください。',
+    s3_title: 'まとめ',
+    s3_body:
+      '要点:\n\n- `(...)` はグループ化とキャプチャ\n- 番号は **1** から始まり、開き括弧の順に決まる\n- 置換では `$1`、`$2` で参照し、「First Last」を「Last, First」に変えることもできる\n\n次は選択を表す `|` です。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\w+ \\w+'), v.matchesExactly(3)),
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('(\\w+) (\\w+)'), v.matchesExactly(3)),
-      hints: [t.s2_hint],
-      solution: { pattern: '(\\w+) (\\w+)' },
-      spotlight: {
-        patternSubstrings: ['(\\w+)'],
-        openPanel: 'matches',
-      },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'groups-alternation',
 };
+
+const READING = {
+  en: {
+    introduction:
+      'A regex match can identify a whole piece of text and also save smaller pieces inside it. Capturing groups make those pieces available separately, so code or a replacement can reuse them without splitting the text again. The examples use JavaScript matching and replacement syntax.',
+    s1: {
+      title: 'A whole match does not expose separate fields',
+      body: 'The pattern `\\w+ \\w+` matches two runs of word characters separated by one literal space. With the global flag, the sample produces three complete name pairs. There are no capturing parentheses yet, so the names are not stored in separate numbered groups.\n\nIn these examples, `\\w` covers ASCII letters, digits and underscore. It is a convenient teaching shorthand, not a rule for validating real names: names may contain accented letters, spaces, apostrophes and other characters.',
+    },
+    s2: {
+      title: 'Parentheses save the first and last name separately',
+      body: 'The pattern `(\\w+) (\\w+)` matches the same three substrings. The first pair of parentheses stores group 1, and the second stores group 2. The table shows the complete match alongside both captured values. Capturing does not add more top-level matches.\n\nGroup numbers follow the order of opening parentheses, starting at 1. Nested capturing parentheses also receive numbers. In a JavaScript `exec()` result, element 0 is the complete match and elements 1 onward hold captures. `matchAll()` can iterate matches with their captures; `match()` with `g` returns the complete matched strings without those capture fields.',
+    },
+    s3: {
+      title: 'Reuse captures in a replacement',
+      body: 'For JavaScript string replacement, `$1` and `$2` insert the captured values. The replacement `$2, $1` changes each `First Last` pair into `Last, First`. Text outside the matches, including the original comma separators, remains in place.\n\nReplacement references such as `$1` have a different role from pattern backreferences such as `\\1`: the former insert text into output, while the latter require text in the input to match an earlier capture. Use `(?:...)` for grouping without adding a numbered capture when the captured text is not needed.',
+    },
+  },
+  zh: {
+    introduction:
+      '一次正则匹配既可以找出整段文本，也可以保存其中的小片段。捕获组把这些片段分别留下来，让代码或替换表达式直接复用，而不必再次拆分文本。下面的匹配和替换均采用 JavaScript 语法。',
+    s1: {
+      title: '完整匹配还没有拆出独立字段',
+      body: '`\\w+ \\w+` 匹配两段单词字符，中间是一个普通空格。配合全局标志，示例会得到三组完整的“名 姓”。此时还没有捕获括号，所以名和姓并没有被保存成独立的编号分组。\n\n在这些示例中，`\\w` 包含 ASCII 字母、数字和下划线。它适合演示语法，但不适合验证真实姓名：姓名可能含有带重音字母、多个空格、撇号以及其他字符。',
+    },
+    s2: {
+      title: '用括号分别保存名和姓',
+      body: '`(\\w+) (\\w+)` 仍然匹配相同的三个子串。第一对括号保存第 1 组，第二对括号保存第 2 组。表格同时列出完整匹配和两个分组的值。增加捕获组并不会增加完整匹配的数量。\n\n捕获组按照左括号出现的顺序，从 1 开始编号；嵌套的捕获括号也占用编号。JavaScript 的 `exec()` 返回结果中，第 0 项是完整匹配，第 1 项起是捕获值。`matchAll()` 可以逐个取得带分组的匹配；带 `g` 的 `match()` 则只返回完整匹配字符串，不包含这些分组字段。',
+    },
+    s3: {
+      title: '在替换结果中复用捕获内容',
+      body: '在 JavaScript 的字符串替换中，`$1`、`$2` 分别插入对应组的内容。使用 `$2, $1`，就能把每一组“名 姓”改成“姓, 名”。匹配范围以外的字符会原样保留，包括原文里分隔姓名的逗号。\n\n替换里的 `$1` 和模式里的反向引用 `\\1` 作用不同：前者把捕获内容放进输出，后者要求输入中再次出现之前捕获的文本。如果只需要分组、不需要保存内容，可以使用 `(?:...)`，它不会增加编号捕获组。',
+    },
+  },
+  ja: {
+    introduction:
+      '正規表現はテキスト全体の一致を見つけると同時に、その内部の小さな部分も保存できます。キャプチャグループを使えば、再分割せずにコードや置換で各部分を再利用できます。ここでは JavaScript の照合・置換構文を使います。',
+    s1: {
+      title: '一致全体だけでは個別の項目を取り出せない',
+      body: '`\\w+ \\w+` は、1 つのスペースで区切られた 2 つの単語構成文字の並びに一致します。グローバル検索では、このサンプルから 3 組の名前が得られます。まだキャプチャ用の括弧がないため、名と姓は別々の番号付きグループに保存されません。\n\nこの例の `\\w` は ASCII の英字・数字・アンダースコアを対象にします。説明のための簡略表現であり、実際の人名を検証する規則ではありません。人名にはアクセント付き文字、空白、アポストロフィなども含まれます。',
+    },
+    s2: {
+      title: '括弧で名と姓を別々に保存する',
+      body: '`(\\w+) (\\w+)` は同じ 3 つの部分文字列に一致します。最初の括弧がグループ 1、次がグループ 2 を保存します。表では一致全体と両方のキャプチャを確認できます。キャプチャを加えても、一致全体の件数は増えません。\n\nグループ番号は開き括弧の順に 1 から付き、入れ子のキャプチャにも番号が付きます。JavaScript の `exec()` の結果では、要素 0 が一致全体、1 以降がキャプチャです。`matchAll()` はキャプチャ付きで各一致を列挙できますが、`g` を付けた `match()` は一致全体の文字列だけを返します。',
+    },
+    s3: {
+      title: '置換でキャプチャを再利用する',
+      body: 'JavaScript の文字列置換では、`$1` と `$2` がキャプチャした値を挿入します。`$2, $1` を指定すると、各 `First Last` が `Last, First` に変わります。元の区切りのカンマなど、一致の外側のテキストはそのまま残ります。\n\n置換内の `$1` とパターン内の後方参照 `\\1` は役割が異なります。前者は出力にテキストを挿入し、後者は入力内で以前のキャプチャと同じ内容を要求します。番号付きキャプチャが不要なら、`(?:...)` でグループ化しましょう。',
+    },
+  },
+};
+
+export function createCapturingGroupsLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  const reading = pickLocale(READING, locale);
+  return {
+    id: 'groups-capturing',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    reading: {
+      introduction: reading.introduction,
+      references: [
+        {
+          title: 'MDN: Capturing groups',
+          url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Capturing_group',
+        },
+        {
+          title: 'MDN: String.replace()',
+          url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace',
+        },
+      ],
+    },
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: NAME_SAMPLE,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        reading: {
+          ...reading.s1,
+          examples: [
+            {
+              pattern: '\\w+ \\w+',
+              flags: 'g',
+              testText: NAME_SAMPLE,
+              matches: [{ text: 'John Smith' }, { text: 'Jane Doe' }, { text: 'Bob Wilson' }],
+            },
+          ],
+        },
+        validate: v.all(v.patternEquals('\\w+ \\w+'), v.matchesExactly(3)),
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        reading: {
+          ...reading.s2,
+          examples: [
+            {
+              pattern: '(\\w+) (\\w+)',
+              flags: 'g',
+              testText: NAME_SAMPLE,
+              matches: [
+                { text: 'John Smith', groups: ['John', 'Smith'] },
+                { text: 'Jane Doe', groups: ['Jane', 'Doe'] },
+                { text: 'Bob Wilson', groups: ['Bob', 'Wilson'] },
+              ],
+            },
+          ],
+        },
+        validate: v.all(v.patternEquals('(\\w+) (\\w+)'), v.matchesExactly(3)),
+        hints: [t.s2_hint],
+        solution: { pattern: '(\\w+) (\\w+)' },
+        spotlight: {
+          patternSubstrings: ['(\\w+)'],
+          openPanel: 'matches',
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        reading: {
+          ...reading.s3,
+          examples: [
+            {
+              pattern: '(\\w+) (\\w+)',
+              flags: 'g',
+              testText: NAME_SAMPLE,
+              matches: [
+                { text: 'John Smith', groups: ['John', 'Smith'] },
+                { text: 'Jane Doe', groups: ['Jane', 'Doe'] },
+                { text: 'Bob Wilson', groups: ['Bob', 'Wilson'] },
+              ],
+              replacement: { template: '$2, $1', result: 'Smith, John, Doe, Jane, Wilson, Bob' },
+            },
+          ],
+        },
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'groups-alternation',
+  };
+}
+
+export const capturingGroupsLesson = createCapturingGroupsLesson();

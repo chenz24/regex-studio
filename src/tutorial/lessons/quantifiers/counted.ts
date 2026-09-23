@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -17,7 +18,7 @@ const TEXTS = {
     s2_body: [
       '`{n,m}` gives a range — still greedy by default, so it prefers 5 over 3 when possible.',
       '',
-      'Change the pattern to `\\d{3,5}`. The match count is the same as before, but **each match is longer**.',
+      'Change the pattern to `\\d{3,5}`. The match count is the same as before, but **some matches become longer; `555` stays unchanged**.',
     ].join('\n'),
     s2_hint: 'Still 3 matches: 555 / 1234 / 56789.',
     s3_title: '`\\d{2,}` — at least 2',
@@ -52,7 +53,7 @@ const TEXTS = {
     s2_body: [
       '`{n,m}` 给一个范围，仍然默认贪婪——能匹配 5 个就不会只匹配 3 个。',
       '',
-      '把 pattern 改成 `\\d{3,5}`，看看匹配数和上一步是不是一样，但**每个匹配的长度**变长了。',
+      '把 pattern 改成 `\\d{3,5}`，看看匹配数和上一步是不是一样，但**部分匹配的长度**变长了，`555` 保持不变。',
     ].join('\n'),
     s2_hint: '仍然是 3 个匹配：555 / 1234 / 56789。',
     s3_title: '`\\d{2,}` —— 至少 2 个',
@@ -73,50 +74,71 @@ const TEXTS = {
       '下一课是这条线最重要的一节：**回溯陷阱**。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const countedLesson: Lesson = {
-  id: 'quantifiers-counted',
-  trackId: 'quantifiers',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Phone: 555-1234, code 56789, ext 78',
+  ja: {
+    title: '`{n,m}`: 繰り返し回数を細かく指定',
+    summary: '波括弧で「ちょうど n 回」「n〜m 回」「n 回以上」を表します。',
+    s1_title: '`\\d{3}` — ちょうど 3 回',
+    s1_body:
+      '`{n}` はちょうど n 回の繰り返しです。\n\n`\\d{3}` を書いて 3 桁の数字を探しましょう。長い数字列からも 3 桁を切り出す点に注意してください。',
+    s1_hint: '「1234」では「123」が 1 件一致します。残りの「4」は短いため一致しません。',
+    s2_title: '`\\d{3,5}` — 3〜5 回（貪欲）',
+    s2_body:
+      '`{n,m}` は回数の範囲を表します。標準では貪欲なので、可能なら 3 回より 5 回を優先します。\n\nパターンを `\\d{3,5}` に変えましょう。一致件数は同じでも、**一部の一致が長く**なりますが、`555` は変わりません。',
+    s2_hint: '一致は同じく 3 件です: 555 / 1234 / 56789。',
+    s3_title: '`\\d{2,}` — 2 回以上',
+    s3_body:
+      '`{n,}` は上限なしの「n 回以上」です。\n\nパターンを `\\d{2,}` に変えると、「78」も一致します。',
+    s4_title: 'まとめ',
+    s4_body:
+      '回数を指定する量指定子:\n\n- `{n}` はちょうど n 回\n- `{n,m}` は n〜m 回\n- `{n,}` は n 回以上\n- `{n,m}?` のように最短一致にもできる\n\n次はこのコースの重要なテーマ、**バックトラッキングの落とし穴**です。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d{3}'), v.matchesExactly(3)),
-      hints: [t.s1_hint],
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('\\d{3,5}'), v.matchesExactly(3)),
-      hints: [t.s2_hint],
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('\\d{2,}'), v.matchesExactly(4)),
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'quantifiers-backtracking',
 };
+
+export function createCountedLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'quantifiers-counted',
+    trackId: 'quantifiers',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Phone: 555-1234, code 56789, ext 78',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d{3}'), v.matchesExactly(3)),
+        hints: [t.s1_hint],
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('\\d{3,5}'), v.matchesExactly(3)),
+        hints: [t.s2_hint],
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\d{2,}'), v.matchesExactly(4)),
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'quantifiers-backtracking',
+  };
+}
+
+export const countedLesson = createCountedLesson();

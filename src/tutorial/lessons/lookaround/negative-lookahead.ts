@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -16,10 +17,11 @@ const TEXTS = {
       '`(?!...)` is also zero-width — failure abandons this match position.',
       'Like positive lookahead, the match does **not** include " dollars".',
     ],
-    s1_explanation: '"5 dollars" is excluded because " dollars" follows; "10 euros" and "7 yen" pass.',
+    s1_explanation:
+      '"5 dollars" is excluded because " dollars" follows; "10 euros" and "7 yen" pass.',
     s2_title: 'A common pitfall',
     s2_body: [
-      '`(?!...)` is a zero-width check; it doesn\'t change the greedy behavior of `\\d+`.',
+      "`(?!...)` is a zero-width check; it doesn't change the greedy behavior of `\\d+`.",
       '',
       'For `\\d+(?! dollars)` against `"50 dollars"`:',
       '',
@@ -79,47 +81,69 @@ const TEXTS = {
       '下一课：`(?<=...)` 与 `(?<!...)`——**往前看**。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const negativeLookaheadLesson: Lesson = {
-  id: 'lookaround-negative-lookahead',
-  trackId: 'lookaround',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: '5 dollars and 10 euros and 7 yen',
+  ja: {
+    title: '否定先読み `(?!...)`',
+    summary: '特定の内容が後ろに続かないことを確認し、不要な一致を除外します。',
+    s1_title: '「dollars」が続く数字を除外する',
+    s1_body:
+      '目標は、「 dollars」が続くものを除いた数字列です。\n\n`\\d+(?! dollars)` と書きましょう。この例では 10 と 7 の **2** 件が一致します。',
+    s1_hints: [
+      '`(?!...)` も幅ゼロです。条件に合わなければ、その位置での試行を続けられません。',
+      '肯定先読みと同じく、一致に「 dollars」は含まれません。',
+    ],
+    s1_explanation:
+      '「5 dollars」は直後に「 dollars」があるため除外され、「10 euros」と「7 yen」は一致します。',
+    s2_title: 'よくある落とし穴',
+    s2_body:
+      '`(?!...)` は幅ゼロの確認であり、`\\d+` の貪欲な動作を変えるものではありません。\n\n`\\d+(?! dollars)` を `"50 dollars"` に適用すると:\n\n1. `\\d+` が貪欲に「50」を取る\n2. 後ろに「 dollars」があるので否定先読みが**失敗**\n3. `\\d+` が「5」まで戻り、「0 dollars」を確認して**成功**\n4. 「5」だけが一致し、「0」が残る\n\n数字の途中で切らないためには、`\\b\\d+\\b(?! dollars)` のように境界を追加します。',
+    s3_title: 'まとめ',
+    s3_body:
+      '要点:\n\n- `(?!...)` は幅ゼロの否定先読み\n- 一致させたくない形式の除外に便利\n- **バックトラッキング**に注意: 条件が失敗すると、量指定子が別の長さで試し直すことがある\n\n次は前を確認する `(?<=...)` と `(?<!...)` です。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d+(?! dollars)'), v.matchesExactly(2)),
-      hints: t.s1_hints,
-      solution: {
-        pattern: '\\d+(?! dollars)',
-        explanation: t.s1_explanation,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'lookaround-lookbehind',
 };
+
+export function createNegativeLookaheadLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'lookaround-negative-lookahead',
+    trackId: 'lookaround',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: '5 dollars and 10 euros and 7 yen',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d+(?! dollars)'), v.matchesExactly(2)),
+        hints: t.s1_hints,
+        solution: {
+          pattern: '\\d+(?! dollars)',
+          explanation: t.s1_explanation,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'lookaround-lookbehind',
+  };
+}
+
+export const negativeLookaheadLesson = createNegativeLookaheadLesson();

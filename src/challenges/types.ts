@@ -4,12 +4,9 @@ export type ChallengeDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
 /**
  * A self-contained regex puzzle. The user must come up with a pattern + flags
- * such that **every** test case yields the expected outcome (`match` →
- * `findMatches(...).length > 0`; `noMatch` → length 0).
- *
- * Validation challenges (e.g. "is this string a strong password?") expect
- * the user to anchor with `^...$` so substring matches don't slip through —
- * the challenge description should make this clear.
+ * such that every test case satisfies its presence expectation and assertions.
+ * Published extraction cases specify complete ordered matches; validation
+ * cases specify a single whole-input match or no match.
  */
 export interface Challenge {
   id: string;
@@ -22,7 +19,7 @@ export interface Challenge {
   /** Pre-filled pattern shown when the user opens the challenge. */
   starterPattern?: string;
   starterFlags?: string;
-  /** Hidden testCases. The user must pass all of them. */
+  /** Visible test cases. The user must pass all of them. */
   testCases: Array<Omit<TestCase, 'id'>>;
   /** Optional reveal-on-demand reference solution. */
   idealSolution?: { pattern: string; flags?: string; explanation?: string };

@@ -5,10 +5,14 @@ import { ALL_LESSONS } from '@/tutorial/registry';
 import { TutorialCatalog } from './TutorialCatalog';
 import { LessonRunner } from './LessonRunner';
 import { useT } from '@/lib/i18n';
+import { ModeSwitch } from '@/components/learn/ModeSwitch';
 
 export function TutorialDrawer() {
   const t = useT();
   const view = useTutorialStore((s) => s.view);
+  const lessonId = useTutorialStore((s) => s.currentLessonId);
+  const stepIndex = useTutorialStore((s) => s.currentStepIndex);
+  const stepId = ALL_LESSONS.find((lesson) => lesson.id === lessonId)?.steps[stepIndex]?.id;
   const close = useTutorialStore((s) => s.close);
   const completion = useTutorialStore((s) => s.completion);
   const resetLesson = useTutorialStore((s) => s.resetLesson);
@@ -75,6 +79,17 @@ export function TutorialDrawer() {
         </div>
       )}
 
+      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-800">
+        <ModeSwitch
+          mode="practice"
+          readingPath={
+            view === 'lesson' && lessonId
+              ? `/learn/${lessonId}${stepId ? `#${stepId}` : ''}`
+              : '/learn'
+          }
+          practiceQuery="catalog=tutorial"
+        />
+      </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {view === 'catalog' && (
           <div className="h-full overflow-y-auto custom-scrollbar">

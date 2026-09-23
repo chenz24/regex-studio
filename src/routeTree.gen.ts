@@ -10,11 +10,35 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LearnIndexRouteImport } from './routes/learn/index'
+import { Route as ChallengesIndexRouteImport } from './routes/challenges/index'
 import { Route as LocaleIndexRouteImport } from './routes/$locale/index'
+import { Route as PatternsEmailRouteImport } from './routes/patterns/email'
+import { Route as LearnGreedyVsLazyRouteImport } from './routes/learn/greedy-vs-lazy'
+import { Route as LearnCaptureGroupsRouteImport } from './routes/learn/capture-groups'
+import { Route as LearnLessonIdRouteImport } from './routes/learn/$lessonId'
+import { Route as ChallengesChallengeIdRouteImport } from './routes/challenges/$challengeId'
+import { Route as LocaleLearnIndexRouteImport } from './routes/$locale/learn/index'
+import { Route as LocaleChallengesIndexRouteImport } from './routes/$locale/challenges/index'
+import { Route as LocalePatternsEmailRouteImport } from './routes/$locale/patterns/email'
+import { Route as LocaleLearnGreedyVsLazyRouteImport } from './routes/$locale/learn/greedy-vs-lazy'
+import { Route as LocaleLearnCaptureGroupsRouteImport } from './routes/$locale/learn/capture-groups'
+import { Route as LocaleLearnLessonIdRouteImport } from './routes/$locale/learn/$lessonId'
+import { Route as LocaleChallengesChallengeIdRouteImport } from './routes/$locale/challenges/$challengeId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnIndexRoute = LearnIndexRouteImport.update({
+  id: '/learn/',
+  path: '/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengesIndexRoute = ChallengesIndexRouteImport.update({
+  id: '/challenges/',
+  path: '/challenges/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocaleIndexRoute = LocaleIndexRouteImport.update({
@@ -22,31 +46,198 @@ const LocaleIndexRoute = LocaleIndexRouteImport.update({
   path: '/$locale/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PatternsEmailRoute = PatternsEmailRouteImport.update({
+  id: '/patterns/email',
+  path: '/patterns/email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnGreedyVsLazyRoute = LearnGreedyVsLazyRouteImport.update({
+  id: '/learn/greedy-vs-lazy',
+  path: '/learn/greedy-vs-lazy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnCaptureGroupsRoute = LearnCaptureGroupsRouteImport.update({
+  id: '/learn/capture-groups',
+  path: '/learn/capture-groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnLessonIdRoute = LearnLessonIdRouteImport.update({
+  id: '/learn/$lessonId',
+  path: '/learn/$lessonId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengesChallengeIdRoute = ChallengesChallengeIdRouteImport.update({
+  id: '/challenges/$challengeId',
+  path: '/challenges/$challengeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocaleLearnIndexRoute = LocaleLearnIndexRouteImport.update({
+  id: '/$locale/learn/',
+  path: '/$locale/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocaleChallengesIndexRoute = LocaleChallengesIndexRouteImport.update({
+  id: '/$locale/challenges/',
+  path: '/$locale/challenges/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocalePatternsEmailRoute = LocalePatternsEmailRouteImport.update({
+  id: '/$locale/patterns/email',
+  path: '/$locale/patterns/email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocaleLearnGreedyVsLazyRoute = LocaleLearnGreedyVsLazyRouteImport.update({
+  id: '/$locale/learn/greedy-vs-lazy',
+  path: '/$locale/learn/greedy-vs-lazy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocaleLearnCaptureGroupsRoute =
+  LocaleLearnCaptureGroupsRouteImport.update({
+    id: '/$locale/learn/capture-groups',
+    path: '/$locale/learn/capture-groups',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LocaleLearnLessonIdRoute = LocaleLearnLessonIdRouteImport.update({
+  id: '/$locale/learn/$lessonId',
+  path: '/$locale/learn/$lessonId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocaleChallengesChallengeIdRoute =
+  LocaleChallengesChallengeIdRouteImport.update({
+    id: '/$locale/challenges/$challengeId',
+    path: '/$locale/challenges/$challengeId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/challenges/$challengeId': typeof ChallengesChallengeIdRoute
+  '/learn/$lessonId': typeof LearnLessonIdRoute
+  '/learn/capture-groups': typeof LearnCaptureGroupsRoute
+  '/learn/greedy-vs-lazy': typeof LearnGreedyVsLazyRoute
+  '/patterns/email': typeof PatternsEmailRoute
   '/$locale/': typeof LocaleIndexRoute
+  '/challenges/': typeof ChallengesIndexRoute
+  '/learn/': typeof LearnIndexRoute
+  '/$locale/challenges/$challengeId': typeof LocaleChallengesChallengeIdRoute
+  '/$locale/learn/$lessonId': typeof LocaleLearnLessonIdRoute
+  '/$locale/learn/capture-groups': typeof LocaleLearnCaptureGroupsRoute
+  '/$locale/learn/greedy-vs-lazy': typeof LocaleLearnGreedyVsLazyRoute
+  '/$locale/patterns/email': typeof LocalePatternsEmailRoute
+  '/$locale/challenges/': typeof LocaleChallengesIndexRoute
+  '/$locale/learn/': typeof LocaleLearnIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/challenges/$challengeId': typeof ChallengesChallengeIdRoute
+  '/learn/$lessonId': typeof LearnLessonIdRoute
+  '/learn/capture-groups': typeof LearnCaptureGroupsRoute
+  '/learn/greedy-vs-lazy': typeof LearnGreedyVsLazyRoute
+  '/patterns/email': typeof PatternsEmailRoute
   '/$locale': typeof LocaleIndexRoute
+  '/challenges': typeof ChallengesIndexRoute
+  '/learn': typeof LearnIndexRoute
+  '/$locale/challenges/$challengeId': typeof LocaleChallengesChallengeIdRoute
+  '/$locale/learn/$lessonId': typeof LocaleLearnLessonIdRoute
+  '/$locale/learn/capture-groups': typeof LocaleLearnCaptureGroupsRoute
+  '/$locale/learn/greedy-vs-lazy': typeof LocaleLearnGreedyVsLazyRoute
+  '/$locale/patterns/email': typeof LocalePatternsEmailRoute
+  '/$locale/challenges': typeof LocaleChallengesIndexRoute
+  '/$locale/learn': typeof LocaleLearnIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/challenges/$challengeId': typeof ChallengesChallengeIdRoute
+  '/learn/$lessonId': typeof LearnLessonIdRoute
+  '/learn/capture-groups': typeof LearnCaptureGroupsRoute
+  '/learn/greedy-vs-lazy': typeof LearnGreedyVsLazyRoute
+  '/patterns/email': typeof PatternsEmailRoute
   '/$locale/': typeof LocaleIndexRoute
+  '/challenges/': typeof ChallengesIndexRoute
+  '/learn/': typeof LearnIndexRoute
+  '/$locale/challenges/$challengeId': typeof LocaleChallengesChallengeIdRoute
+  '/$locale/learn/$lessonId': typeof LocaleLearnLessonIdRoute
+  '/$locale/learn/capture-groups': typeof LocaleLearnCaptureGroupsRoute
+  '/$locale/learn/greedy-vs-lazy': typeof LocaleLearnGreedyVsLazyRoute
+  '/$locale/patterns/email': typeof LocalePatternsEmailRoute
+  '/$locale/challenges/': typeof LocaleChallengesIndexRoute
+  '/$locale/learn/': typeof LocaleLearnIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$locale/'
+  fullPaths:
+    | '/'
+    | '/challenges/$challengeId'
+    | '/learn/$lessonId'
+    | '/learn/capture-groups'
+    | '/learn/greedy-vs-lazy'
+    | '/patterns/email'
+    | '/$locale/'
+    | '/challenges/'
+    | '/learn/'
+    | '/$locale/challenges/$challengeId'
+    | '/$locale/learn/$lessonId'
+    | '/$locale/learn/capture-groups'
+    | '/$locale/learn/greedy-vs-lazy'
+    | '/$locale/patterns/email'
+    | '/$locale/challenges/'
+    | '/$locale/learn/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$locale'
-  id: '__root__' | '/' | '/$locale/'
+  to:
+    | '/'
+    | '/challenges/$challengeId'
+    | '/learn/$lessonId'
+    | '/learn/capture-groups'
+    | '/learn/greedy-vs-lazy'
+    | '/patterns/email'
+    | '/$locale'
+    | '/challenges'
+    | '/learn'
+    | '/$locale/challenges/$challengeId'
+    | '/$locale/learn/$lessonId'
+    | '/$locale/learn/capture-groups'
+    | '/$locale/learn/greedy-vs-lazy'
+    | '/$locale/patterns/email'
+    | '/$locale/challenges'
+    | '/$locale/learn'
+  id:
+    | '__root__'
+    | '/'
+    | '/challenges/$challengeId'
+    | '/learn/$lessonId'
+    | '/learn/capture-groups'
+    | '/learn/greedy-vs-lazy'
+    | '/patterns/email'
+    | '/$locale/'
+    | '/challenges/'
+    | '/learn/'
+    | '/$locale/challenges/$challengeId'
+    | '/$locale/learn/$lessonId'
+    | '/$locale/learn/capture-groups'
+    | '/$locale/learn/greedy-vs-lazy'
+    | '/$locale/patterns/email'
+    | '/$locale/challenges/'
+    | '/$locale/learn/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChallengesChallengeIdRoute: typeof ChallengesChallengeIdRoute
+  LearnLessonIdRoute: typeof LearnLessonIdRoute
+  LearnCaptureGroupsRoute: typeof LearnCaptureGroupsRoute
+  LearnGreedyVsLazyRoute: typeof LearnGreedyVsLazyRoute
+  PatternsEmailRoute: typeof PatternsEmailRoute
   LocaleIndexRoute: typeof LocaleIndexRoute
+  ChallengesIndexRoute: typeof ChallengesIndexRoute
+  LearnIndexRoute: typeof LearnIndexRoute
+  LocaleChallengesChallengeIdRoute: typeof LocaleChallengesChallengeIdRoute
+  LocaleLearnLessonIdRoute: typeof LocaleLearnLessonIdRoute
+  LocaleLearnCaptureGroupsRoute: typeof LocaleLearnCaptureGroupsRoute
+  LocaleLearnGreedyVsLazyRoute: typeof LocaleLearnGreedyVsLazyRoute
+  LocalePatternsEmailRoute: typeof LocalePatternsEmailRoute
+  LocaleChallengesIndexRoute: typeof LocaleChallengesIndexRoute
+  LocaleLearnIndexRoute: typeof LocaleLearnIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +249,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/': {
+      id: '/learn/'
+      path: '/learn'
+      fullPath: '/learn/'
+      preLoaderRoute: typeof LearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenges/': {
+      id: '/challenges/'
+      path: '/challenges'
+      fullPath: '/challenges/'
+      preLoaderRoute: typeof ChallengesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$locale/': {
       id: '/$locale/'
       path: '/$locale'
@@ -65,12 +270,110 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LocaleIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/patterns/email': {
+      id: '/patterns/email'
+      path: '/patterns/email'
+      fullPath: '/patterns/email'
+      preLoaderRoute: typeof PatternsEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/greedy-vs-lazy': {
+      id: '/learn/greedy-vs-lazy'
+      path: '/learn/greedy-vs-lazy'
+      fullPath: '/learn/greedy-vs-lazy'
+      preLoaderRoute: typeof LearnGreedyVsLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/capture-groups': {
+      id: '/learn/capture-groups'
+      path: '/learn/capture-groups'
+      fullPath: '/learn/capture-groups'
+      preLoaderRoute: typeof LearnCaptureGroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/$lessonId': {
+      id: '/learn/$lessonId'
+      path: '/learn/$lessonId'
+      fullPath: '/learn/$lessonId'
+      preLoaderRoute: typeof LearnLessonIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenges/$challengeId': {
+      id: '/challenges/$challengeId'
+      path: '/challenges/$challengeId'
+      fullPath: '/challenges/$challengeId'
+      preLoaderRoute: typeof ChallengesChallengeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/learn/': {
+      id: '/$locale/learn/'
+      path: '/$locale/learn'
+      fullPath: '/$locale/learn/'
+      preLoaderRoute: typeof LocaleLearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/challenges/': {
+      id: '/$locale/challenges/'
+      path: '/$locale/challenges'
+      fullPath: '/$locale/challenges/'
+      preLoaderRoute: typeof LocaleChallengesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/patterns/email': {
+      id: '/$locale/patterns/email'
+      path: '/$locale/patterns/email'
+      fullPath: '/$locale/patterns/email'
+      preLoaderRoute: typeof LocalePatternsEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/learn/greedy-vs-lazy': {
+      id: '/$locale/learn/greedy-vs-lazy'
+      path: '/$locale/learn/greedy-vs-lazy'
+      fullPath: '/$locale/learn/greedy-vs-lazy'
+      preLoaderRoute: typeof LocaleLearnGreedyVsLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/learn/capture-groups': {
+      id: '/$locale/learn/capture-groups'
+      path: '/$locale/learn/capture-groups'
+      fullPath: '/$locale/learn/capture-groups'
+      preLoaderRoute: typeof LocaleLearnCaptureGroupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/learn/$lessonId': {
+      id: '/$locale/learn/$lessonId'
+      path: '/$locale/learn/$lessonId'
+      fullPath: '/$locale/learn/$lessonId'
+      preLoaderRoute: typeof LocaleLearnLessonIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$locale/challenges/$challengeId': {
+      id: '/$locale/challenges/$challengeId'
+      path: '/$locale/challenges/$challengeId'
+      fullPath: '/$locale/challenges/$challengeId'
+      preLoaderRoute: typeof LocaleChallengesChallengeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChallengesChallengeIdRoute: ChallengesChallengeIdRoute,
+  LearnLessonIdRoute: LearnLessonIdRoute,
+  LearnCaptureGroupsRoute: LearnCaptureGroupsRoute,
+  LearnGreedyVsLazyRoute: LearnGreedyVsLazyRoute,
+  PatternsEmailRoute: PatternsEmailRoute,
   LocaleIndexRoute: LocaleIndexRoute,
+  ChallengesIndexRoute: ChallengesIndexRoute,
+  LearnIndexRoute: LearnIndexRoute,
+  LocaleChallengesChallengeIdRoute: LocaleChallengesChallengeIdRoute,
+  LocaleLearnLessonIdRoute: LocaleLearnLessonIdRoute,
+  LocaleLearnCaptureGroupsRoute: LocaleLearnCaptureGroupsRoute,
+  LocaleLearnGreedyVsLazyRoute: LocaleLearnGreedyVsLazyRoute,
+  LocalePatternsEmailRoute: LocalePatternsEmailRoute,
+  LocaleChallengesIndexRoute: LocaleChallengesIndexRoute,
+  LocaleLearnIndexRoute: LocaleLearnIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

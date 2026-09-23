@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -12,7 +13,8 @@ const TEXTS = {
       '',
       'Pattern: `(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})`.',
     ].join('\n'),
-    s1_hint: 'Syntax is `(?<name>...)`. Names allow letters, digits, underscores, and must start with a letter.',
+    s1_hint:
+      'Syntax is `(?<name>...)`. Names allow letters, digits, underscores, and must start with a letter.',
     s1_explanation: 'In replacements use `$<year>`; in JS read `match.groups.year`.',
     s2_title: 'Non-capturing group `(?:...)`',
     s2_body: [
@@ -24,7 +26,8 @@ const TEXTS = {
       'Try `(?:Mrs|Mr|Ms)\\. \\w+` — `(?:...)` groups without capturing.',
       'Put `Mrs` first so `Mr` does not match-and-then-backtrack.',
     ],
-    s2_explanation: 'The matches panel shows **no group 1**, and the engine spends less bookkeeping.',
+    s2_explanation:
+      'The matches panel shows **no group 1**, and the engine spends less bookkeeping.',
     s3_title: 'Recap',
     s3_body: [
       'Key points:',
@@ -69,56 +72,81 @@ const TEXTS = {
       '🎉 Track 3 完结。下一阶段：**lookaround**——在不消耗字符的情况下做断言。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const namedAndNonCapturingLesson: Lesson = {
-  id: 'groups-named-and-noncapturing',
-  trackId: 'groups',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Born 1990-05-15. Joined 2019-03-22.',
+  ja: {
+    title: '名前付きグループと非キャプチャグループ',
+    summary:
+      '`(?<name>...)` でグループに名前を付け、`(?:...)` でキャプチャせずにグループ化します。',
+    s1_title: '名前付きグループ `(?<name>...)`',
+    s1_body:
+      'ISO 形式の日付の年・月・日に**名前**を付けましょう。コードや置換で番号を覚える必要がなくなります。\n\nパターン: `(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})`。',
+    s1_hint:
+      '構文は `(?<name>...)` です。この例では英字で始め、英数字とアンダースコアで名前を付けます。',
+    s1_explanation: '置換では `$<year>`、JavaScript では `match.groups.year` で参照できます。',
+    s2_title: '非キャプチャグループ `(?:...)`',
+    s2_body:
+      '量指定子や `|` のためのグループ化だけが必要で、キャプチャ番号を付けたくない場合は `(?:...)` を使います。\n\n新しいテキストで 3 つの敬称付きの名前に一致させましょう。条件は、**一致全体だけ**が表示され、グループ 1 がないことです。',
+    s2_hints: [
+      '`(?:Mrs|Mr|Ms)\\. \\w+` を試してください。`(?:...)` はキャプチャせずにまとめます。',
+      '`Mrs` を先に書くと、`Mr` に一致してから戻る動作を避けられます。',
+    ],
+    s2_explanation: '一致結果に**グループ 1 がなく**、不要なキャプチャの保存を省けます。',
+    s3_title: 'まとめ',
+    s3_body:
+      '要点:\n\n- `(?<name>...)` は名前付きグループ、後方参照は `\\k<name>`\n- `(?:...)` はキャプチャしないグループ化\n- 置換では番号付きに `$1`、名前付きに `$<name>`\n\n🎉 グループのコースは完了です。次は文字を消費せず条件を確認する**先読み・後読み**です。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(
-        v.patternEquals('(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})'),
-        v.matchesExactly(2),
-      ),
-      hints: [t.s1_hint],
-      solution: {
-        pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
-        explanation: t.s1_explanation,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'Hi Mr. Smith, Mrs. Jones, Ms. Doe today.' },
-      validate: v.all(v.patternEquals('(?:Mrs|Mr|Ms)\\. \\w+'), v.matchesExactly(3)),
-      hints: t.s2_hints,
-      solution: {
-        pattern: '(?:Mrs|Mr|Ms)\\. \\w+',
-        explanation: t.s2_explanation,
-      },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'lookaround-lookahead',
 };
+
+export function createNamedAndNonCapturingLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'groups-named-and-noncapturing',
+    trackId: 'groups',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Born 1990-05-15. Joined 2019-03-22.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(
+          v.patternEquals('(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})'),
+          v.matchesExactly(2),
+        ),
+        hints: [t.s1_hint],
+        solution: {
+          pattern: '(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})',
+          explanation: t.s1_explanation,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'Hi Mr. Smith, Mrs. Jones, Ms. Doe today.' },
+        validate: v.all(v.patternEquals('(?:Mrs|Mr|Ms)\\. \\w+'), v.matchesExactly(3)),
+        hints: t.s2_hints,
+        solution: {
+          pattern: '(?:Mrs|Mr|Ms)\\. \\w+',
+          explanation: t.s2_explanation,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'lookaround-lookahead',
+  };
+}
+
+export const namedAndNonCapturingLesson = createNamedAndNonCapturingLesson();

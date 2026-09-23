@@ -13,6 +13,32 @@ const raw = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('bas
 afterEach(() => vi.unstubAllGlobals());
 
 describe('workspace URLs', () => {
+  it('survives rejected history writes and removes a stale share before recovering', () => {
+    const replaceState = vi.fn().mockImplementationOnce(() => {
+      throw new DOMException('URL is too long', 'SecurityError');
+    });
+    vi.stubGlobal('window', {
+      location: {
+        origin: 'https://regexstudio.com',
+        pathname: '/ja',
+        search: '?challenge=email-find&source=test',
+      },
+      history: { replaceState },
+    });
+    const payload: SharePayload = { v: 3, e: 'javascript', p: 'a', f: 'g', t: 'a' };
+    expect(() => writeShareToLocation(payload)).not.toThrow();
+    expect(replaceState).toHaveBeenNthCalledWith(2, null, '', '/ja?source=test');
+    writeShareToLocation(payload);
+    expect(replaceState).toHaveBeenLastCalledWith(
+      null,
+      '',
+      `/ja?source=test#s=${encodeShare(payload)}`,
+    );
+    replaceState.mockImplementation(() => {
+      throw new DOMException('History is unavailable', 'SecurityError');
+    });
+    expect(() => writeShareToLocation(payload)).not.toThrow();
+  });
   it.each([
     '?challenge=email-find&source=test',
     '?lesson=basics-literals&step=2&source=test',

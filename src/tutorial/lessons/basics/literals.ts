@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -81,64 +82,90 @@ const TEXTS = {
       '下一课我们看 **字符类** —— 一次表达一组字符。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const literalsLesson: Lesson = {
-  id: 'basics-literals',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 3,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'cat sat on the mat. The cat was black. Concatenate.',
+  ja: {
+    title: 'リテラル: 文字から始める正規表現',
+    summary: '「文字はその文字自身に一致する」を理解し、最初の正規表現を書きます。',
+    s1_title: '最初の「cat」に一致させる',
+    s1_body: '正規表現の入力欄に `cat` と入力し、右側のテスト文字列を見てみましょう。',
+    s1_hint: '特別な意味のない文字は、その文字自身に一致します。`cat` と入力するだけです。',
+    s2_title: '何回一致しましたか？',
+    s2_body:
+      '`Concatenate` の中の「cat」を含め、**3** か所が強調表示されます。\n`g` フラグが有効なとき、テキスト内のすべての一致を検索します。\n\n3 か所を確認できたら、次に進みましょう。',
+    s3_title: '独立した単語だけに一致させる',
+    s3_body:
+      'パターンを `\\bcat\\b` に変え、「Concatenate」の中の「cat」を除外しましょう。\n\n`\\b` は**単語境界**です。単語構成文字とそれ以外の文字の境目に一致します。',
+    s3_hints: ['「単語の境界」を指定する必要があります。', '`\\b` を試してください。'],
+    s3_explanation:
+      '`\\b` は単語境界です。「Concatenate」内の「cat」は両側に境界がないため除外されます。',
+    s4_title: '大文字・小文字を区別しない',
+    s4_body:
+      'テスト文字列に大文字で始まる「Cat」が加わりました。\nパターンを変えずに `i` フラグを有効にし、両方に一致させましょう。',
+    s4_hint: 'パターン入力欄の右側、`/.../` の隣のフラグ欄をクリックしてください。',
+    s5_title: 'まとめ',
+    s5_body:
+      '学んだこと:\n\n- **通常の文字**はその文字自身に一致\n- `\\b` は**単語境界**\n- `i` フラグで**大文字・小文字の区別**を切り替え\n\n次は**文字クラス**で複数の文字をまとめて指定します。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('cat'), v.matchesAtLeast(1)),
-      hints: [t.s1_hint],
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.matchesExactly(3),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('\\bcat\\b'), v.matchesExactly(2)),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '\\bcat\\b',
-        explanation: t.s3_explanation,
-      },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: {
-        testText: 'cat sat on the mat. The Cat was black. Concatenate.',
-      },
-      validate: v.all(v.flagEnabled('i'), v.matchesExactly(2)),
-      hints: [t.s4_hint],
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-classes',
 };
+
+export function createLiteralsLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-literals',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 3,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'cat sat on the mat. The cat was black. Concatenate.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('cat'), v.matchesAtLeast(1)),
+        hints: [t.s1_hint],
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.matchesExactly(3),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\bcat\\b'), v.matchesExactly(2)),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '\\bcat\\b',
+          explanation: t.s3_explanation,
+        },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: {
+          testText: 'cat sat on the mat. The Cat was black. Concatenate.',
+        },
+        validate: v.all(v.flagEnabled('i'), v.matchesExactly(2)),
+        hints: [t.s4_hint],
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-classes',
+  };
+}
+
+export const literalsLesson = createLiteralsLesson();

@@ -15,6 +15,7 @@ import { findChallenge, CHALLENGES } from '@/challenges/data';
 import { challengeCaseId, evaluateChallengeFromResults } from '@/challenges/evaluator';
 import { MarkdownLite } from '../tutorial/MarkdownLite';
 import { useT } from '@/lib/i18n';
+import { ExpectedMatches } from './ExpectedMatches';
 
 export function ChallengeRunner() {
   const t = useT();
@@ -55,7 +56,7 @@ export function ChallengeRunner() {
 
   const evaluation = useMemo(() => {
     if (!challenge) return null;
-    const counts = new Map(
+    const results = new Map(
       testResults
         .filter(
           (r) =>
@@ -65,9 +66,9 @@ export function ChallengeRunner() {
             !r.timedOut &&
             !r.executionError,
         )
-        .map((r) => [r.id, r.matchCount]),
+        .map((r) => [r.id, r]),
     );
-    return evaluateChallengeFromResults(challenge, pattern, validation, counts);
+    return evaluateChallengeFromResults(challenge, pattern, validation, results);
   }, [challenge, pattern, validation, testResults]);
 
   // Auto-mark solved the moment evaluation flips to solved.
@@ -233,6 +234,7 @@ export function ChallengeRunner() {
                     <em className="not-italic text-gray-400">{t.chal_runner_empty_input()}</em>
                   )}
                 </div>
+                <ExpectedMatches texts={challenge.testCases[r.index].assertions?.texts} />
               </div>
             </div>
           ))}

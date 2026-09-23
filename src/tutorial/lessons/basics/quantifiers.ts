@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -75,58 +76,82 @@ const TEXTS = {
       'Track 1 完结。下一阶段我们深入量词的**贪婪/懒惰**与精确控制 `{n,m}`。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const quantifiersIntroLesson: Lesson = {
-  id: 'basics-quantifiers',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'Order 2025 has 42 items.',
+  ja: {
+    title: '量指定子の入門: `+ * ?`',
+    summary: '要素を繰り返して、連続する文字に一致させます。',
+    s1_title: '`+` — 1 回以上',
+    s1_body:
+      '`+` は直前の要素を **1 回以上**繰り返します。\n\n`\\d+` を書き、連続する数字をひとまとまりとして一致させましょう。',
+    s1_hint: '`\\d` は「数字 1 文字」、`\\d+` は「1 文字以上の数字」です。',
+    s2_title: '`?` — 省略可能',
+    s2_body:
+      '`?` は直前の要素を **0 または 1 回**にします。文字の省略を表す基本的な方法です。\n\n新しいテキストで「color」と「colour」の両方に一致するパターンを書きましょう。',
+    s2_hint: '英国式の綴りには `u` が 1 文字多くあります。この文字を省略可能にしましょう。',
+    s2_explanation:
+      '`u?` は u があってもなくてもよいという意味なので、color と colour の両方に一致します。',
+    s3_title: '`*` — 0 回以上',
+    s3_body:
+      '`*` は **0 回以上**を表します。`+` に似ていますが、「一度もない」場合も許可します。\n\n新しいテキストで `color`、`colour`、`colouur` に一致するパターンを書きましょう。',
+    s3_hint: '`u` が何回現れてもよいようにします（0 回も含む）。',
+    s4_title: 'まとめ',
+    s4_body:
+      '3 つの量指定子:\n\n- `+` は 1 回以上\n- `*` は 0 回以上\n- `?` は 0 または 1 回（省略可能）\n\n基礎コースは完了です。次は**貪欲一致と最短一致**、回数指定 `{n,m}` を詳しく学びます。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('\\d+'), v.matchesExactly(2)),
-      hints: [t.s1_hint],
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      setup: { testText: 'color or colour' },
-      validate: v.all(v.patternEquals('colou?r'), v.matchesExactly(2)),
-      hints: [t.s2_hint],
-      solution: {
-        pattern: 'colou?r',
-        explanation: t.s2_explanation,
-      },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      setup: { testText: 'color colour colouur' },
-      validate: v.all(v.patternEquals('colou*r'), v.matchesExactly(3)),
-      hints: [t.s3_hint],
-      solution: { pattern: 'colou*r' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'quantifiers-greedy',
 };
+
+export function createQuantifiersIntroLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-quantifiers',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'Order 2025 has 42 items.',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('\\d+'), v.matchesExactly(2)),
+        hints: [t.s1_hint],
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        setup: { testText: 'color or colour' },
+        validate: v.all(v.patternEquals('colou?r'), v.matchesExactly(2)),
+        hints: [t.s2_hint],
+        solution: {
+          pattern: 'colou?r',
+          explanation: t.s2_explanation,
+        },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        setup: { testText: 'color colour colouur' },
+        validate: v.all(v.patternEquals('colou*r'), v.matchesExactly(3)),
+        hints: [t.s3_hint],
+        solution: { pattern: 'colou*r' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'quantifiers-greedy',
+  };
+}
+
+export const quantifiersIntroLesson = createQuantifiersIntroLesson();

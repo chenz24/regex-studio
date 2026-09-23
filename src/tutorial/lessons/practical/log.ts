@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -58,8 +59,12 @@ const TEXTS = {
       '',
       'You should get exactly **2** matches.',
     ].join('\n'),
-    s4_hints: ['`(?=ERROR)` is a zero-width assertion.', "There's no need to write `ERROR` in the body — the lookahead already checked it."],
-    s4_explanation: 'Without lookahead, `^\\[([\\d\\- :]+)\\] ERROR` would also pick 2 rows, but the match text would include "ERROR" — less convenient if you only want the timestamp.',
+    s4_hints: [
+      '`(?=ERROR)` is a zero-width assertion.',
+      "There's no need to write `ERROR` in the body — the lookahead already checked it.",
+    ],
+    s4_explanation:
+      'Without lookahead, `^\\[([\\d\\- :]+)\\] ERROR` would also pick 2 rows, but the match text would include "ERROR" — less convenient if you only want the timestamp.',
     s5_title: 'Recap',
     s5_body: [
       'This lesson combined several tools:',
@@ -89,10 +94,7 @@ const TEXTS = {
       '',
       '中括号里的字符类允许：数字、`-`、`:` 和空格。',
     ].join('\n'),
-    s2_hints: [
-      '字符类里 `-` 放在最前/最后或转义后才表示字面减号。',
-      '右括号也要转义：`\\]`。',
-    ],
+    s2_hints: ['字符类里 `-` 放在最前/最后或转义后才表示字面减号。', '右括号也要转义：`\\]`。'],
     s3_title: '加入命名捕获',
     s3_body: [
       '编号组容易混。换成**命名捕获**让代码更易读：`(?<name>...)`。',
@@ -118,7 +120,8 @@ const TEXTS = {
       '应该正好 **2** 个匹配。',
     ].join('\n'),
     s4_hints: ['`(?=ERROR)` 是零宽断言。', '不需要再写 `ERROR` 在主体里——lookahead 已经检查过了。'],
-    s4_explanation: '如果不用 lookahead，写 `^\\[([\\d\\- :]+)\\] ERROR` 也能挑出 2 行，但匹配文本会多 "ERROR" 这几个字，不利于直接拿时间戳。',
+    s4_explanation:
+      '如果不用 lookahead，写 `^\\[([\\d\\- :]+)\\] ERROR` 也能挑出 2 行，但匹配文本会多 "ERROR" 这几个字，不利于直接拿时间戳。',
     s5_title: '小结',
     s5_body: [
       '本课融合了之前的多个工具：',
@@ -130,80 +133,113 @@ const TEXTS = {
       '⚠️ 真实日志格式各家不同；做到"先看一眼示例 → 写一个能跑的最小版本 → 再迭代加严"通常比一次性写"完美正则"靠谱得多。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const logLesson: Lesson = {
-  id: 'practical-log',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 7,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'gm',
-    testText: LOG,
+  ja: {
+    title: 'ログ行を解析する',
+    summary: 'アンカー・名前付きキャプチャ・先読みを組み合わせ、ログを項目に分けます。',
+    s1_title: '各行の先頭に固定する',
+    s1_body:
+      '各ログ行は `[YYYY-MM-DD HH:MM:SS] LEVEL MSG` の形式です。\n\n`m` フラグはすでに有効なので、`^` が各行の先頭に一致します。\n\nまず `^\\[` で左の角括弧を指定しましょう。**6** 件一致します。',
+    s1_hint: 'パターン内の `[` は `\\[` とエスケープします。',
+    s2_title: '日時をキャプチャする',
+    s2_body:
+      '括弧内の内容を `^\\[([\\d\\- :]+)\\]` でキャプチャしましょう。\n\n文字クラスは数字・`-`・`:`・スペースを許可します。',
+    s2_hints: [
+      '文字クラス内で `-` 自体を使うには、先頭か末尾に置くかエスケープします。',
+      '閉じ角括弧も `\\]` とエスケープしてください。',
+    ],
+    s3_title: '名前付きグループに変更する',
+    s3_body:
+      '番号だけでは混同しやすいので、`(?<name>...)` で**名前付きグループ**にしましょう。\n\n`^\\[(?<ts>[\\d\\- :]+)\\] (?<level>\\w+)\\s+(?<msg>.*)$`\n\n`ts` が日時、`level` がレベル、`msg` が残りのメッセージです。',
+    s3_hints: [
+      '`(?<ts>...)` でグループに名前を付けます。',
+      '`\\s+` はレベルの後の空白をまとめて取ります（INFO と ERROR の桁をそろえる空白）。',
+      '`.*$` は行末まで一致します。',
+    ],
+    s3_explanation: '一致結果に ts / level / msg の 3 つの名前付きグループが表示されます。',
+    s4_title: 'ERROR 行だけを選ぶ — 先読みの活用',
+    s4_body:
+      'ERROR 行の日時だけに一致させるには、先読みを使います。\n\n`^\\[([\\d\\- :]+)\\] (?=ERROR)`\n\n`(?=ERROR)` は「ERROR」を**消費せず**にレベルを確認します。\n\nちょうど **2** 件一致します。',
+    s4_hints: [
+      '`(?=ERROR)` は幅ゼロのアサーションです。',
+      '先読みが確認済みなので、通常の一致部分に ERROR を追加する必要はありません。',
+    ],
+    s4_explanation:
+      '`^\\[([\\d\\- :]+)\\] ERROR` でも 2 行を選べますが、一致に「ERROR」も含まれます。日時だけが必要な場合は先読みが便利です。',
+    s5_title: 'まとめ',
+    s5_body:
+      '組み合わせた構文:\n\n- `m` と `^`、`$` で行ごとに処理\n- `(?<name>...)` で構造化した出力\n- `(?=...)` で「選ぶ条件」と「取り出す内容」を分離\n\n実際のログ形式はさまざまです。サンプルを確認し、最小のパターンを作り、少しずつ条件を厳しくしていきましょう。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('^\\['), v.matchesExactly(6)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['^'] },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(
-        v.patternEquals('^\\[([\\d\\- :]+)\\]'),
-        v.matchesExactly(6),
-      ),
-      hints: t.s2_hints,
-      solution: { pattern: '^\\[([\\d\\- :]+)\\]' },
-      spotlight: { patternSubstrings: ['([\\d\\- :]+)'], openPanel: 'matches' },
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('^\\[(?<ts>[\\d\\- :]+)\\] (?<level>\\w+)\\s+(?<msg>.*)$'),
-        v.matchesExactly(6),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '^\\[(?<ts>[\\d\\- :]+)\\] (?<level>\\w+)\\s+(?<msg>.*)$',
-        explanation: t.s3_explanation,
-      },
-      spotlight: { patternSubstrings: ['(?<level>\\w+)'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.all(
-        v.patternEquals('^\\[([\\d\\- :]+)\\] (?=ERROR)'),
-        v.matchesExactly(2),
-      ),
-      hints: t.s4_hints,
-      solution: {
-        pattern: '^\\[([\\d\\- :]+)\\] (?=ERROR)',
-        explanation: t.s4_explanation,
-      },
-      spotlight: { patternSubstrings: ['(?=ERROR)'], openPanel: 'explanation' },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'practical-markdown-link',
 };
+
+export function createLogLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-log',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'intermediate',
+    estimatedMinutes: 7,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'gm',
+      testText: LOG,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('^\\['), v.matchesExactly(6)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['^'] },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('^\\[([\\d\\- :]+)\\]'), v.matchesExactly(6)),
+        hints: t.s2_hints,
+        solution: { pattern: '^\\[([\\d\\- :]+)\\]' },
+        spotlight: { patternSubstrings: ['([\\d\\- :]+)'], openPanel: 'matches' },
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(
+          v.patternEquals('^\\[(?<ts>[\\d\\- :]+)\\] (?<level>\\w+)\\s+(?<msg>.*)$'),
+          v.matchesExactly(6),
+        ),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '^\\[(?<ts>[\\d\\- :]+)\\] (?<level>\\w+)\\s+(?<msg>.*)$',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['(?<level>\\w+)'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.all(v.patternEquals('^\\[([\\d\\- :]+)\\] (?=ERROR)'), v.matchesExactly(2)),
+        hints: t.s4_hints,
+        solution: {
+          pattern: '^\\[([\\d\\- :]+)\\] (?=ERROR)',
+          explanation: t.s4_explanation,
+        },
+        spotlight: { patternSubstrings: ['(?=ERROR)'], openPanel: 'explanation' },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'practical-markdown-link',
+  };
+}
+
+export const logLesson = createLogLesson();

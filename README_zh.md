@@ -63,7 +63,7 @@
 ### 分享与体验
 
 - 🔗 **分享链接** —— 将正则、flags、测试文本与替换内容编码进 URL，一键分享完整上下文
-- � **中英双语 i18n** —— 基于 Paraglide 实现，路由级别区分语言
+- � **中英日三语 i18n** —— 界面、教程与挑战支持英语、简体中文和日语，基于 Paraglide 实现，入口分别为 `/`、`/zh`、`/ja`
 - � **暗色 / 亮色主题** —— 跟随系统或手动切换
 - ⚡ **SSR 友好** —— 基于 TanStack Start，首屏即可渲染，SEO & 分享更友好
 
@@ -205,7 +205,7 @@ pnpm preview    # 本地预览生产产物
 
 ```
 regex-studio/
-├── messages/                  # Paraglide i18n 文案源文件（en.json、zh.json）
+├── messages/                  # Paraglide i18n 文案源文件（en.json、zh.json、ja.json）
 ├── project.inlang/            # Inlang 项目配置
 ├── public/                    # 静态资源（favicon、sitemap 等）
 ├── src/
@@ -264,7 +264,7 @@ regex-studio/
 - 组件使用 **函数式 + Hooks**，避免 class component
 - 样式优先使用 **Tailwind 工具类**，复杂场景再抽 CSS
 - 业务状态用 Zustand 管理，UI 局部状态用 `useState`/`useReducer`
-- 新增界面文案时，请同时维护 `messages/en.json` 与 `messages/zh.json`，并通过 Paraglide 调用
+- 新增界面文案时，请同时维护 `messages/en.json`、`messages/zh.json` 与 `messages/ja.json`，并通过 Paraglide 调用
 
 ---
 

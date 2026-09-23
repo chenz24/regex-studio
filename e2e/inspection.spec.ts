@@ -1,3 +1,4 @@
+import { editorKey } from './editor-keys';
 import { test, expect, type Page } from '@playwright/test';
 
 const patternEditor = (page: Page) =>
@@ -35,7 +36,7 @@ async function open(page: Page, state: Record<string, unknown>, tab = 'Matches')
   await expect(page.getByTestId('match-status')).toHaveText(/\d+ match(?:es)?/);
 }
 async function setPattern(page: Page, value: string) {
-  await patternEditor(page).press('ControlOrMeta+a');
+  await patternEditor(page).press(await editorKey(page, 'a'));
   await patternEditor(page).press('Backspace');
   await patternEditor(page).pressSequentially(value);
   await expect(patternEditor(page)).toHaveText(value);
@@ -83,7 +84,7 @@ test('selects results from the test text and diagram nodes from a source caret',
   await expect(page.getByRole('tab', { name: /^Matches/ })).toHaveAttribute('data-state', 'active');
   await expect(page.getByTestId('inspect-match').first()).toHaveAttribute('aria-pressed', 'true');
   await subjectText(page, 'abcd');
-  await patternEditor(page).press('ControlOrMeta+a');
+  await patternEditor(page).press(await editorKey(page, 'a'));
   await patternEditor(page).press('ArrowLeft');
   await expect(source(page)).toHaveAttribute('data-position', '0');
   await expect(page.locator('svg g[data-inspected=true]')).toHaveCount(1);
@@ -187,7 +188,7 @@ test('links JavaScript steps without intercepting editor arrow keys or retaining
   const text = page
     .getByRole('group', { name: 'Test String', exact: true })
     .locator('[contenteditable=true]');
-  await text.press('ControlOrMeta+a');
+  await text.press(await editorKey(page, 'a'));
   await text.pressSequentially('xx');
   await expect(source(page)).toHaveCount(0);
   await expect(subject(page)).toHaveCount(0);

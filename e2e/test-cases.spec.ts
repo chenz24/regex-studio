@@ -1,3 +1,4 @@
+import { editorKey } from './editor-keys';
 import { readFile } from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 
@@ -16,7 +17,7 @@ async function open(page: Page, state: Record<string, unknown> = {}) {
   await rows(page).locator('summary').click();
 }
 async function setPattern(page: Page, value: string) {
-  await patternEditor(page).press('ControlOrMeta+a');
+  await patternEditor(page).press(await editorKey(page, 'a'));
   await patternEditor(page).press('Backspace');
   await patternEditor(page).pressSequentially(value);
   await expect(patternEditor(page)).toHaveText(value);

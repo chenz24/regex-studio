@@ -1,3 +1,5 @@
+import type { Locale } from '@/paraglide/runtime';
+import { TAG_SAMPLE } from '@/content/regexExamples';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -11,7 +13,8 @@ const TEXTS = {
       'Trying to "match every HTML tag", a beginner naturally writes `<.+>`.',
       'Set the pattern to `<.+>`, then **count** the matches.',
     ].join('\n'),
-    s1_hint: '`.+` is greedy — it stretches as far right as possible until the whole pattern can still match.',
+    s1_hint:
+      '`.+` is greedy — it stretches as far right as possible until the whole pattern can still match.',
     s2_title: 'It overshot',
     s2_body: [
       'Only **1** match, spanning from the first `<` all the way to the last `>`.',
@@ -39,42 +42,120 @@ const TEXTS = {
       '点击"下一步"，看怎么让它克制一点。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const greedyLesson: Lesson = {
-  id: 'quantifiers-greedy',
-  trackId: 'quantifiers',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'intermediate',
-  estimatedMinutes: 4,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: '<b>bold</b> and <i>italic</i> text',
+  ja: {
+    title: '貪欲一致: 量指定子の標準動作',
+    summary: '量指定子は標準でできるだけ多くの文字を消費します。取りすぎることもあります。',
+    s1_title: '`<.+>` の一致を確認する',
+    s1_body:
+      '「HTML タグをそれぞれ取り出す」ために `<.+>` と書くと、どうなるでしょうか。\nパターンを `<.+>` にして、一致の**件数**を数えましょう。',
+    s1_hint: '`.+` は貪欲なので、パターン全体が一致できる範囲で、できるだけ右まで進みます。',
+    s2_title: '取りすぎてしまった',
+    s2_body:
+      '一致は **1** 件だけで、最初の `<` から最後の `>` まで続いています。\n\n`.+` は標準で**貪欲**です。可能な限り進み、パターン全体が成功するまで戻ります。そのため、複数のタグをまたいだ 1 件の一致になります。\n\n「次へ」で、早めに止める方法を見てみましょう。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('<.+>'), v.matchesAtLeast(1)),
-      hints: [t.s1_hint],
-      spotlight: {
-        patternSubstrings: ['.+'],
-        openPanel: 'explanation',
-        scrollExplanation: true,
-      },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'quantifiers-lazy',
 };
+
+const READING = {
+  en: {
+    introduction:
+      'A quantifier controls how often the preceding part of a regex repeats. The default is greedy: it tries a larger repetition count first, then gives characters back if the rest of the pattern needs them. This lesson uses short tag-shaped strings to make that behavior visible.',
+    s1: {
+      title: 'Why one match spans several tags',
+      body: 'In `<.+>`, the two angle brackets are literal characters. The dot matches a character other than a line terminator, and `+` repeats that dot one or more times. The `g` flag searches for further non-overlapping matches after the first match finishes.\n\nStarting at the first `<`, `.+` initially consumes the rest of this one-line input. The final `>` in the pattern cannot match at the end, so the engine backs up to the last `>`. The result includes both the bold and italic sections; the final word `text` is outside the match.\n\n**One match is not the same as one tag.** The global flag does not split an already successful match into smaller ones.',
+    },
+    s2: {
+      title: 'Greedy matching still has to satisfy the whole pattern',
+      body: 'Greedy means “try more repetitions first”, not “always consume every remaining character”. With `a+a` and the input `aaa`, the repeated `a+` must leave one `a` for the final literal. The complete match is still `aaa`.\n\nFor the tag-shaped example, changing `+` to `+?` reverses the order in which repetition counts are tried. The lazy-quantifier lesson shows the four resulting matches. When a delimiter is forbidden inside a field, a negated character class can express that restriction directly.\n\nThese snippets illustrate matching behavior on controlled text. They do not parse arbitrary HTML, whose quoted attributes and nested structure require an HTML parser.',
+    },
+  },
+  zh: {
+    introduction:
+      '量词决定前面的字符或分组重复多少次。默认的贪婪模式会优先尝试更多次重复；如果后续部分匹配不了，再退回一些字符。本课用几段形似 HTML 标签的短文本，说明这个过程。',
+    s1: {
+      title: '为什么一次匹配会跨过多个标签',
+      body: '在 `<.+>` 中，尖括号是普通字符；点号匹配换行符以外的字符，`+` 表示重复一次或多次。`g` 标志让搜索在本次匹配结束后继续寻找下一个不重叠的匹配。\n\n从第一个 `<` 开始，`.+` 最初会匹配这一行剩下的字符。此时模式末尾的 `>` 无法匹配，于是引擎向前退，直到最后一个 `>`。最终结果包含粗体和斜体两段内容，但不包含末尾的 `text`。\n\n**一个匹配不等于一个标签。** 加上 `g` 并不会把已经成功的大段匹配拆成几个小段。',
+    },
+    s2: {
+      title: '贪婪仍然必须满足整个表达式',
+      body: '贪婪表示“优先尝试更多次重复”，并不意味着一定吃掉剩下的全部字符。例如用 `a+a` 匹配 `aaa` 时，`a+` 必须留下一个 `a` 给后面的字面量，完整匹配仍然是 `aaa`。\n\n对于标签示例，把 `+` 改成 `+?` 就会反过来优先尝试更少次重复。惰性量词一课会展示得到的四个匹配。如果字段内部不允许出现分隔符，也可以直接用取反字符类表达这个限制。\n\n这些短文本用于说明匹配行为，不是通用 HTML 解析方案。真实 HTML 中的引号属性和嵌套结构应交给 HTML 解析器处理。',
+    },
+  },
+  ja: {
+    introduction:
+      '量指定子は直前の要素の繰り返し回数を決めます。標準は貪欲一致で、多い回数から試し、後続のパターンに必要なら文字を戻します。このレッスンでは短いタグ状の文字列で動きを確認します。',
+    s1: {
+      title: '1 件の一致が複数のタグをまたぐ理由',
+      body: '`<.+>` の山括弧は通常の文字です。ドットは改行以外の 1 文字、`+` はその 1 回以上の繰り返しです。`g` フラグは最初の一致が終わった位置から、重ならない次の一致を探します。\n\n最初の `<` から始まり、`.+` はまずこの 1 行の残りをすべて消費します。末尾ではパターンの `>` に一致できないため、最後の `>` まで戻ります。結果には太字と斜体の両方の部分が含まれ、最後の `text` は含まれません。\n\n**一致が 1 件でも、タグが 1 個とは限りません。** グローバル検索は、すでに成功した一致を小さく分割しません。',
+    },
+    s2: {
+      title: '貪欲一致でもパターン全体を満たす必要がある',
+      body: '貪欲とは「多い回数から試す」ことです。必ず残りの文字をすべて消費するわけではありません。`a+a` を `aaa` に適用すると、`a+` は最後の `a` のために 1 文字を残します。一致全体は `aaa` です。\n\nタグの例で `+` を `+?` に変えると、回数を試す順序が逆になります。最短一致のレッスンで 4 件の一致を確認できます。区切り文字を内部に含めてはいけない場合は、否定文字クラスでその制約を直接表せます。\n\nこの例は形式を限定したテキストで照合動作を示すものです。引用符付き属性や入れ子を持つ一般的な HTML の解析には、HTML パーサーを使用してください。',
+    },
+  },
+};
+
+export function createGreedyLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  const reading = pickLocale(READING, locale);
+  return {
+    id: 'quantifiers-greedy',
+    trackId: 'quantifiers',
+    title: t.title,
+    summary: t.summary,
+    reading: {
+      introduction: reading.introduction,
+      references: [
+        {
+          title: 'MDN: Quantifiers',
+          url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Quantifiers',
+        },
+      ],
+    },
+    difficulty: 'intermediate',
+    estimatedMinutes: 4,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: TAG_SAMPLE,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        reading: {
+          ...reading.s1,
+          examples: [
+            {
+              pattern: '<.+>',
+              flags: 'g',
+              testText: TAG_SAMPLE,
+              matches: [{ text: '<b>bold</b> and <i>italic</i>' }],
+            },
+          ],
+        },
+        validate: v.all(v.patternEquals('<.+>'), v.matchesAtLeast(1)),
+        hints: [t.s1_hint],
+        spotlight: {
+          patternSubstrings: ['.+'],
+          openPanel: 'explanation',
+          scrollExplanation: true,
+        },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        reading: {
+          ...reading.s2,
+          examples: [{ pattern: 'a+a', flags: 'g', testText: 'aaa', matches: [{ text: 'aaa' }] }],
+        },
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'quantifiers-lazy',
+  };
+}
+
+export const greedyLesson = createGreedyLesson();

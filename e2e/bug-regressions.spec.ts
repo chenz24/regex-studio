@@ -1,3 +1,4 @@
+import { editorKey } from './editor-keys';
 import { test, expect, type Page } from '@playwright/test';
 
 const editor = (page: Page) =>
@@ -23,21 +24,21 @@ test('editors undo and redo a complete deletion without losing the original inpu
     [textEditor(page), 'sample', 'Enter test string...'],
   ] as const) {
     await input.click();
-    await input.press('ControlOrMeta+a');
+    await input.press(await editorKey(page, 'a'));
     await input.press('Backspace');
     await expect(input).toContainText(placeholder);
-    await input.press('ControlOrMeta+z');
+    await input.press(await editorKey(page, 'z'));
     await expect(input).toHaveText(original);
-    await input.press('ControlOrMeta+Shift+z');
+    await input.press(await editorKey(page, 'Shift+z'));
     await expect(input).toContainText(placeholder);
-    await input.press('ControlOrMeta+z');
+    await input.press(await editorKey(page, 'z'));
     await expect(input).toHaveText(original);
   }
-  await editor(page).press('ControlOrMeta+a');
+  await editor(page).press(await editorKey(page, 'a'));
   await editor(page).press('Backspace');
   await page.getByTitle('Undo (⌘Z / Ctrl+Z)', { exact: true }).click();
   await expect(editor(page)).toHaveText('abc');
-  await editor(page).press('ControlOrMeta+Shift+z');
+  await editor(page).press(await editorKey(page, 'Shift+z'));
   await expect(editor(page)).toContainText('Enter your regex pattern...');
   await editor(page).evaluate((el) =>
     el.dispatchEvent(
@@ -54,6 +55,8 @@ test('editors undo and redo a complete deletion without losing the original inpu
 test('shared multiline patterns keep their source, matches and copied literal consistent', async ({
   page,
 }) => {
+  // Five full navigations, edit/undo cycles and debounced share saves on slow CI.
+  test.setTimeout(60_000);
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'clipboard', {
       value: {
@@ -75,7 +78,7 @@ test('shared multiline patterns keep their source, matches and copied literal co
     );
     expect(new Function(`return ${literal}`)().test(pattern)).toBe(true);
     // A further edit must preserve every original line ending in the store.
-    await editor(page).press('ControlOrMeta+End');
+    await editor(page).press(await editorKey(page, 'End'));
     await editor(page).pressSequentially('c');
     await expect
       .poll(
@@ -83,16 +86,16 @@ test('shared multiline patterns keep their source, matches and copied literal co
       )
       .toBe(`${pattern}c`);
     await expect(page.getByTestId('match-status')).toHaveText('0 matches');
-    await editor(page).press('ControlOrMeta+z');
+    await editor(page).press(await editorKey(page, 'z'));
     await expect(page.getByTestId('match-status')).toHaveText('1 match');
-    await textEditor(page).press('ControlOrMeta+End');
+    await textEditor(page).press(await editorKey(page, 'End'));
     await textEditor(page).pressSequentially('c');
     await expect
       .poll(
         async () => JSON.parse(Buffer.from(page.url().split('#s=')[1], 'base64url').toString()).t,
       )
       .toBe(`${pattern}c`);
-    await textEditor(page).press('ControlOrMeta+z');
+    await textEditor(page).press(await editorKey(page, 'z'));
     await expect
       .poll(
         async () => JSON.parse(Buffer.from(page.url().split('#s=')[1], 'base64url').toString()).t,
@@ -380,7 +383,7 @@ for (const entry of [
     // Drive CodeMirror's own selection on touch Chromium; fill() can leave
     // its model selection collapsed. Replace in one input event, without
     // triggering iOS's delayed Backspace handling on an already empty editor.
-    await editor(page).press('ControlOrMeta+a');
+    await editor(page).press(await editorKey(page, 'a'));
     await page.keyboard.insertText('SAVED_WORKSPACE');
     await expect(editor(page)).toHaveText('SAVED_WORKSPACE');
     await expect
@@ -426,12 +429,12 @@ test('recovers immediately from obsolete slow matches after rapid editing', asyn
     const text = `${'a'.repeat(length)}!`;
     // Use CodeMirror's selection transaction. On touch Chromium, fill() can
     // insert at the DOM selection while leaving the old document suffix.
-    await input.press('ControlOrMeta+a');
+    await input.press(await editorKey(page, 'a'));
     await input.press('Backspace');
     await input.pressSequentially(text);
     await expect(input).toHaveText(text);
   }
-  await editor(page).press('ControlOrMeta+a');
+  await editor(page).press(await editorKey(page, 'a'));
   await editor(page).press('Backspace');
   await editor(page).pressSequentially('^a+$');
   await expect(editor(page)).toHaveText('^a+$');

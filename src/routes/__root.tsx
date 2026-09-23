@@ -9,54 +9,80 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { getAnalyticsScripts, trackPageView } from '@/lib/analytics';
-import { isLocale, LocaleProvider, localizedPath, splitLocalePath, useT } from '@/lib/i18n';
+import { getStructuredData, serializeStructuredData } from '@/lib/structuredData';
+import {
+  isLocale,
+  LocaleProvider,
+  localizedPath,
+  splitLocalePath,
+  useLocale,
+  useT,
+} from '@/lib/i18n';
 import { m } from '@/paraglide/messages';
+import { HTML_LANG, OG_LOCALE } from '@/lib/localeMetadata';
 import { baseLocale, type Locale, locales } from '@/paraglide/runtime';
+import type { PublicPageMeta } from '@/content/publicCatalog';
 import appCss from '../index.css?url';
 
 const SITE_URL =
-  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env
-    ?.VITE_SITE_URL as string | undefined) ?? 'https://regexstudio.com';
+  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SITE_URL as
+    | string
+    | undefined) ?? 'https://regexstudio.com';
 const SITE_NAME = 'RegexStudio';
 
-const HTML_LANG: Record<Locale, string> = {
-  en: 'en',
-  zh: 'zh-CN',
-};
-
-const OG_LOCALE: Record<Locale, string> = {
-  en: 'en_US',
-  zh: 'zh_CN',
-};
-
 export const Route = createRootRoute({
-  beforeLoad: ({ location }): { locale: Locale } => {
+  beforeLoad: async ({
+    location,
+  }): Promise<{ locale: Locale; seoPath: string; publicPage?: PublicPageMeta }> => {
     const seg = location.pathname.split('/').filter(Boolean)[0];
     // /en/... is not canonical — base locale has no prefix. Redirect to the
     // un-prefixed equivalent, preserving search + hash.
     if (seg === (baseLocale as string)) {
       const prefix = `/${seg}`;
-      const rest = location.href.startsWith(prefix)
-        ? location.href.slice(prefix.length) || '/'
-        : '/';
-      throw redirect({ href: rest, replace: true });
+      const rest = `/${location.pathname.slice(prefix.length).replace(/^\/+/, '')}`;
+      const suffix = location.searchStr + (location.hash ? `#${location.hash}` : '');
+      throw redirect({ href: rest + suffix, replace: true, statusCode: 308 });
     }
     const locale: Locale =
       seg && isLocale(seg) && seg !== (baseLocale as string)
         ? (seg as Locale)
         : (baseLocale as Locale);
-    return { locale };
+    const seoPath = location.pathname.replace(/\/+$/, '') || '/';
+    const { rest } = splitLocalePath(seoPath);
+    // Keep the lesson/challenge content out of the tool's initial bundle.
+    const publicPage = /^\/(learn|challenges)\/[^/]+$/.test(rest)
+      ? (await import('@/content/publicCatalog')).getPublicPage(rest, locale)
+      : undefined;
+    return { locale, seoPath, publicPage };
   },
   head: ({ match }) => {
     const locale =
       (match.context as { locale?: Locale } | undefined)?.locale ?? (baseLocale as Locale);
-    const pathname = (match as { pathname?: string }).pathname ?? '/';
+    // A root match always has pathname "/", even on an unknown URL. Use the
+    // request location captured in beforeLoad for page-specific metadata.
+    const pathname = (match.context as { seoPath?: string }).seoPath ?? '/';
     const { rest: basePath } = splitLocalePath(pathname);
-    const pageType: 'home' | 'unknown' = basePath === '/' ? 'home' : 'unknown';
-    const isKnown = pageType !== 'unknown';
+    const page = (match.context as { publicPage?: PublicPageMeta }).publicPage;
+    const isKnown = ['/', '/learn', '/challenges'].includes(basePath) || !!page;
 
-    const title = m.site_title({}, { locale });
-    const description = m.site_description({}, { locale });
+    const title = page
+      ? `${page.title} | ${SITE_NAME}`
+      : basePath === '/learn'
+        ? `${m.learn_title({}, { locale })} | ${SITE_NAME}`
+        : basePath === '/challenges'
+          ? `${m.content_challenges_title({}, { locale })} | ${SITE_NAME}`
+          : isKnown
+            ? m.site_title({}, { locale })
+            : `${m.not_found_title({}, { locale })} | ${SITE_NAME}`;
+    const description = page
+      ? page.description
+      : basePath === '/learn'
+        ? m.learn_description({}, { locale })
+        : basePath === '/challenges'
+          ? m.content_challenges_description({}, { locale })
+          : isKnown
+            ? m.site_description({}, { locale })
+            : m.not_found_description({}, { locale });
     const canonicalHref = `${SITE_URL}${localizedPath(basePath, locale)}`;
     const ogImage = `${SITE_URL}/og.png`;
 
@@ -73,11 +99,11 @@ export const Route = createRootRoute({
       meta.push({ name: 'robots', content: 'noindex,follow' });
     }
     meta.push(
-      { property: 'og:type', content: 'website' },
+      { property: 'og:type', content: page ? 'article' : 'website' },
       { property: 'og:site_name', content: SITE_NAME },
       { property: 'og:title', content: title },
       { property: 'og:description', content: description },
-      { property: 'og:url', content: canonicalHref },
+      ...(isKnown ? [{ property: 'og:url', content: canonicalHref }] : []),
       { property: 'og:locale', content: OG_LOCALE[locale] },
       ...(locales as readonly Locale[])
         .filter((l) => l !== locale)
@@ -115,6 +141,15 @@ export const Route = createRootRoute({
     }
 
     const scripts = getAnalyticsScripts();
+    const structuredData = isKnown
+      ? getStructuredData({ origin: SITE_URL, locale, basePath, description, page })
+      : undefined;
+    if (structuredData) {
+      scripts.push({
+        type: 'application/ld+json',
+        children: serializeStructuredData(structuredData),
+      });
+    }
 
     return { meta, links, scripts };
   },
@@ -162,30 +197,35 @@ function RootDocument({ children }: { children: ReactNode }) {
 
 function RootNotFound() {
   const { locale } = Route.useRouteContext();
-  const t = useT();
   return (
     <LocaleProvider value={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
-        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm font-medium uppercase tracking-wide text-teal-600 dark:text-teal-400">
-            {t.not_found_eyebrow()}
-          </p>
-          <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t.not_found_title()}
-          </h1>
-          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-            {t.not_found_description()}
-          </p>
-          <div className="mt-6">
-            <Link
-              to={localizedPath('/', locale)}
-              className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
-            >
-              {t.not_found_back_home()}
-            </Link>
-          </div>
+      <NotFoundContent />
+    </LocaleProvider>
+  );
+}
+
+function NotFoundContent() {
+  const locale = useLocale();
+  const t = useT();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <p className="text-sm font-medium uppercase tracking-wide text-teal-600 dark:text-teal-400">
+          {t.not_found_eyebrow()}
+        </p>
+        <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {t.not_found_title()}
+        </h1>
+        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{t.not_found_description()}</p>
+        <div className="mt-6">
+          <Link
+            to={localizedPath('/', locale)}
+            className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
+          >
+            {t.not_found_back_home()}
+          </Link>
         </div>
       </div>
-    </LocaleProvider>
+    </div>
   );
 }

@@ -138,7 +138,7 @@ to locate the corresponding syntax. **Show source / Show test text** brings that
 ### Sharing & UX
 
 - 🔗 **Share links** — Encode regex, flags, test text and replacement into a shareable URL
-- 🌍 **i18n** — Full English & Simplified Chinese UI powered by Paraglide; locale-aware routes
+- 🌍 **i18n** — English, Simplified Chinese and Japanese UI, tutorials and challenges; locale-aware routes (`/`, `/zh`, `/ja`) powered by Paraglide
 - 🌗 **Light & dark theme** — Follow system or toggle manually
 - ⚡ **SSR-ready** — Built on TanStack Start for fast first paint, friendly to SEO and link sharing
 
@@ -230,7 +230,7 @@ checks for pull requests, pushes to main, and manual dispatches.
 
 ```
 regex-studio/
-├── messages/                  # Paraglide i18n source (en.json, zh.json)
+├── messages/                  # Paraglide i18n source (en.json, zh.json, ja.json)
 ├── project.inlang/            # Inlang project config
 ├── public/                    # Static assets (favicon, sitemap, ...)
 ├── src/
@@ -250,7 +250,7 @@ regex-studio/
 │   ├── routes/                # TanStack Router file-based routes
 │   │   ├── __root.tsx         # Root route (with SSR shell)
 │   │   ├── index.tsx          # Default locale entry
-│   │   └── $locale/           # Locale-aware routes (en, zh)
+│   │   └── $locale/           # Locale-aware routes (en, zh, ja)
 │   ├── stores/                # Zustand stores (regex, tutorial, challenges)
 │   ├── tutorial/              # Lessons, validators, registry
 │   ├── utils/                 # Parser, matcher, diagram IR, codegen, ...
@@ -289,7 +289,7 @@ Contributions of any kind are warmly welcomed — bug reports, feature suggestio
 - Use **functional components + Hooks**; avoid class components
 - Prefer **Tailwind utility classes**; fall back to CSS only when needed
 - Manage business state with Zustand; keep UI-local state in `useState` / `useReducer`
-- For UI strings, add entries to `messages/en.json` and `messages/zh.json` and consume them via Paraglide
+- For UI strings, add entries to `messages/en.json`, `messages/zh.json` and `messages/ja.json` and consume them via Paraglide
 
 ---
 

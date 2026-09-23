@@ -1,9 +1,17 @@
-import { getLocale } from '@/paraglide/runtime';
+import { baseLocale, getLocale, locales, type Locale } from '@/paraglide/runtime';
 
-/**
- * Pick the texts bundle for the current locale.
- * Falls back to the base locale (en) for any unknown value.
- */
-export function pickLocale<T extends { en: unknown; zh: unknown }>(bundles: T): T['en'] | T['zh'] {
-  return getLocale() === 'zh' ? bundles.zh : bundles.en;
+/** Explicit server locale, or the language of the current page for client-loaded content. */
+export function pickLocale<T extends Record<Locale, unknown>>(
+  bundles: T,
+  requestedLocale?: Locale,
+): T[Locale] {
+  // Direct search visits must follow the URL even when a saved preference differs.
+  const segment =
+    typeof window === 'undefined' ? undefined : window.location.pathname.split('/')[1];
+  const locale =
+    requestedLocale ??
+    (typeof window === 'undefined'
+      ? getLocale()
+      : (locales.find((value) => value === segment) ?? baseLocale));
+  return bundles[locale];
 }

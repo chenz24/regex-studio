@@ -1,13 +1,7 @@
 import type { RegexEngine } from '@/types/engineTypes';
-import type { ValidationCheck, ValidationResult, Validator } from './types';
-
-function ok(label: string, detail?: string): ValidationCheck {
-  return { label, pass: true, detail };
-}
-
-function fail(label: string, detail?: string): ValidationCheck {
-  return { label, pass: false, detail };
-}
+import type { ValidationCheck, ValidationContext, ValidationResult, Validator } from './types';
+import { m } from '@/paraglide/messages';
+import { baseLocale } from '@/paraglide/runtime';
 
 function singleCheck(check: ValidationCheck, feedback?: string): ValidationResult {
   return { pass: check.pass, checks: [check], feedback };
@@ -38,92 +32,152 @@ function any(...validators: Validator[]): Validator {
   };
 }
 
-const patternEquals = (expected: string): Validator => (ctx) =>
-  singleCheck(
-    ctx.pattern === expected
-      ? ok(`Pattern equals \`${expected}\``)
-      : fail(`Pattern equals \`${expected}\``, `Current: \`${ctx.pattern || '(empty)'}\``),
-  );
+const options = (ctx: ValidationContext) => ({ locale: ctx.locale ?? baseLocale });
+
+const patternEquals =
+  (expected: string): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_pattern({ expected }, options(ctx)),
+      pass: ctx.pattern === expected,
+      detail:
+        ctx.pattern === expected
+          ? undefined
+          : m.tut_check_current(
+              {
+                value: ctx.pattern || m.tut_check_empty({}, options(ctx)),
+              },
+              options(ctx),
+            ),
+    });
 
 const patternNonEmpty = (): Validator => (ctx) =>
-  singleCheck(
-    ctx.pattern.length > 0 ? ok('Pattern is non-empty') : fail('Pattern is non-empty'),
-  );
+  singleCheck({
+    label: m.tut_check_nonempty({}, options(ctx)),
+    pass: ctx.pattern.length > 0,
+  });
 
 const patternIsValid = (): Validator => (ctx) =>
-  singleCheck(
-    ctx.validation.valid
-      ? ok('Pattern is syntactically valid')
-      : fail('Pattern is syntactically valid', ctx.validation.error),
-  );
+  singleCheck({
+    label: m.tut_check_valid({}, options(ctx)),
+    pass: ctx.validation.valid,
+    detail: ctx.validation.valid ? undefined : ctx.validation.error,
+  });
 
-const matchesAtLeast = (n: number): Validator => (ctx) => {
-  const c = ctx.matches.length;
-  return singleCheck(
-    c >= n
-      ? ok(`At least ${n} match${n === 1 ? '' : 'es'}`, `Found ${c}`)
-      : fail(`At least ${n} match${n === 1 ? '' : 'es'}`, `Found ${c}`),
-  );
-};
+const matchesAtLeast =
+  (count: number): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_at_least({ count }, options(ctx)),
+      pass: ctx.matches.length >= count,
+      detail: m.tut_check_found({ count: ctx.matches.length }, options(ctx)),
+    });
 
-const matchesExactly = (n: number): Validator => (ctx) => {
-  const c = ctx.matches.length;
-  return singleCheck(
-    c === n
-      ? ok(`Exactly ${n} match${n === 1 ? '' : 'es'}`, `Found ${c}`)
-      : fail(`Exactly ${n} match${n === 1 ? '' : 'es'}`, `Found ${c}`),
-  );
-};
+const matchesExactly =
+  (count: number): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_exactly({ count }, options(ctx)),
+      pass: ctx.matches.length === count,
+      detail: m.tut_check_found({ count: ctx.matches.length }, options(ctx)),
+    });
 
 /** All matched substrings (order-insensitive) must equal the expected set. */
-const matchedValuesAre = (expected: string[]): Validator => (ctx) => {
-  const got = ctx.matches.map((m) => m.match).sort();
-  const exp = [...expected].sort();
-  const equal = got.length === exp.length && got.every((v, i) => v === exp[i]);
-  const label = `Matches are exactly: ${expected.map((e) => `"${e}"`).join(', ')}`;
-  return singleCheck(
-    equal
-      ? ok(label)
-      : fail(label, `Got: ${got.map((g) => `"${g}"`).join(', ') || '(none)'}`),
-  );
-};
+const matchedValuesAre =
+  (expected: string[]): Validator =>
+  (ctx) => {
+    const got = ctx.matches.map((match) => match.match).sort();
+    const exp = [...expected].sort();
+    const pass = got.length === exp.length && got.every((value, index) => value === exp[index]);
+    return singleCheck({
+      label: m.tut_check_values(
+        { values: expected.map((value) => `"${value}"`).join(', ') },
+        options(ctx),
+      ),
+      pass,
+      detail: pass
+        ? undefined
+        : m.tut_check_got(
+            {
+              values:
+                got.map((value) => `"${value}"`).join(', ') || m.tut_check_none({}, options(ctx)),
+            },
+            options(ctx),
+          ),
+    });
+  };
 
-const flagEnabled = (key: string): Validator => (ctx) =>
-  singleCheck(
-    ctx.hasFlag(key)
-      ? ok(`Flag \`${key}\` is enabled`)
-      : fail(`Flag \`${key}\` is enabled`),
-  );
+const flagEnabled =
+  (flag: string): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_flag_enabled({ flag }, options(ctx)),
+      pass: ctx.hasFlag(flag),
+    });
 
-const flagDisabled = (key: string): Validator => (ctx) =>
-  singleCheck(
-    !ctx.hasFlag(key)
-      ? ok(`Flag \`${key}\` is disabled`)
-      : fail(`Flag \`${key}\` is disabled`),
-  );
+const flagDisabled =
+  (flag: string): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_flag_disabled({ flag }, options(ctx)),
+      pass: !ctx.hasFlag(flag),
+    });
 
-const engineIs = (engine: RegexEngine): Validator => (ctx) =>
-  singleCheck(
-    ctx.engine === engine
-      ? ok(`Engine is \`${engine}\``)
-      : fail(`Engine is \`${engine}\``, `Current: \`${ctx.engine}\``),
-  );
+const engineIs =
+  (engine: RegexEngine): Validator =>
+  (ctx) =>
+    singleCheck({
+      label: m.tut_check_engine({ engine }, options(ctx)),
+      pass: ctx.engine === engine,
+      detail:
+        ctx.engine === engine
+          ? undefined
+          : m.tut_check_current({ value: ctx.engine }, options(ctx)),
+    });
 
 const allTestCasesPass = (): Validator => (ctx) => {
-  if (ctx.testCases.length === 0) {
-    return singleCheck(fail('All test cases pass', 'No test cases defined'));
-  }
-  const passing = ctx.testCaseResults.filter((r) => r.pass).length;
+  const passed = ctx.testCaseResults.filter((result) => result.pass).length;
   const total = ctx.testCases.length;
-  return singleCheck(
-    passing === total
-      ? ok(`All test cases pass (${passing}/${total})`)
-      : fail(`All test cases pass`, `${passing}/${total} passing`),
-  );
+  return singleCheck({
+    label: m.tut_check_cases({}, options(ctx)),
+    pass: total > 0 && passed === total,
+    detail:
+      total === 0
+        ? m.tut_check_no_cases({}, options(ctx))
+        : m.tut_check_case_progress({ passed, total }, options(ctx)),
+  });
 };
 
 /** Always passes — useful for "informational" steps that just need user click-through. */
 const always = (): Validator => () => ({ pass: true, checks: [] });
+
+/** Verify the documented complete matches and captures, not only a hit count. */
+const matchedResultsAre =
+  (expected: Array<{ text: string; groups: string[] }>): Validator =>
+  (ctx) => {
+    const values = matchedValuesAre(expected.map((item) => item.text))(ctx);
+    const capturesMatch =
+      ctx.matches.length === expected.length &&
+      ctx.matches.every(
+        (match, i) =>
+          match.match === expected[i].text &&
+          JSON.stringify(match.groups.map((group) => group.value)) ===
+            JSON.stringify(expected[i].groups),
+      );
+    return {
+      pass: values.pass && capturesMatch,
+      checks: [
+        ...values.checks,
+        {
+          label:
+            m.reading_whole_match({}, options(ctx)) +
+            ' / ' +
+            m.reading_group({ number: '1…' }, options(ctx)),
+          pass: capturesMatch,
+        },
+      ],
+    };
+  };
 
 export const v = {
   all,
@@ -134,6 +188,7 @@ export const v = {
   matchesAtLeast,
   matchesExactly,
   matchedValuesAre,
+  matchedResultsAre,
   flagEnabled,
   flagDisabled,
   engineIs,

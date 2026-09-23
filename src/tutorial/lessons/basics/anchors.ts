@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -36,7 +37,8 @@ const TEXTS = {
       'We want a "cat" with **word characters on both sides**.',
       '`\\Bcat\\B` — note the capital `B` for the negation.',
     ],
-    s4_explanation: 'Only the "cat" inside "concatenation" has letters on both sides → `\\B` succeeds twice.',
+    s4_explanation:
+      'Only the "cat" inside "concatenation" has letters on both sides → `\\B` succeeds twice.',
     s5_title: 'Recap',
     s5_body: [
       'Key points:',
@@ -77,10 +79,7 @@ const TEXTS = {
       '',
       '在新的文本里，用 `\\Bcat\\B` 找到嵌在其它单词里的 "cat"。',
     ].join('\n'),
-    s4_hints: [
-      '我们要找的是**两侧都是单词字符**的 cat。',
-      '`\\Bcat\\B` —— 注意取反符是大写的 B。',
-    ],
+    s4_hints: ['我们要找的是**两侧都是单词字符**的 cat。', '`\\Bcat\\B` —— 注意取反符是大写的 B。'],
     s4_explanation: '只有 "concatenation" 里的 cat 两侧都是字母 → `\\B` 都成立。',
     s5_title: '小结',
     s5_body: [
@@ -93,69 +92,99 @@ const TEXTS = {
       '下一课讲**量词**——让重复的字符变得可控。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const anchorsLesson: Lesson = {
-  id: 'basics-anchors',
-  trackId: 'basics',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'beginner',
-  estimatedMinutes: 5,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: 'hello world\nfoo bar\nbaz qux',
+  ja: {
+    title: 'アンカー: 特定の位置だけで一致させる',
+    summary: '`^`、`$`、`\\b`、`\\B` は文字ではなく位置に一致します。',
+    s1_title: '`^` — 文字列の先頭',
+    s1_body:
+      '`^` は文字ではなく**位置**に一致します。通常は文字列全体の先頭です。\n\n`^\\w+` を入力して、先頭の単語を強調表示しましょう。',
+    s1_hint: '`\\w+` は「1 文字以上の単語構成文字」を表します。',
+    s2_title: '`m` フラグ — `^` と `$` を行ごとに使う',
+    s2_body:
+      '`m`（複数行）フラグを有効にすると、`^` と `$` が各行の先頭・末尾に一致します。\n\nパターンを変えずに `m` を有効にしましょう。一致は **3** 件になります。',
+    s3_title: '`$` — 行や文字列の末尾',
+    s3_body:
+      '`$` は `^` と対になり、文字列の末尾に一致します。`m` があれば各行の末尾にも一致します。\n\nパターンを `\\w+$` に変え、`m` フラグを使って各行の最後の単語を強調表示しましょう。',
+    s3_hint: '`\\w+$` は、行末に接する連続した単語構成文字です。',
+    s4_title: '`\\b` と `\\B` — 単語境界',
+    s4_body:
+      '`\\b` は**単語構成文字とそれ以外の文字の境目**に一致します。`\\B` はその逆で、両側が同じ種類の位置に一致します。\n\n新しいテキストで `\\Bcat\\B` を使い、別の単語に埋め込まれた「cat」を見つけましょう。',
+    s4_hints: [
+      '両側に**単語構成文字がある**「cat」を探します。',
+      '`\\Bcat\\B` — 否定を表す大文字の `B` に注目してください。',
+    ],
+    s4_explanation:
+      '「concatenation」内の「cat」だけが両側に文字を持つので、両方の `\\B` が成功します。',
+    s5_title: 'まとめ',
+    s5_body:
+      '要点:\n\n- `^` と `$` は文字ではなく**位置**に一致\n- `m` フラグで行ごとの境界も対象に\n- `\\b` は単語境界、`\\B` は単語境界以外\n\n次は**量指定子**で繰り返しを制御します。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('^\\w+'), v.matchesExactly(1)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['^'] },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.all(v.patternEquals('^\\w+'), v.flagEnabled('m'), v.matchesExactly(3)),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(v.patternEquals('\\w+$'), v.flagEnabled('m'), v.matchesExactly(3)),
-      hints: [t.s3_hint],
-      spotlight: { patternSubstrings: ['$'] },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      setup: {
-        pattern: '',
-        flags: 'g',
-        testText: 'the cat is in concatenation. catalog. a cat.',
-      },
-      validate: v.all(v.patternEquals('\\Bcat\\B'), v.matchesExactly(1)),
-      hints: t.s4_hints,
-      solution: {
-        pattern: '\\Bcat\\B',
-        explanation: t.s4_explanation,
-      },
-      spotlight: { patternSubstrings: ['\\B'] },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
-  nextLessonId: 'basics-quantifiers',
 };
+
+export function createAnchorsLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'basics-anchors',
+    trackId: 'basics',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'beginner',
+    estimatedMinutes: 5,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: 'hello world\nfoo bar\nbaz qux',
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(v.patternEquals('^\\w+'), v.matchesExactly(1)),
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['^'] },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.all(v.patternEquals('^\\w+'), v.flagEnabled('m'), v.matchesExactly(3)),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(v.patternEquals('\\w+$'), v.flagEnabled('m'), v.matchesExactly(3)),
+        hints: [t.s3_hint],
+        spotlight: { patternSubstrings: ['$'] },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        setup: {
+          pattern: '',
+          flags: 'g',
+          testText: 'the cat is in concatenation. catalog. a cat.',
+        },
+        validate: v.all(v.patternEquals('\\Bcat\\B'), v.matchesExactly(1)),
+        hints: t.s4_hints,
+        solution: {
+          pattern: '\\Bcat\\B',
+          explanation: t.s4_explanation,
+        },
+        spotlight: { patternSubstrings: ['\\B'] },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+    nextLessonId: 'basics-quantifiers',
+  };
+}
+
+export const anchorsLesson = createAnchorsLesson();

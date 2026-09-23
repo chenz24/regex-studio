@@ -1,3 +1,4 @@
+import type { Locale } from '@/paraglide/runtime';
 import type { Lesson } from '../../types';
 import { v } from '../../validators';
 import { pickLocale } from '../../i18n';
@@ -17,7 +18,7 @@ const TEXTS = {
     s1_hint: '`[^,]+` reads until the next comma.',
     s2_title: 'Problem: a comma inside quotes was treated as a separator',
     s2_body: [
-      'You should see ≥ 7 matches, but the **correct** field count is 5.',
+      'You should see 6 matches, but the **correct** field count is 5.',
       '',
       'The `,` inside `"Wonderland, NJ"` is field content, not a separator — but `[^,]+` does not know that.',
       '',
@@ -33,10 +34,11 @@ const TEXTS = {
       '`|` tries branches in order; if the left side matches it never falls to the right.',
     ].join('\n'),
     s3_hints: [
-      'Without parens, `|`\'s scope is the **whole pattern** — exactly what we want.',
+      "Without parens, `|`'s scope is the **whole pattern** — exactly what we want.",
       '`"` does not need escaping inside a JS regex pattern.',
     ],
-    s3_explanation: '`"Wonderland, NJ"` is captured wholly by the left branch — its inner comma is no longer treated as a separator.',
+    s3_explanation:
+      '`"Wonderland, NJ"` is captured wholly by the left branch — its inner comma is no longer treated as a separator.',
     s4_title: 'A remaining edge case',
     s4_body: [
       'Look at the final match: `"says ""hi"""`.',
@@ -74,7 +76,7 @@ const TEXTS = {
     s1_hint: '`[^,]+` 一直读到下一个逗号为止。',
     s2_title: '问题：引号里的逗号被错切了',
     s2_body: [
-      '匹配数应该 ≥ 7，但**正确**的字段数其实是 5。',
+      '匹配数应该 6，但**正确**的字段数其实是 5。',
       '',
       '`"Wonderland, NJ"` 里的 `,` 是字段内容的一部分，不应该作为分隔符，但 `[^,]+` 不知道这件事。',
       '',
@@ -119,72 +121,117 @@ const TEXTS = {
       '🎉 整套实战 Track 跑完了！现在你已经能把基础、量词、分组、lookaround 拼起来解决日常文本问题。',
     ].join('\n'),
   },
-};
-
-const t = pickLocale(TEXTS);
-
-export const csvLesson: Lesson = {
-  id: 'practical-csv',
-  trackId: 'practical',
-  title: t.title,
-  summary: t.summary,
-  difficulty: 'advanced',
-  estimatedMinutes: 7,
-  initialState: {
-    engine: 'javascript',
-    pattern: '',
-    flags: 'g',
-    testText: ROW,
+  ja: {
+    title: '引用符付き CSV のフィールドを抽出する',
+    summary: '`split(",")` だけでは足りない理由と、`|` で 2 種類のフィールドを扱う方法を学びます。',
+    s1_title: 'まずはカンマで区切る',
+    s1_body:
+      '各フィールドを取る単純な方法は `[^,]+`、つまりカンマ以外の 1 文字以上です。\n\n試して、一致が何件になるか確認しましょう。',
+    s1_hint: '`[^,]+` は次のカンマまで読み進めます。',
+    s2_title: '問題: 引用符の中のカンマまで区切ってしまう',
+    s2_body:
+      '6 件一致しますが、**正しい**フィールド数は 5 です。\n\n`"Wonderland, NJ"` の中のカンマは内容の一部なのに、`[^,]+` は区切りとみなします。\n\nまず**引用符付きフィールド**をひとまとまりで取り、それ以外を `[^,]+` で扱いましょう。`|` で 2 つの形式を分ける方法です。',
+    s3_title: '引用符付きの分岐を追加する',
+    s3_body:
+      '`"[^"]*"|[^,]+` と書きましょう。\n\n- 左側 `"[^"]*"`: 引用符の組と、その中の引用符以外の文字\n- 右側 `[^,]+`: 通常のフィールド\n\n`|` は左から試し、左で成功すれば右には進みません。',
+    s3_hints: [
+      '括弧がなければ `|` は**パターン全体**を分けます。今回はそれが目的です。',
+      'JavaScript の正規表現そのものでは、`"` のエスケープは不要です。',
+    ],
+    s3_explanation:
+      '左の分岐が `"Wonderland, NJ"` 全体を取り、中のカンマを区切りとみなさなくなります。',
+    s4_title: '残る例外を扱う',
+    s4_body:
+      '最後のフィールド `"says ""hi"""` を見てください。\n\nCSV では**内容に含まれる引用符**を**二重にして**表します（`""` が 1 個の `"`）。しかし `[^"]*`は最初の引用符で止まるため、このフィールドが分割されます。\n\nこれに対応するには `"(?:[^"]|"")*"` を使い、「引用符以外」または「連続する 2 個の引用符」を許可します。\n\nパターンを `"(?:[^"]|"")*"|[^,]+` に変更しましょう。',
+    s4_hints: [
+      '`(?:...)` は非キャプチャグループです。番号を使わずに `*` の対象をまとめます。',
+      '内部の `[^"]|""` は「引用符以外の 1 文字」または「2 個連続する引用符」です。',
+    ],
+    s5_title: 'まとめ',
+    s5_body:
+      '要点:\n\n- 2 種類のフィールドを `特殊形式 | 通常形式` で分ける\n- `(?:...)` でキャプチャ番号を使わずに `|` や `*` の範囲を指定\n- 本番の CSV 処理には専用パーサーを使う（CRLF・空フィールド・UTF-8 BOM などへの対応が必要）。正規表現は形式を限定した一時的な抽出に便利\n\n🎉 実践コースは完了です。基礎・量指定子・グループ・先読みと後読みを組み合わせて、日常のテキスト処理に活用しましょう。',
   },
-  steps: [
-    {
-      id: 's1',
-      title: t.s1_title,
-      body: t.s1_body,
-      validate: v.all(v.patternEquals('[^,]+'), v.matchesAtLeast(7)),
-      hints: [t.s1_hint],
-      spotlight: { patternSubstrings: ['[^,]+'], openPanel: 'matches' },
-    },
-    {
-      id: 's2',
-      title: t.s2_title,
-      body: t.s2_body,
-      validate: v.always(),
-    },
-    {
-      id: 's3',
-      title: t.s3_title,
-      body: t.s3_body,
-      validate: v.all(
-        v.patternEquals('"[^"]*"|[^,]+'),
-        v.matchesAtLeast(5),
-      ),
-      hints: t.s3_hints,
-      solution: {
-        pattern: '"[^"]*"|[^,]+',
-        explanation: t.s3_explanation,
-      },
-      spotlight: { patternSubstrings: ['"[^"]*"'], openPanel: 'matches' },
-    },
-    {
-      id: 's4',
-      title: t.s4_title,
-      body: t.s4_body,
-      validate: v.all(
-        v.patternEquals('"(?:[^"]|"")*"|[^,]+'),
-        v.matchesExactly(5),
-      ),
-      hints: t.s4_hints,
-      solution: {
-        pattern: '"(?:[^"]|"")*"|[^,]+',
-      },
-      spotlight: { patternSubstrings: ['(?:[^"]|"")*'], openPanel: 'explanation' },
-    },
-    {
-      id: 's5',
-      title: t.s5_title,
-      body: t.s5_body,
-      validate: v.always(),
-    },
-  ],
 };
+
+export function createCsvLesson(locale?: Locale): Lesson {
+  const t = pickLocale(TEXTS, locale);
+  return {
+    id: 'practical-csv',
+    trackId: 'practical',
+    title: t.title,
+    summary: t.summary,
+    difficulty: 'advanced',
+    estimatedMinutes: 7,
+    initialState: {
+      engine: 'javascript',
+      pattern: '',
+      flags: 'g',
+      testText: ROW,
+    },
+    steps: [
+      {
+        id: 's1',
+        title: t.s1_title,
+        body: t.s1_body,
+        validate: v.all(
+          v.patternEquals('[^,]+'),
+          v.matchedValuesAre(['alice', '42', '"Wonderland', ' NJ"', 'engineer', '"says ""hi"""']),
+        ),
+        solution: { pattern: '[^,]+' },
+        hints: [t.s1_hint],
+        spotlight: { patternSubstrings: ['[^,]+'], openPanel: 'matches' },
+      },
+      {
+        id: 's2',
+        title: t.s2_title,
+        body: t.s2_body,
+        validate: v.always(),
+      },
+      {
+        id: 's3',
+        title: t.s3_title,
+        body: t.s3_body,
+        validate: v.all(
+          v.patternEquals('"[^"]*"|[^,]+'),
+          v.matchedValuesAre([
+            'alice',
+            '42',
+            '"Wonderland, NJ"',
+            'engineer',
+            '"says "',
+            '"hi"',
+            '""',
+          ]),
+        ),
+        hints: t.s3_hints,
+        solution: {
+          pattern: '"[^"]*"|[^,]+',
+          explanation: t.s3_explanation,
+        },
+        spotlight: { patternSubstrings: ['"[^"]*"'], openPanel: 'matches' },
+      },
+      {
+        id: 's4',
+        title: t.s4_title,
+        body: t.s4_body,
+        validate: v.all(
+          v.patternEquals('"(?:[^"]|"")*"|[^,]+'),
+          v.matchedValuesAre(['alice', '42', '"Wonderland, NJ"', 'engineer', '"says ""hi"""']),
+        ),
+        hints: t.s4_hints,
+        solution: {
+          pattern: '"(?:[^"]|"")*"|[^,]+',
+        },
+        spotlight: { patternSubstrings: ['(?:[^"]|"")*'], openPanel: 'explanation' },
+      },
+      {
+        id: 's5',
+        title: t.s5_title,
+        body: t.s5_body,
+        validate: v.always(),
+      },
+    ],
+  };
+}
+
+export const csvLesson = createCsvLesson();

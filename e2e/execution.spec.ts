@@ -1,3 +1,4 @@
+import { editorKey } from './editor-keys';
 import { test, expect, type Page } from '@playwright/test';
 
 const patternEditor = (page: Page) =>
@@ -19,7 +20,7 @@ async function open(page: Page, state: Record<string, unknown> = {}) {
 async function setPattern(page: Page, value: string) {
   const editor = patternEditor(page);
   // Use CodeMirror's selection transaction, including on touch browsers.
-  await editor.press('ControlOrMeta+a');
+  await editor.press(await editorKey(page, 'a'));
   await editor.press('Backspace');
   await editor.pressSequentially(value);
   await expect(editor).toHaveText(value);

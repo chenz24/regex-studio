@@ -1,3 +1,4 @@
+import { editorKey } from './editor-keys';
 import { test, expect, type Page } from '@playwright/test';
 
 const share = (state: Record<string, unknown>) =>
@@ -31,7 +32,7 @@ for (const failure of ['access', 'read', 'write'] as const) {
     await expect(page.locator('html')).toHaveClass(/dark/);
     await page.getByRole('button', { name: 'Switch to light', exact: true }).click();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
-    await editor(page).press('ControlOrMeta+End');
+    await editor(page).press(await editorKey(page, 'End'));
     await editor(page).pressSequentially('+');
     await expect(page.getByTestId('match-status')).toHaveText('1 match');
   });
@@ -62,12 +63,12 @@ test('share navigation restores the whole workspace, cancels old saves and suppo
     }),
   );
   await expect(page.getByTestId('match-status')).toHaveText('3 matches');
-  await editor(page, 'Test String').press('ControlOrMeta+End');
+  await editor(page, 'Test String').press(await editorKey(page, 'End'));
   await editor(page, 'Test String').pressSequentially('a');
   await expect.poll(() => saved(page).t).toBe('aaaa');
 
   // Leave while this edit still has a debounced save queued.
-  await editor(page).press('ControlOrMeta+End');
+  await editor(page).press(await editorKey(page, 'End'));
   await editor(page).pressSequentially('+');
   await page.goto(share({ e: 'pcre2', p: '(?<=a)b', f: '', t: 'ab' }));
   await expect(editor(page)).toHaveText('(?<=a)b');
@@ -78,7 +79,7 @@ test('share navigation restores the whole workspace, cancels old saves and suppo
   );
 
   // A subsequent save proves the store also dropped the old optional fields.
-  await editor(page, 'Test String').press('ControlOrMeta+End');
+  await editor(page, 'Test String').press(await editorKey(page, 'End'));
   await editor(page, 'Test String').pressSequentially('b');
   await expect.poll(() => saved(page).t).toBe('abb');
   expect(saved(page)).toMatchObject({ e: 'pcre2', p: '(?<=a)b', f: '' });
@@ -95,7 +96,7 @@ test('share navigation restores the whole workspace, cancels old saves and suppo
 
   await page.goto('/#s=invalid');
   await expect(editor(page)).toHaveText('(?<=a)b');
-  await editor(page, 'Test String').press('ControlOrMeta+End');
+  await editor(page, 'Test String').press(await editorKey(page, 'End'));
   await editor(page, 'Test String').pressSequentially('c');
   await expect.poll(() => saved(page).t).toBe('abbc');
 });

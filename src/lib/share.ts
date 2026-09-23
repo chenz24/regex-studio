@@ -155,7 +155,18 @@ export function writeShareToLocation(payload: SharePayload): void {
   const encoded = encodeShare(payload);
   const next = `${workspacePath()}${HASH_PREFIX}${encoded}`;
   // Use replaceState so we don't pollute browser history on every keystroke.
-  window.history.replaceState(null, '', next);
+  try {
+    window.history.replaceState(null, '', next);
+  } catch {
+    // Browsers can reject oversized URLs or rate-limit history writes. Keep the
+    // editor and imported cases usable, and remove the stale share if possible.
+    // Full test sets remain available through JSON export.
+    try {
+      window.history.replaceState(null, '', workspacePath());
+    } catch {
+      // History may be unavailable altogether; editing must still work.
+    }
+  }
 }
 
 export function buildShareUrl(payload: SharePayload): string {

@@ -1,3 +1,4 @@
+import { replaceEditorText } from './editor-keys';
 import { expect, test } from '@playwright/test';
 
 test('CSV practice accepts its documented six-match example', async ({ page }) => {
@@ -8,7 +9,7 @@ test('CSV practice accepts its documented six-match example', async ({ page }) =
     .getByRole('group', { name: 'Regular expression', exact: true })
     .locator('[contenteditable=true]');
   // Exercise the live worker while the drawer remains mounted on narrow screens.
-  await editor.fill('[^,]+', { force: true });
+  await replaceEditorText(page, editor, '[^,]+');
   await expect(page.getByTestId('match-status')).toHaveText('6 matches');
   await expect(dialog.getByRole('button', { name: 'Next', exact: true })).toHaveClass(
     /bg-teal-500/,
@@ -26,10 +27,10 @@ test('email challenge rejects partial subdomains and accepts complete matches', 
   const editor = page
     .getByRole('group', { name: 'Regular expression', exact: true })
     .locator('[contenteditable=true]');
-  await editor.fill('\\b[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}\\b', { force: true });
+  await replaceEditorText(page, editor, '\\b[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}\\b');
   await expect(dialog).toContainText('4 / 5');
   await expect(dialog).toContainText('alice+filter@mail.sub.example.io');
-  await editor.fill('\\b[\\w.+-]+@(?:[\\w-]+\\.)+[a-zA-Z]{2,}\\b', { force: true });
+  await replaceEditorText(page, editor, '\\b[\\w.+-]+@(?:[\\w-]+\\.)+[a-zA-Z]{2,}\\b');
   await expect(dialog).toContainText('All passed');
   await expect(dialog).toContainText('Solved! Your pattern:');
 });

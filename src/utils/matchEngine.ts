@@ -156,7 +156,7 @@ class EngineQueue {
     if (this.running === entry) {
       clearTimeout(this.timer);
       this.running = null;
-      // Keep a pending WASM initialization. Only an executing worker needs
+      // Keep a pending engine initialization. Only an executing worker needs
       // to be killed; the next input can use the same engine once it loads.
       if (this.ready) {
         this.worker?.terminate();
@@ -225,7 +225,7 @@ class EngineQueue {
             ? new Worker(new URL('../workers/pcre2Worker.ts', import.meta.url), { type: 'module' })
             : new Worker(new URL('../workers/matchWorker.ts', import.meta.url), { type: 'module' });
         this.worker = created;
-        this.ready = this.engine === 'javascript';
+        this.ready = false;
         created.onmessage = (event: MessageEvent<WorkerResponse>) => {
           if (this.worker !== created) return;
           const response = event.data;
@@ -253,7 +253,10 @@ class EngineQueue {
         };
         if (!this.ready)
           this.loadTimer = setTimeout(
-            () => this.discard('PCRE2 engine loading timed out'),
+            () =>
+              this.discard(
+                `${this.engine === 'pcre2' ? 'PCRE2' : 'JavaScript'} engine loading timed out`,
+              ),
             ENGINE_LOAD_TIMEOUT_MS,
           );
       } catch {

@@ -52,11 +52,31 @@ afterEach(() => {
 });
 
 describe('worker scheduling and recovery', () => {
+  it.each([
+    'javascript',
+    'pcre2',
+  ] as const)('starts the %s execution deadline only after the worker is ready', async (engine) => {
+    const api = await import('./matchEngine');
+    const pending = api.runMatch({ ...input('a+'), engine });
+    const worker = ControlledWorker.instances[0];
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS + 100);
+    expect(worker.terminated).toBe(false);
+    expect(worker.requests).toHaveLength(0);
+    worker.ready();
+    expect(worker.requests).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS - 1);
+    expect(worker.terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await pending).timedOut).toBe(true);
+    expect(worker.terminated).toBe(true);
+  });
+
   it('cancels obsolete executions instead of making new input wait for their deadlines', async () => {
     const api = await import('./matchEngine');
     for (let i = 0; i < 5; i++) {
       const controller = new AbortController();
       const pending = api.runMatch(input(`slow-${i}`), controller.signal);
+      ControlledWorker.instances[i].ready();
       controller.abort();
       await Promise.resolve();
       expect((await pending).executionError).toBe('Match request cancelled');
@@ -65,6 +85,7 @@ describe('worker scheduling and recovery', () => {
     }
     const good = api.runMatch(input('a+'));
     const worker = ControlledWorker.instances[5];
+    worker.ready();
     expect(worker.requests[0].pattern).toBe('a+');
     worker.respond();
     expect((await good).timedOut).toBe(false);
@@ -79,6 +100,7 @@ describe('worker scheduling and recovery', () => {
     controller.abort();
     await obsolete;
     const worker = ControlledWorker.instances[0];
+    worker.ready();
     expect(worker.terminated).toBe(false);
     worker.respond();
     await first;
@@ -94,6 +116,7 @@ describe('worker scheduling and recovery', () => {
     const first = api.runMatch(input('shared'), a.signal);
     const second = api.runMatch(input('shared'), b.signal);
     const original = ControlledWorker.instances[0];
+    original.ready();
     a.abort();
     await first;
     expect(original.terminated).toBe(false);
@@ -103,6 +126,7 @@ describe('worker scheduling and recovery', () => {
     const retry = api.runMatch(input('shared'));
     original.respond();
     expect(api.cachedOutcome(api.matchInputKey(input('shared')))).toBeUndefined();
+    ControlledWorker.instances[1].ready();
     ControlledWorker.instances[1].respond();
     expect((await retry).executionError).toBeUndefined();
   });
@@ -116,6 +140,7 @@ describe('worker scheduling and recovery', () => {
     await first;
     expect(ControlledWorker.instances).toHaveLength(1);
     expect(ControlledWorker.instances[0].terminated).toBe(false);
+    ControlledWorker.instances[0].ready();
     ControlledWorker.instances[0].respond();
     await second;
   });
@@ -193,6 +218,7 @@ describe('worker scheduling and recovery', () => {
   it('gives a queued request a fresh budget after the running request times out', async () => {
     const api = await import('./matchEngine');
     const slow = api.runMatch(input('(a+)+$'));
+    ControlledWorker.instances[0].ready();
     await vi.advanceTimersByTimeAsync(50);
     const good = api.runMatch(input('a+'));
     const original = ControlledWorker.instances[0];
@@ -202,6 +228,7 @@ describe('worker scheduling and recovery', () => {
     expect((await slow).timedOut).toBe(true);
     expect(original.terminated).toBe(true);
     const replacement = ControlledWorker.instances[1];
+    replacement.ready();
     expect(replacement.requests[0].pattern).toBe('a+');
 
     // An event queued by the dead worker must not kill its replacement.
@@ -220,6 +247,7 @@ describe('worker scheduling and recovery', () => {
     const first = runMatch(input('a+'));
     expect(runMatch(input('a+'))).toBe(first);
     const worker = ControlledWorker.instances[0];
+    worker.ready();
     expect(worker.requests).toHaveLength(1);
     worker.respond();
     await first;
@@ -228,10 +256,12 @@ describe('worker scheduling and recovery', () => {
   it('allows an explicit retry of a timed-out input', async () => {
     const api = await import('./matchEngine');
     const first = api.runMatch(input('a+'));
+    ControlledWorker.instances[0].ready();
     await vi.advanceTimersByTimeAsync(api.MATCH_TIMEOUT_MS);
     expect((await first).timedOut).toBe(true);
     expect(api.cachedOutcome(api.matchInputKey(input('a+')))).toBeUndefined();
     const retry = api.runMatch(input('a+'));
+    ControlledWorker.instances[1].ready();
     ControlledWorker.instances[1].respond();
     expect((await retry).timedOut).toBe(false);
   });
@@ -242,6 +272,7 @@ describe('worker scheduling and recovery', () => {
     const queued = runMatch(input('a+'));
     ControlledWorker.instances[0].onerror?.();
     expect(await failed).toMatchObject({ timedOut: false, executionError: expect.any(String) });
+    ControlledWorker.instances[1].ready();
     ControlledWorker.instances[1].respond();
     expect((await queued).timedOut).toBe(false);
   });
@@ -256,6 +287,7 @@ describe('worker scheduling and recovery', () => {
 
     const js = api.runMatch({ ...input('a+'), engine: 'javascript' });
     const jsWorker = ControlledWorker.instances[1];
+    jsWorker.ready();
     expect(jsWorker.requests).toHaveLength(1);
     jsWorker.respond();
     expect((await js).timedOut).toBe(false);
@@ -267,9 +299,12 @@ describe('worker scheduling and recovery', () => {
     expect((await pcre).timedOut).toBe(false);
   });
 
-  it('times out an uninitialized PCRE2 engine as a load error and allows retry', async () => {
+  it.each([
+    'javascript',
+    'pcre2',
+  ] as const)('times out an uninitialized %s engine as a load error and allows retry', async (engine) => {
     const api = await import('./matchEngine');
-    const value = { ...input('foo\\Kbar'), engine: 'pcre2' as const };
+    const value = { ...input('foo\\Kbar'), engine };
     const failed = api.runMatch(value);
     await vi.advanceTimersByTimeAsync(api.ENGINE_LOAD_TIMEOUT_MS);
     expect(await failed).toMatchObject({ timedOut: false, executionError: expect.any(String) });
@@ -287,6 +322,7 @@ describe('worker scheduling and recovery', () => {
     const api = await import('./matchEngine');
     const jsInput = input('foo\\Kbar');
     const js = api.runMatch(jsInput);
+    ControlledWorker.instances[0].ready();
     ControlledWorker.instances[0].respond();
     await js;
     const pcreInput = { ...jsInput, engine: 'pcre2' as const };

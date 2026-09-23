@@ -1,4 +1,4 @@
-import { editorKey } from './editor-keys';
+import { replaceEditorText } from './editor-keys';
 import { test, expect, type Page } from '@playwright/test';
 
 const patternEditor = (page: Page) =>
@@ -18,12 +18,7 @@ async function open(page: Page, state: Record<string, unknown> = {}) {
 }
 
 async function setPattern(page: Page, value: string) {
-  const editor = patternEditor(page);
-  // Use CodeMirror's selection transaction, including on touch browsers.
-  await editor.press(await editorKey(page, 'a'));
-  await editor.press('Backspace');
-  await editor.pressSequentially(value);
-  await expect(editor).toHaveText(value);
+  await replaceEditorText(page, patternEditor(page), value);
 }
 
 async function selectEngine(page: Page, name: 'JavaScript' | 'PCRE2') {
@@ -110,7 +105,7 @@ test('keeps the newest input while a real PCRE2 worker waits for its WASM', asyn
   await selectEngine(page, 'PCRE2');
   await requested;
   await expect(status(page)).toContainText('Evaluating');
-  await textEditor(page).fill('bbb');
+  await replaceEditorText(page, textEditor(page), 'bbb');
   await setPattern(page, 'b+');
   // A switch away and back while the old request is loading must stay responsive.
   await selectEngine(page, 'JavaScript');
@@ -146,7 +141,7 @@ test('recovers after a JavaScript timeout and never grades unfinished work as pa
   }));
   await open(page, { tc: cases });
   await page.getByRole('tab', { name: /^Tests/ }).click();
-  await textEditor(page).fill(`${'a'.repeat(32)}!`);
+  await replaceEditorText(page, textEditor(page), `${'a'.repeat(32)}!`);
   await setPattern(page, '^(a+)+$');
   await expect(status(page)).toContainText('execution budget');
   await expect(page.getByRole('tabpanel').getByTitle('Test passes')).toHaveCount(0);
@@ -160,7 +155,7 @@ test('PCRE2 resource limits are recoverable', async ({ page }) => {
   await expect(status(page)).toContainText('execution budget');
   await setPattern(page, '^a+$');
   await matches(page, 0);
-  await textEditor(page).fill('aaa');
+  await replaceEditorText(page, textEditor(page), 'aaa');
   await matches(page, 1);
 });
 
